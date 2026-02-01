@@ -1,0 +1,118 @@
+import { Shield, Wrench, Cable, Camera, ClipboardCheck, BadgeCheck } from 'lucide-react'
+
+export const safetyClimbingSections = [
+  {
+    id: 'datos',
+    title: 'Datos del sitio',
+    description: 'Identificación del sitio y datos de la visita.',
+    icon: ClipboardCheck,
+    items: 12,
+    steps: 1,
+  },
+  {
+    id: 'herrajes',
+    title: 'Herrajes y cable',
+    description: 'Estado de herrajes y condiciones del cable.',
+    icon: Cable,
+    items: 8,
+    steps: 1,
+  },
+  {
+    id: 'prensacables',
+    title: 'Prensacables y carro',
+    description: 'Verificación de prensacables, mordaza y carro.',
+    icon: Wrench,
+    items: 10,
+    steps: 1,
+  },
+  {
+    id: 'tramos',
+    title: 'Tramos (escaleras)',
+    description: 'Estado de tramos, uniones y tornillería.',
+    icon: Shield,
+    items: 8,
+    steps: 1,
+  },
+  {
+    id: 'platinas',
+    title: 'Platinas guardacables',
+    description: 'Cantidad y observaciones.',
+    icon: Shield,
+    items: 2,
+    steps: 1,
+  },
+  {
+    id: 'certificacion',
+    title: 'Certificación',
+    description: 'Evidencia fotográfica y notas.',
+    icon: BadgeCheck,
+    items: 2,
+    steps: 1,
+  },
+]
+
+export const safetySectionFields = {
+  datos: [
+    { id: 'proveedor', label: 'Proveedor', type: 'text', required: true },
+    { id: 'tipoVisita', label: 'Tipo de visita', type: 'text', required: true },
+    { id: 'idSitio', label: 'ID sitio', type: 'text' },
+    { id: 'nombreSitio', label: 'Nombre sitio', type: 'text' },
+    { id: 'tipoSitio', label: 'Tipo sitio', type: 'text' },
+    { id: 'tipoEstructura', label: 'Tipo estructura', type: 'text' },
+    { id: 'altura', label: 'Altura (m)', type: 'number' },
+    { id: 'latitud', label: 'Latitud', type: 'text' },
+    { id: 'longitud', label: 'Longitud', type: 'text' },
+    { id: 'direccion', label: 'Dirección', type: 'textarea' },
+    { id: 'fechaInicio', label: 'Fecha inicio', type: 'date' },
+    { id: 'fechaTermino', label: 'Fecha término', type: 'date' },
+  ],
+  herrajes: [
+    { id: 'herrajeInferior', label: 'Herraje inferior', type: 'text' },
+    { id: 'diametroCable', label: 'Diámetro del cable', type: 'text' },
+    { id: 'comentarioHerrajeInferior', label: 'Comentario herraje inferior', type: 'textarea' },
+    { id: 'herrajeSuperior', label: 'Herraje superior', type: 'text' },
+    { id: 'estadoCable', label: 'Estado del cable', type: 'select', options: ['Bueno', 'Regular', 'Malo', 'N/A'] },
+    { id: 'comentarioCable', label: 'Comentario cable', type: 'textarea' },
+    { id: 'oxidacion', label: '¿Hay oxidación?', type: 'checkbox' },
+    { id: 'comentarioOxidacion', label: 'Comentario oxidación', type: 'textarea' },
+  ],
+  prensacables: [
+    { id: 'prensacableInferior', label: 'Prensacable inferior', type: 'select', options: ['Actual', 'No aplica'] },
+    { id: 'cantidadPrensacables', label: 'Cantidad', type: 'number' },
+    { id: 'distanciamiento', label: 'Distanciamiento', type: 'text' },
+    { id: 'estadoPrensacables', label: 'Estado', type: 'select', options: ['Bueno', 'Regular', 'Malo', 'N/A'] },
+    { id: 'comentarioPrensacables', label: 'Comentario prensacables', type: 'textarea' },
+    { id: 'prensacableSuperior', label: 'Prensacable superior', type: 'select', options: ['Actual', 'No aplica'] },
+    { id: 'tipoCarro', label: 'Tipo de carro', type: 'text' },
+    { id: 'observacionMordaza', label: 'Observación mordaza', type: 'textarea' },
+    { id: 'malaSujecion', label: '¿Mala sujeción?', type: 'select', options: ['No', 'Sí', 'N/A'] },
+    { id: 'comentarioMalaSujecion', label: 'Comentario (mala sujeción)', type: 'textarea' },
+  ],
+  tramos: [
+    { id: 'fotoEscalera', label: 'Foto escalera', type: 'photo' },
+    { id: 'cantidadTramos', label: 'Cantidad de tramos', type: 'number' },
+    { id: 'estadoEscalera', label: 'Estado escalera', type: 'select', options: ['Bueno', 'Regular', 'Malo', 'N/A'] },
+    { id: 'comentarioEscalera', label: 'Comentario escalera', type: 'textarea' },
+    { id: 'cantidadUniones', label: 'Cantidad de uniones', type: 'number' },
+    { id: 'tramosDañados', label: 'Tramos dañados', type: 'text' },
+    { id: 'diametroTornillo', label: 'Diámetro tornillo', type: 'text' },
+    { id: 'comentarioTornillos', label: 'Comentario tornillería', type: 'textarea' },
+  ],
+  platinas: [
+    { id: 'cantidadPlatinas', label: 'Cantidad', type: 'number' },
+    { id: 'observacionPlatinas', label: 'Observación', type: 'textarea' },
+  ],
+  certificacion: [
+    { id: 'fotoCertificacion', label: 'Foto certificación', type: 'photo' },
+    { id: 'observacionCertificacion', label: 'Observación', type: 'textarea' },
+  ],
+}
+
+export const defaultSafetyClimbingData = {
+  datos: {},
+  herrajes: {},
+  prensacables: {},
+  tramos: {},
+  platinas: {},
+  certificacion: {},
+}
