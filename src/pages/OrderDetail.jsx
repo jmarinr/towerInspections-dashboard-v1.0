@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useNavigate, useParams, Link } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Download, Image as ImageIcon, MapPin, User2, Calendar, ClipboardCheck } from 'lucide-react'
 import Card from '../components/ui/Card.jsx'
 import Badge from '../components/ui/Badge.jsx'
@@ -7,6 +7,7 @@ import Button from '../components/ui/Button.jsx'
 import Modal from '../components/ui/Modal.jsx'
 import StructuredData from '../components/StructuredData.jsx'
 import { useOrdersStore } from '../store/useOrdersStore.js'
+import { downloadOrderPdf } from '../utils/pdf/generateOrderPdf.js'
 
 const tone = (status) => (status === 'reviewed' ? 'success' : status === 'submitted' ? 'warning' : 'neutral')
 
@@ -38,11 +39,9 @@ export default function OrderDetail() {
           <ArrowLeft size={16} /> Volver
         </Button>
 
-        <Link to={`/orders/${order.id}/report`}>
-          <Button variant="accent">
-            <Download size={16} /> Descargar informe
-          </Button>
-        </Link>
+        <Button variant="accent" onClick={() => downloadOrderPdf(order)}>
+          <Download size={16} /> Descargar informe
+        </Button>
       </div>
 
       <Card className="p-4">

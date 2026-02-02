@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Printer } from 'lucide-react'
+import { ArrowLeft, Download } from 'lucide-react'
 import { useOrdersStore } from '../store/useOrdersStore.js'
 import Badge from '../components/ui/Badge.jsx'
 import Button from '../components/ui/Button.jsx'
 import StructuredData from '../components/StructuredData.jsx'
+import { downloadOrderPdf } from '../utils/pdf/generateOrderPdf.js'
 
 export default function ReportView() {
   const { orderId } = useParams()
@@ -31,8 +32,8 @@ export default function ReportView() {
           <Link to={`/orders/${order.id}`}>
             <Button variant="outline"><ArrowLeft size={16}/> Volver</Button>
           </Link>
-          <Button variant="accent" onClick={() => window.print()}>
-            <Printer size={16}/> Imprimir / Guardar PDF
+          <Button variant="accent" onClick={() => downloadOrderPdf(order)}>
+            <Download size={16}/> Descargar PDF
           </Button>
         </div>
 
@@ -94,12 +95,7 @@ export default function ReportView() {
         </div>
       </div>
 
-      <style>{`
-        @media print {
-          .no-print { display: none !important; }
-          body { background: white; }
-        }
-      `}</style>
+      {/* Se mantiene el reporte en pantalla para revisión, pero la descarga se genera como PDF directamente. */}
     </div>
   )
 }
