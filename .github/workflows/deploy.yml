@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -17,29 +17,38 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node (LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: "18"
+          cache: "npm"
 
-      # (Opcional pero recomendado) fija una versión estable de npm para evitar el bug "Exit handler never called!"
       - name: Use stable npm
-        run: npm i -g npm@10.8.2
+        run: |
+          npm i -g npm@10.5.2
+          node -v
+          npm -v
 
       - name: Clean npm cache
         run: npm cache clean --force
 
+      # IMPORTANTE: fuerza dev deps SIEMPRE
       - name: Install deps (ci or fallback)
-        shell: bash
+        env:
+          NODE_ENV: development
         run: |
-          npm ci --include=dev --no-audit --no-fund || npm install --no-audit --no-fund
+          set -e
+          npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
+          npx vite --version
 
       - name: Build
+        env:
+          NODE_ENV: development
         run: npm run build
 
       - name: Setup Pages
@@ -56,10 +65,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
-    # trigger: 1
-
