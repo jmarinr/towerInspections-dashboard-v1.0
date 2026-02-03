@@ -25,13 +25,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-            
+                   
       - name: Use stable npm
         run: npm i -g npm@10.8.2
 
+      - name: Use stable npm
+        run: npm i -g npm@10.8.2
+
+      - name: Clean npm cache
+        run: npm cache clean --force
+
       - name: Install
-        run: npm ci --include=dev --no-audit --no-fund --prefer-offline
+        run: npm install --no-audit --no-fund
+
+      - name: Verify Vite
+        run: npx vite --version
+
 
       - name: Build
         run: npm run build
