@@ -35,7 +35,7 @@ export default function Shell({ children }) {
               <Shield size={18} />
             </div>
             <div className="min-w-0">
-              <div className="font-extrabold text-primary leading-tight">PTI Admin Panel</div>
+              <div className="font-extrabold text-primary leading-tight">Módulo de Inspecciones HenkanCX -Admin Panel</div>
               <div className="text-xs text-primary/60 truncate">Supervisor · {user?.username}</div>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function Shell({ children }) {
         <header className="bg-primary sticky top-0 z-50">
           <div className="px-4 py-4 flex items-center justify-between">
             <div>
-              <div className="text-white font-extrabold leading-tight">PTI Admin Panel</div>
+              <div className="text-white font-extrabold leading-tight">Módulo de Inspecciones HenkanCX -Admin Panel</div>
               <div className="text-white/70 text-xs">Supervisor · {user?.username}</div>
             </div>
             <button

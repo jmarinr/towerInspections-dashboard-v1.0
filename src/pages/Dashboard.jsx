@@ -51,8 +51,7 @@ export default function Dashboard() {
         <div className="text-xl font-extrabold mt-1">Dashboard de Órdenes</div>
         <div className="text-sm text-white/80 mt-2 max-w-2xl">
           Aquí verás el estado, detalle y evidencia fotográfica de las órdenes generadas por inspectores.
-          (En esta versión usamos data mock; luego conectamos al backend.)
-        </div>
+</div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">

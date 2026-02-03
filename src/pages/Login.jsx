@@ -17,10 +17,17 @@ export default function Login() {
   const onSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    const u = String(username || '').trim()
+    const p = String(password || '').trim()
+
+    if (!u || !p) {
+      return setError('Ingrese usuario y contraseña')
+    }
+
     setLoading(true)
-    const res = await login({ username, password })
+    const res = await login({ username: u, password: p })
     setLoading(false)
-    if (!res.ok) return setError(res.message || 'No se pudo iniciar sesión')
+    if (!res.ok) return setError('Usuario o contraseña inválidos')
     navigate('/dashboard')
   }
 
@@ -32,7 +39,7 @@ export default function Login() {
             <Shield size={20} />
           </div>
           <div className="text-center">
-            <div className="text-lg font-extrabold text-primary leading-tight">Proyecto PTI Admin Panel</div>
+            <div className="text-lg font-extrabold text-primary leading-tight">Módulo de Inspecciones HenkanCX -Admin Panel</div>
             <div className="text-xs text-primary/60">v1.1.0 · Acceso Supervisor</div>
           </div>
         </div>
@@ -40,17 +47,13 @@ export default function Login() {
         <Card className="p-5">
           <div className="mb-4">
             <div className="text-sm font-extrabold text-primary">Iniciar sesión</div>
-            <div className="text-xs text-primary/60 mt-1">
-              Credenciales temporales: <span className="font-bold">111111 / 111111</span>
-            </div>
           </div>
-
-          <form onSubmit={onSubmit} className="space-y-3">
+<form onSubmit={onSubmit} className="space-y-3">
             <Input
               label="Usuario"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ej: 111111"
+              placeholder="Ingrese su usuario"
               autoComplete="username"
             />
             <Input
