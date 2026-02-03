@@ -17,7 +17,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,18 +25,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - name: Enable Corepack (pnpm)
-        run: corepack enable
+      # (Opcional pero recomendado) fija una versión estable de npm para evitar el bug "Exit handler never called!"
+      - name: Use stable npm
+        run: npm i -g npm@10.8.2
 
-      - name: Setup pnpm
-        run: corepack prepare pnpm@9.15.4 --activate
+      - name: Clean npm cache
+        run: npm cache clean --force
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install deps (ci or fallback)
+        shell: bash
+        run: |
+          npm ci --include=dev --no-audit --no-fund || npm install --no-audit --no-fund
 
       - name: Build
-        run: pnpm run build
+        run: npm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -53,7 +56,6 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Deploy
         id: deployment
