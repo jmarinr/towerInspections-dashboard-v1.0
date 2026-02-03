@@ -26,9 +26,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
+            
+      - name: Use stable npm
+        run: npm i -g npm@10.8.2
 
       - name: Install
-        run: npm ci
+        run: npm ci --include=dev --no-audit --no-fund --prefer-offline
 
       - name: Build
         run: npm run build
