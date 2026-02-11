@@ -1,9 +1,9 @@
-export default function Select({ label, className = '', children, ...props }) {
+export default function Select({ label, children, className = '', ...props }) {
   return (
-    <label className={`block ${className}`}>
-      {label && <div className="text-xs font-bold text-primary/70 mb-2">{label}</div>}
+    <label className="block">
+      {label && <span className="block text-xs font-bold text-primary/60 mb-1.5">{label}</span>}
       <select
-        className="w-full h-12 px-4 rounded-2xl border border-primary/15 bg-white focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent/40"
+        className={`w-full rounded-2xl border border-primary/12 bg-white px-4 py-2.5 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent transition-all ${className}`}
         {...props}
       >
         {children}

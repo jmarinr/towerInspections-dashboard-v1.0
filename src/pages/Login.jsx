@@ -1,83 +1,101 @@
 import { useState } from 'react'
-import { Shield, ArrowRight } from 'lucide-react'
-import Input from '../components/ui/Input.jsx'
-import Button from '../components/ui/Button.jsx'
-import Card from '../components/ui/Card.jsx'
-import { useAuthStore } from '../store/useAuthStore.js'
 import { useNavigate } from 'react-router-dom'
+import { Shield, Eye, EyeOff } from 'lucide-react'
+import { useAuthStore } from '../store/useAuthStore'
+import Button from '../components/ui/Button'
 
 export default function Login() {
+  const navigate = useNavigate()
+  const login = useAuthStore((s) => s.login)
   const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const [pin, setPin] = useState('')
+  const [showPin, setShowPin] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const login = useAuthStore(s => s.login)
-  const navigate = useNavigate()
 
-  const onSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    const u = String(username || '').trim()
-    const p = String(password || '').trim()
-
-    if (!u || !p) {
-      return setError('Ingrese usuario y contraseña')
-    }
-
     setLoading(true)
-    const res = await login({ username: u, password: p })
+
+    // small delay for UX
+    await new Promise((r) => setTimeout(r, 300))
+
+    const result = login({ username, password: pin })
     setLoading(false)
-    if (!res.ok) return setError('Usuario o contraseña inválidos')
-    navigate('/dashboard')
+
+    if (result.ok) {
+      navigate('/dashboard', { replace: true })
+    } else {
+      setError(result.message)
+    }
   }
 
   return (
-    <div className="min-h-[100dvh] grid place-items-center p-4">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex items-center gap-3 justify-center">
-          <div className="w-12 h-12 rounded-3xl bg-primary text-white flex items-center justify-center shadow-soft">
-            <Shield size={20} />
+    <div className="min-h-[100dvh] bg-primary flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mb-4">
+            <Shield size={28} className="text-accent" />
           </div>
-          <div className="text-center">
-            <div className="text-lg font-extrabold text-primary leading-tight">Módulo de Inspecciones HenkanCX -Admin Panel</div>
-            <div className="text-xs text-primary/60">v1.1.0 · Acceso Supervisor</div>
-          </div>
+          <h1 className="text-white font-extrabold text-xl tracking-tight">PTI Admin Panel</h1>
+          <p className="text-white/50 text-sm mt-1">Panel de supervisión de inspecciones</p>
         </div>
 
-        <Card className="p-5">
-          <div className="mb-4">
-            <div className="text-sm font-extrabold text-primary">Iniciar sesión</div>
-          </div>
-<form onSubmit={onSubmit} className="space-y-3">
-            <Input
-              label="Usuario"
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 shadow-soft space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-primary/60 mb-1.5">Usuario</label>
+            <input
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ingrese su usuario"
+              placeholder="Ej: supervisor1"
               autoComplete="username"
+              className="w-full rounded-2xl border border-primary/12 bg-surface px-4 py-3 text-sm text-primary placeholder:text-primary/35 focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
             />
-            <Input
-              label="Contraseña"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••"
-              type="password"
-              autoComplete="current-password"
-            />
+          </div>
 
-            {error && (
-              <div className="rounded-2xl bg-danger/10 border border-danger/20 px-3 py-2 text-xs text-danger font-bold">
-                {error}
-              </div>
-            )}
+          <div>
+            <label className="block text-xs font-bold text-primary/60 mb-1.5">PIN</label>
+            <div className="relative">
+              <input
+                type={showPin ? 'text' : 'password'}
+                value={pin}
+                onChange={(e) => setPin(e.target.value)}
+                placeholder="••••"
+                autoComplete="current-password"
+                className="w-full rounded-2xl border border-primary/12 bg-surface px-4 py-3 pr-12 text-sm text-primary placeholder:text-primary/35 focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPin((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary/70 transition-colors"
+              >
+                {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
 
-            <Button type="submit" className="w-full" size="lg" disabled={loading}>
-              {loading ? 'Validando…' : 'Entrar'} <ArrowRight size={18} />
-            </Button>
-          </form>
-        </Card>
+          {error && (
+            <div className="text-danger text-xs font-bold bg-danger-light rounded-xl px-3 py-2">
+              {error}
+            </div>
+          )}
 
-        <div className="mt-4 text-center text-[11px] text-primary/55">&nbsp;</div>
+          <Button type="submit" className="w-full py-3" disabled={loading || !username || !pin}>
+            {loading ? 'Ingresando…' : 'Ingresar'}
+          </Button>
+
+          <div className="text-center text-[11px] text-primary/40 mt-2">
+            Solo supervisores y testing tienen acceso
+          </div>
+        </form>
+
+        <div className="text-center text-white/30 text-[11px] mt-6">
+          PTI Inspect · Admin Panel v2.0
+        </div>
       </div>
     </div>
   )

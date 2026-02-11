@@ -1,27 +1,16 @@
-export default function Button({
-  children,
-  variant = 'primary',
-  size = 'md',
-  className = '',
-  ...props
-}) {
-  const base =
-    'inline-flex items-center justify-center gap-2 rounded-2xl font-semibold active:scale-[0.99] transition-all focus:outline-none focus:ring-2 focus:ring-accent/40 disabled:opacity-50 disabled:cursor-not-allowed'
-  const variants = {
-    primary: 'bg-primary text-white hover:bg-primary/95 shadow-soft',
-    accent: 'bg-accent text-primary hover:bg-accent/95 shadow-soft',
-    ghost: 'bg-white/0 hover:bg-white/10 text-white',
-    soft: 'bg-white text-primary hover:bg-white/90 shadow-soft',
-    danger: 'bg-danger text-white hover:bg-danger/95 shadow-soft',
-    outline: 'border border-primary/15 bg-white text-primary hover:bg-primary/5',
-  }
-  const sizes = {
-    sm: 'h-10 px-3 text-sm',
-    md: 'h-11 px-4 text-sm',
-    lg: 'h-12 px-5 text-[15px]',
-  }
+const base = 'inline-flex items-center justify-center gap-2 font-bold text-sm rounded-2xl transition-all active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none'
+
+const variants = {
+  primary: 'bg-primary text-white hover:bg-primary-light shadow-soft px-4 py-2.5',
+  accent: 'bg-accent text-white hover:bg-accent/90 shadow-soft px-4 py-2.5',
+  outline: 'border border-primary/15 text-primary bg-white hover:bg-primary/5 px-4 py-2.5',
+  ghost: 'text-primary/70 hover:bg-primary/5 px-3 py-2',
+  danger: 'bg-danger text-white hover:bg-danger/90 px-4 py-2.5',
+}
+
+export default function Button({ variant = 'primary', className = '', children, ...props }) {
   return (
-    <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...props}>
+    <button className={`${base} ${variants[variant] || variants.primary} ${className}`} {...props}>
       {children}
     </button>
   )

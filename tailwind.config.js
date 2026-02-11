@@ -9,9 +9,14 @@ export default {
         success: { DEFAULT: '#22C55E', light: '#DCFCE7' },
         warning: { DEFAULT: '#F59E0B', light: '#FEF3C7' },
         danger: { DEFAULT: '#EF4444', light: '#FEE2E2' },
+        surface: { DEFAULT: '#F6F7FB', card: '#FFFFFF' },
       },
       boxShadow: {
-        soft: "0 10px 25px rgba(15, 42, 74, 0.10)",
+        soft: '0 2px 16px 0 rgba(15,42,74,0.08)',
+        card: '0 1px 8px 0 rgba(15,42,74,0.06)',
+      },
+      borderRadius: {
+        '4xl': '2rem',
       },
     },
   },

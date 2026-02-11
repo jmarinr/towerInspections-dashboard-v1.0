@@ -1,43 +1,57 @@
-# Módulo de Inspecciones HenkanCX - Admin Panel v1.1.0
+# PTI Admin Panel v2.0
 
-Dashboard (Supervisor) para visualizar órdenes de inspección generadas por la app de inspecciones.
+Panel de supervisión para inspecciones PTI Inspect. Conectado a Supabase en **modo solo lectura**.
 
 ## Stack
-- React + Vite
-- Tailwind CSS
-- React Router (HashRouter, compatible con GitHub Pages)
-- Zustand
-- lucide-react
 
-## Ejecutar
+- React 18 + Vite 5
+- Tailwind CSS 3
+- Zustand 4 (state management)
+- Supabase JS (read-only queries)
+- pdf-lib (PDF generation)
+- Lucide React (icons)
+
+## Conexión a datos
+
+Este panel lee de la **misma base de datos Supabase** donde el app PTI Inspect (formularios) escribe las inspecciones:
+
+- **Tabla `submissions`**: Cada fila = un formulario enviado por un inspector
+- **Tabla `submission_assets`**: Fotos/archivos vinculados a cada submission
+- **Storage bucket `pti-inspect`**: Fotos subidas por los inspectores
+
+### ⚠️ Solo lectura
+
+Este panel **NUNCA** modifica datos. Solo ejecuta consultas SELECT.
+
+## Acceso
+
+Usa el mismo `permissions.json` que PTI Inspect. Solo los roles con `access: "admin"` pueden ingresar:
+
+| Usuario | PIN | Rol |
+|---------|-----|-----|
+| supervisor1 | 2001 | Supervisor |
+| supervisor2 | 2002 | Supervisor |
+| 101010 | 1010 | Testing |
+
+## Desarrollo local
+
 ```bash
 npm install
 npm run dev
 ```
 
-## Build
-```bash
-npm run build
-npm run preview
+## Variables de entorno (opcionales)
+
+```env
+VITE_SUPABASE_URL=https://kmdkiyrjmvxnmfdvsofq.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_CxNVu9USPtgY2pozE6YiMA_fUds9QZ4
 ```
 
+## Deploy
 
-## Publicar en GitHub Pages (solo Frontend)
+Push a `main` → GitHub Actions → GitHub Pages automático.
 
-Este proyecto está configurado para funcionar bien en **GitHub Pages** :
+## CORS
 
-- Usa **HashRouter** para evitar problemas de rutas en Pages.
-- `vite.config.js` tiene `base: './'` para que funcione sin importar el nombre del repo.
-
-### Pasos
-1. Sube este repo a GitHub (rama `main`).
-2. En GitHub: **Settings → Pages → Build and deployment → Source: GitHub Actions**
-3. Haz push a `main` (o ejecuta manualmente el workflow).
-4. La URL quedará publicada en la sección **Environments → github-pages**.
-
-### Local
-```bash
-npm install
-npm run dev
-```
-
+Asegúrate de agregar el dominio del admin panel en Supabase:
+`Project Settings → API → CORS allowed origins`

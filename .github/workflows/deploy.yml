@@ -17,38 +17,20 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node (LTS)
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
-          cache: "npm"
+          node-version: 20
+          cache: npm
 
-      - name: Use stable npm
-        run: |
-          npm i -g npm@10.5.2
-          node -v
-          npm -v
-
-      - name: Clean npm cache
-        run: npm cache clean --force
-
-      # IMPORTANTE: fuerza dev deps SIEMPRE
-      - name: Install deps (ci or fallback)
-        env:
-          NODE_ENV: development
-        run: |
-          set -e
-          npm ci --include=dev --no-audit --no-fund || npm install --include=dev --no-audit --no-fund
-          npx vite --version
+      - name: Install
+        run: npm ci
 
       - name: Build
-        env:
-          NODE_ENV: development
         run: npm run build
 
       - name: Setup Pages
@@ -65,8 +47,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy
         id: deployment
         uses: actions/deploy-pages@v4
