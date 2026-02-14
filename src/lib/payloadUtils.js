@@ -187,14 +187,7 @@ function buildMaintenancePayload(data) {
     }
   }
 
-  // 3. Photo summary
-  const photoKeys = Object.keys(photos).filter(k => photos[k] && photos[k] !== null)
-  if (photoKeys.length > 0) {
-    result['📷 Fotos capturadas en formulario'] = {
-      'Total fotos': photoKeys.length,
-      'Subidas a storage': photoKeys.filter(k => photos[k] === '__photo__').length,
-    }
-  }
+  // Photos are now shown inline per section in SubmissionDetail (not here)
 
   return result
 }
@@ -235,9 +228,6 @@ function buildInspectionPayload(data) {
       result[`${section.icon || '📋'} ${section.title}`] = sectionItems
     }
   }
-
-  const photoKeys = Object.keys(photos).filter(k => photos[k])
-  if (photoKeys.length > 0) result['📷 Fotos'] = { 'Total': photoKeys.length }
 
   return result
 }
@@ -374,4 +364,81 @@ function labelize(key) {
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .trim()
     .replace(/^\w/, c => c.toUpperCase())
+}
+
+// ===== MAP PHOTOS TO SECTIONS =====
+
+/**
+ * Groups submission_assets into sections matching the checklist/form steps.
+ *
+ * Asset types follow patterns:
+ *   maintenance:{itemId}:{photoType}  → "maintenance:1.1:photo", "maintenance:fotoTorre:photo"
+ *   inspection:{itemId}:{photoType}   → "inspection:acc-1:photo"
+ *   executed:{activityId}:{type}      → "executed:r-1:before"
+ *   equipment:{field}                 → "equipment:fotoTorre"
+ *
+ * Returns: { [sectionTitle]: [ { ...asset, itemId, label } ] }
+ */
+export function groupAssetsBySection(assets, formCode) {
+  if (!assets || !assets.length) return {}
+
+  const groups = {}
+
+  for (const asset of assets) {
+    if (!asset.public_url) continue
+    const type = asset.asset_type || ''
+    const parts = type.split(':')
+
+    let sectionTitle = '📷 Otras fotos'
+    let label = type
+
+    if (formCode?.includes('mantenimiento') || formCode?.includes('preventive-maintenance')) {
+      const itemId = parts[1] || ''
+      const photoType = parts[2] || 'photo'
+
+      // Form-level photos (fotoTorre, fotoCandado)
+      if (itemId === 'fotoTorre') {
+        sectionTitle = '🗼 Información de la Torre'
+        label = 'Foto de la Torre'
+      } else if (itemId === 'fotoCandado') {
+        sectionTitle = '🔑 Acceso al Sitio'
+        label = 'Foto del Candado'
+      } else {
+        // Checklist item photo — find which step it belongs to
+        const checklistInfo = MAINT_CHECKLIST_MAP[itemId]
+        if (checklistInfo) {
+          sectionTitle = `${checklistInfo.stepIcon} ${checklistInfo.stepTitle}`
+          label = `${checklistInfo.name} (${photoType === 'before' ? 'Antes' : photoType === 'after' ? 'Después' : 'Foto'})`
+        } else {
+          label = `Ítem ${itemId} (${photoType})`
+        }
+      }
+    } else if (formCode?.includes('inspeccion') || formCode?.includes('inspection')) {
+      const itemId = parts[1] || ''
+      const inspInfo = INSPECTION_ITEM_MAP[itemId]
+      if (inspInfo) {
+        sectionTitle = `${inspInfo.sectionIcon} ${inspInfo.sectionTitle}`
+        label = inspInfo.text
+      } else {
+        label = `Ítem ${itemId}`
+      }
+    } else if (formCode?.includes('executed')) {
+      const actId = parts[1] || ''
+      const photoType = parts[2] || ''
+      sectionTitle = '📷 Fotos de actividades'
+      label = `${actId} — ${photoType === 'before' ? 'Antes' : photoType === 'after' ? 'Después' : photoType}`
+    } else if (formCode?.includes('equipment')) {
+      const field = parts[1] || ''
+      sectionTitle = '📷 Documentación del sitio'
+      label = field === 'fotoTorre' ? 'Foto de torre' : field === 'croquisEsquematico' ? 'Croquis esquemático' : field === 'planoPlanta' ? 'Plano de planta' : field
+    } else {
+      // Generic
+      label = parts.slice(1).join(' · ') || type
+    }
+
+    if (!groups[sectionTitle]) groups[sectionTitle] = []
+    groups[sectionTitle].push({ ...asset, label })
+  }
+
+  return groups
 }
