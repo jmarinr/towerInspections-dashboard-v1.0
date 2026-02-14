@@ -81,17 +81,70 @@ export async function fetchSubmissionWithAssets(id) {
   return { submission, assets }
 }
 
+// ═══════════════════════════════════════════
+// SITE VISITS (Orders)
+// ═══════════════════════════════════════════
+
+/**
+ * Fetch all site visits (orders).
+ */
+export async function fetchSiteVisits({ status, limit = 200 } = {}) {
+  let query = supabase
+    .from('site_visits')
+    .select('*')
+    .order('started_at', { ascending: false })
+    .limit(limit)
+
+  if (status && status !== 'all') {
+    query = query.eq('status', status)
+  }
+
+  const { data, error } = await query
+  if (error) throw error
+  return data || []
+}
+
+/**
+ * Fetch a single site visit by ID.
+ */
+export async function fetchSiteVisitById(id) {
+  const { data, error } = await supabase
+    .from('site_visits')
+    .select('*')
+    .eq('id', id)
+    .single()
+
+  if (error) throw error
+  return data
+}
+
+/**
+ * Fetch submissions linked to a specific site visit.
+ */
+export async function fetchSubmissionsForVisit(visitId) {
+  const { data, error } = await supabase
+    .from('submissions')
+    .select('*')
+    .eq('site_visit_id', visitId)
+    .order('updated_at', { ascending: false })
+
+  if (error) throw error
+  return (data || []).map(normalizeSubmission)
+}
+
 /**
  * Dashboard stats.
  */
 export async function fetchDashboardStats() {
-  const { data, error } = await supabase
-    .from('submissions')
-    .select('*')
-    .order('updated_at', { ascending: false })
+  // Fetch both tables in parallel
+  const [subRes, visitRes] = await Promise.all([
+    supabase.from('submissions').select('*').order('updated_at', { ascending: false }),
+    supabase.from('site_visits').select('*').order('started_at', { ascending: false }).then(r => r).catch(() => ({ data: [], error: null })),
+  ])
 
-  if (error) throw error
-  const rows = (data || []).map(normalizeSubmission)
+  if (subRes.error) throw subRes.error
+  const rows = (subRes.data || []).map(normalizeSubmission)
+  const visits = visitRes.data || []
 
   const total = rows.length
   const byFormCode = {}
@@ -105,7 +158,13 @@ export async function fetchDashboardStats() {
   const recentCount = rows.filter(r => new Date(r.updated_at).getTime() > weekAgo).length
   const recent = rows.slice(0, 5)
 
-  return { total, byFormCode, recentCount, recent }
+  // Visit stats
+  const totalVisits = visits.length
+  const openVisits = visits.filter(v => v.status === 'open').length
+  const closedVisits = visits.filter(v => v.status === 'closed').length
+  const recentVisits = visits.slice(0, 5)
+
+  return { total, byFormCode, recentCount, recent, totalVisits, openVisits, closedVisits, recentVisits }
 }
 
 /**

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, LogOut, Shield, RefreshCw } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FileText, LogOut, Shield, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
 
@@ -46,6 +46,7 @@ export default function Shell({ children }) {
 
           <nav className="space-y-1.5 flex-1">
             <SidebarLink to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
+            <SidebarLink to="/orders" icon={FileText} label="Órdenes" />
             <SidebarLink to="/submissions" icon={ClipboardList} label="Submissions" />
           </nav>
 
@@ -104,26 +105,36 @@ export default function Shell({ children }) {
         <main className="p-3 pb-24">{children}</main>
 
         <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-primary/8 p-2 z-50">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <NavLink
               to="/dashboard"
               className={({ isActive }) =>
-                `h-12 rounded-2xl flex items-center justify-center gap-2 font-extrabold text-sm ${
+                `h-12 rounded-2xl flex items-center justify-center gap-1.5 font-extrabold text-xs ${
                   isActive ? 'bg-accent text-primary shadow-soft' : 'bg-primary/5 text-primary/70'
                 }`
               }
             >
-              <LayoutDashboard size={18} /> Dashboard
+              <LayoutDashboard size={16} /> Dashboard
+            </NavLink>
+            <NavLink
+              to="/orders"
+              className={({ isActive }) =>
+                `h-12 rounded-2xl flex items-center justify-center gap-1.5 font-extrabold text-xs ${
+                  isActive ? 'bg-accent text-primary shadow-soft' : 'bg-primary/5 text-primary/70'
+                }`
+              }
+            >
+              <FileText size={16} /> Órdenes
             </NavLink>
             <NavLink
               to="/submissions"
               className={({ isActive }) =>
-                `h-12 rounded-2xl flex items-center justify-center gap-2 font-extrabold text-sm ${
+                `h-12 rounded-2xl flex items-center justify-center gap-1.5 font-extrabold text-xs ${
                   isActive ? 'bg-accent text-primary shadow-soft' : 'bg-primary/5 text-primary/70'
                 }`
               }
             >
-              <ClipboardList size={18} /> Submissions
+              <ClipboardList size={16} /> Formularios
             </NavLink>
           </div>
         </nav>

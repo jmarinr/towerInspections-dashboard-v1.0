@@ -1,27 +1,59 @@
 import { create } from 'zustand'
-import { mockOrders } from '../data/mockOrders.js'
+import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsForVisit } from '../lib/supabaseQueries'
 
 export const useOrdersStore = create((set, get) => ({
   orders: [],
   isLoading: false,
-  selectedStatus: 'all',
+  error: null,
+  filterStatus: 'all',
   search: '',
-  load: async () => {
-    set({ isLoading: true })
-    // Simula llamada a API (luego se conecta al backend)
-    await new Promise(r => setTimeout(r, 350))
-    set({ orders: mockOrders, isLoading: false })
+  lastFetch: null,
+
+  load: async (force = false) => {
+    const state = get()
+    if (!force && state.lastFetch && Date.now() - state.lastFetch < 10000) return
+    set({ isLoading: true, error: null })
+    try {
+      const data = await fetchSiteVisits()
+      set({ orders: data, isLoading: false, lastFetch: Date.now() })
+    } catch (err) {
+      set({ error: err?.message || 'Error al cargar órdenes', isLoading: false })
+    }
   },
+
   setFilter: (patch) => set(patch),
+
   getFiltered: () => {
-    const { orders, selectedStatus, search } = get()
+    const { orders, filterStatus, search } = get()
     const q = search.trim().toLowerCase()
-    return orders.filter(o => {
-      const statusOk = selectedStatus === 'all' ? true : o.status === selectedStatus
-      const text = `${o.id} ${o.siteId} ${o.siteName} ${o.inspectorName}`.toLowerCase()
-      const qOk = q ? text.includes(q) : true
-      return statusOk && qOk
+    return orders.filter((o) => {
+      const statusOk = filterStatus === 'all' || o.status === filterStatus
+      if (!statusOk) return false
+      if (!q) return true
+      return [
+        o.order_number, o.site_id, o.site_name,
+        o.inspector_name, o.inspector_username,
+      ].join(' ').toLowerCase().includes(q)
     })
   },
-  byId: (id) => get().orders.find(o => String(o.id) === String(id)),
+
+  // Detail
+  activeOrder: null,
+  activeOrderSubmissions: [],
+  isLoadingDetail: false,
+
+  loadDetail: async (id) => {
+    set({ isLoadingDetail: true, activeOrder: null, activeOrderSubmissions: [] })
+    try {
+      const [order, submissions] = await Promise.all([
+        fetchSiteVisitById(id),
+        fetchSubmissionsForVisit(id).catch(() => []),
+      ])
+      set({ activeOrder: order, activeOrderSubmissions: submissions, isLoadingDetail: false })
+    } catch (err) {
+      set({ isLoadingDetail: false, error: err?.message || 'Error al cargar orden' })
+    }
+  },
+
+  clearDetail: () => set({ activeOrder: null, activeOrderSubmissions: [] }),
 }))
