@@ -1,13 +1,34 @@
 import { supabase } from './supabaseClient'
 
 /**
- * Fetch all submissions, ordered by most recent update.
- * Optionally filter by form_code.
+ * The submissions table has columns:
+ *   id, org_code, device_id, form_code, form_version, app_version,
+ *   payload (jsonb), created_at, updated_at, last_saved_at
+ *
+ * The `payload` column contains:
+ *   {
+ *     org_code, device_id, form_code, app_version, form_version,
+ *     _meta: { last_saved_at },
+ *     payload: {                   ← inner payload
+ *       meta: { lat, lng, date, time, startedAt },
+ *       data: { formData, checklistData, photos, ... },
+ *       submitted_by: { name, role, username },
+ *       submitted_at,
+ *       autosave_bucket
+ *     }
+ *   }
+ *
+ * Some fields exist BOTH as DB columns AND inside `payload` (org_code, form_code, etc).
+ * We use SELECT * and normalize in the store/UI.
+ */
+
+/**
+ * Fetch all submissions.
  */
 export async function fetchSubmissions({ formCode, limit = 200 } = {}) {
   let query = supabase
     .from('submissions')
-    .select('id, org_code, device_id, form_code, form_version, app_version, payload, last_saved_at, created_at, updated_at')
+    .select('*')
     .order('updated_at', { ascending: false })
     .limit(limit)
 
@@ -17,7 +38,8 @@ export async function fetchSubmissions({ formCode, limit = 200 } = {}) {
 
   const { data, error } = await query
   if (error) throw error
-  return data || []
+
+  return (data || []).map(normalizeSubmission)
 }
 
 /**
@@ -31,7 +53,7 @@ export async function fetchSubmissionById(id) {
     .single()
 
   if (error) throw error
-  return data
+  return normalizeSubmission(data)
 }
 
 /**
@@ -40,7 +62,7 @@ export async function fetchSubmissionById(id) {
 export async function fetchSubmissionAssets(submissionId) {
   const { data, error } = await supabase
     .from('submission_assets')
-    .select('id, asset_key, asset_type, bucket, public_url, created_at')
+    .select('*')
     .eq('submission_id', submissionId)
     .order('created_at', { ascending: true })
 
@@ -49,7 +71,7 @@ export async function fetchSubmissionAssets(submissionId) {
 }
 
 /**
- * Fetch submission + its assets in one go.
+ * Fetch submission + its assets.
  */
 export async function fetchSubmissionWithAssets(id) {
   const [submission, assets] = await Promise.all([
@@ -60,30 +82,50 @@ export async function fetchSubmissionWithAssets(id) {
 }
 
 /**
- * Get aggregate stats for the dashboard.
+ * Dashboard stats.
  */
 export async function fetchDashboardStats() {
   const { data, error } = await supabase
     .from('submissions')
-    .select('id, form_code, updated_at, created_at')
+    .select('*')
     .order('updated_at', { ascending: false })
 
   if (error) throw error
-  const rows = data || []
+  const rows = (data || []).map(normalizeSubmission)
 
   const total = rows.length
   const byFormCode = {}
   for (const r of rows) {
-    byFormCode[r.form_code] = (byFormCode[r.form_code] || 0) + 1
+    const fc = r.form_code || 'unknown'
+    byFormCode[fc] = (byFormCode[fc] || 0) + 1
   }
 
-  // Last 7 days activity
   const now = Date.now()
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000
   const recentCount = rows.filter(r => new Date(r.updated_at).getTime() > weekAgo).length
-
-  // Last 5 updated
   const recent = rows.slice(0, 5)
 
   return { total, byFormCode, recentCount, recent }
+}
+
+/**
+ * Normalize a raw submission row:
+ *  - Ensures top-level form_code, device_id, app_version even if DB columns are missing
+ *  - Pulls from payload.form_code etc. as fallback
+ */
+function normalizeSubmission(raw) {
+  if (!raw) return raw
+  const p = raw.payload || raw.data || {}
+
+  return {
+    ...raw,
+    // Ensure form_code etc. exist at top level (they may be DB columns, or only in payload)
+    form_code: raw.form_code || p.form_code || '',
+    device_id: raw.device_id || p.device_id || '',
+    org_code: raw.org_code || p.org_code || '',
+    app_version: raw.app_version || p.app_version || '',
+    form_version: raw.form_version || p.form_version || '',
+    // Ensure payload is always present
+    payload: p,
+  }
 }

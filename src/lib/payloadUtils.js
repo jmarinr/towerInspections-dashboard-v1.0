@@ -1,27 +1,42 @@
 /**
- * Smart extraction utilities for PTI Inspect submission payloads.
+ * Smart extraction for PTI Inspect submissions stored in Supabase.
  *
- * Uses the ACTUAL form configs from PTI Inspect to map IDs → human-readable labels,
- * ensuring 100% of captured data is visible in the admin panel.
+ * !! CRITICAL: The actual column `payload` in Supabase contains a NESTED structure:
  *
- * Payload structure in Supabase:
  *   submission.payload = {
- *     meta: { lat, lng, date, time, startedAt },
- *     autosave_bucket: "preventive-maintenance",
- *     data: { ...form-specific snapshot },
- *     validation: null, profile: null
+ *     org_code, device_id, form_code, app_version, form_version,
+ *     _meta: { last_saved_at },
+ *     payload: {                         ← INNER payload
+ *       meta: { lat, lng, date, time, startedAt },
+ *       autosave_bucket: "preventive-maintenance",
+ *       data: {                          ← form snapshot
+ *         formData: {...},
+ *         checklistData: {...},
+ *         photos: {...},
+ *         ...
+ *       },
+ *       validation, profile,
+ *       submitted_at, submitted_by: { name, role, username }
+ *     }
  *   }
  *
- * Mantenimiento:  data = { currentStep, completedSteps, formData: {...}, checklistData: {...}, photos: {...} }
- * Inspección:     data = { siteInfo: {...}, items: {...}, photos: {...} }
- * Equipment:      data = { siteInfo, torre, piso, distribucionTorre, croquisEsquematico, planoPlanta }
- * Grounding:      data = { datos: {...}, condiciones: {...}, equipo: {...}, mediciones: {...}, ... }
- * Safety:         data = { datos: {...}, herrajes: {...}, prensacables: {...}, ... }
- * PM Executed:    data = { siteInfo: {...}, photos: {...} }
+ * So to get formData we need: submission.payload.payload.data.formData
  */
 
 import { maintenanceFormConfig } from '../data/maintenanceFormConfig'
 import { inspectionSections } from '../data/inspectionItems'
+
+// ===== RESOLVE INNER DATA =====
+// The "inner payload" is at submission.payload.payload (yes, nested)
+// The form data is at inner.data
+function resolveInner(submission) {
+  const outer = submission?.payload || {}
+  // Check for the nested payload.payload structure
+  const inner = outer.payload || outer
+  const data = inner.data || {}
+  const meta = inner.meta || {}
+  return { outer, inner, data, meta }
+}
 
 // ===== STATUS LABELS =====
 const STATUS_LABELS = {
@@ -31,16 +46,13 @@ const STATUS_LABELS = {
   na: '➖ N/A',
   '': '—',
 }
-
 function statusLabel(val) {
-  if (!val) return '—'
-  return STATUS_LABELS[val] || val
+  return STATUS_LABELS[val] || val || '—'
 }
 
 // ===== EXTRACT SITE INFO =====
 export function extractSiteInfo(submission) {
-  const payload = submission?.payload || {}
-  const data = payload.data || {}
+  const { data } = resolveInner(submission)
   const siteInfo = data.siteInfo || {}
   const formData = data.formData || {}
   const datosSection = data.datos || {}
@@ -57,7 +69,7 @@ export function extractSiteInfo(submission) {
 
 // ===== EXTRACT META =====
 export function extractMeta(submission) {
-  const meta = submission?.payload?.meta || {}
+  const { meta } = resolveInner(submission)
   return {
     date: meta.date || null,
     time: meta.time || null,
@@ -67,22 +79,13 @@ export function extractMeta(submission) {
   }
 }
 
-// ===== BUILD LABEL MAPS FROM FORM CONFIGS =====
-
-/** Maintenance: build map of field ID → label from all steps */
-function buildMaintenanceFieldLabels() {
-  const map = {}
-  for (const step of maintenanceFormConfig.steps) {
-    if (step.type === 'form' && step.fields) {
-      for (const f of step.fields) {
-        map[f.id] = f.label
-      }
-    }
-  }
-  return map
+// ===== EXTRACT SUBMITTED BY =====
+export function extractSubmittedBy(submission) {
+  const { inner } = resolveInner(submission)
+  return inner.submitted_by || null
 }
 
-/** Maintenance: build map of checklist item ID → { name, description, step title } */
+// ===== BUILD LABEL MAPS =====
 function buildMaintenanceChecklistMap() {
   const map = {}
   for (const step of maintenanceFormConfig.steps) {
@@ -92,7 +95,7 @@ function buildMaintenanceChecklistMap() {
           name: item.name,
           description: item.description,
           stepTitle: step.title,
-          stepId: step.id,
+          stepIcon: step.icon || '📋',
           hasValueInput: item.hasValueInput || false,
           valueLabel: item.valueLabel || '',
         }
@@ -102,7 +105,6 @@ function buildMaintenanceChecklistMap() {
   return map
 }
 
-/** Inspection: build map of item ID → text */
 function buildInspectionItemMap() {
   const map = {}
   for (const section of inspectionSections) {
@@ -111,8 +113,7 @@ function buildInspectionItemMap() {
         map[item.id] = {
           text: item.text,
           sectionTitle: section.title,
-          sectionId: section.id,
-          hasPhoto: item.hasPhoto || false,
+          sectionIcon: section.icon || '📋',
         }
       }
     }
@@ -120,66 +121,59 @@ function buildInspectionItemMap() {
   return map
 }
 
-// Pre-build maps
-const MAINT_FIELD_LABELS = buildMaintenanceFieldLabels()
 const MAINT_CHECKLIST_MAP = buildMaintenanceChecklistMap()
 const INSPECTION_ITEM_MAP = buildInspectionItemMap()
 
-// ===== CLEAN PAYLOAD BUILDERS =====
+// ===== CLEAN VALUE =====
+function cleanVal(val) {
+  if (val === null || val === undefined || val === '') return null
+  if (typeof val === 'string' && val.startsWith('data:')) return '📷 Foto capturada'
+  if (val === '__photo__') return '📷 Foto subida'
+  return val
+}
 
-/**
- * Build clean display payload for a MANTENIMIENTO PREVENTIVO submission.
- */
+// ===== MAINTENANCE BUILDER =====
 function buildMaintenancePayload(data) {
   const result = {}
   const formData = data.formData || {}
   const checklistData = data.checklistData || {}
   const photos = data.photos || {}
 
-  // 1. Form fields → organized by step
-  const formSections = {}
+  // 1. Form fields organized by step
   for (const step of maintenanceFormConfig.steps) {
     if (step.type !== 'form') continue
     const sectionFields = {}
     let hasData = false
     for (const f of step.fields) {
-      const val = formData[f.id]
-      if (val === undefined || val === null || val === '') continue
-      if (typeof val === 'string' && val.startsWith('data:')) {
-        sectionFields[f.label] = '📷 Foto capturada'
-      } else if (val === '__photo__') {
-        sectionFields[f.label] = '📷 Foto subida'
-      } else {
-        sectionFields[f.label] = val
-      }
+      const val = cleanVal(formData[f.id])
+      if (val === null) continue
+      sectionFields[f.label] = val
       hasData = true
     }
-    if (hasData) formSections[`${step.icon || '📋'} ${step.title}`] = sectionFields
-  }
-  if (Object.keys(formSections).length > 0) {
-    Object.assign(result, formSections)
+    if (hasData) {
+      result[`${step.icon || '📋'} ${step.title}`] = sectionFields
+    }
   }
 
-  // 2. Checklist items → organized by step (section)
-  const checklistSections = {}
+  // 2. Checklist items organized by step
   for (const step of maintenanceFormConfig.steps) {
     if (step.type !== 'checklist') continue
     const items = []
+    let hasAnyData = false
+
     for (const item of step.items) {
       const entry = checklistData[item.id]
-      if (!entry) continue
-      const row = {
-        '#': item.id,
-        'Ítem': item.name,
-        'Estado': statusLabel(entry.status),
-      }
-      if (entry.value) row['Valor'] = entry.value
-      if (entry.observation) row['Observación'] = entry.observation
-      items.push(row)
-    }
-    // Also show items with no data as pending
-    for (const item of step.items) {
-      if (!checklistData[item.id]) {
+      if (entry && (entry.status || entry.value || entry.observation)) {
+        hasAnyData = true
+        const row = {
+          '#': item.id,
+          'Ítem': item.name,
+          'Estado': statusLabel(entry.status),
+        }
+        if (entry.value) row['Valor'] = entry.value
+        if (entry.observation) row['Observación'] = entry.observation
+        items.push(row)
+      } else {
         items.push({
           '#': item.id,
           'Ítem': item.name,
@@ -187,48 +181,44 @@ function buildMaintenancePayload(data) {
         })
       }
     }
+
     if (items.length > 0) {
-      checklistSections[`${step.icon || '📋'} ${step.title}`] = items
+      result[`${step.icon || '📋'} ${step.title}`] = items
     }
   }
-  if (Object.keys(checklistSections).length > 0) {
-    Object.assign(result, checklistSections)
-  }
 
-  // 3. Photo count summary
+  // 3. Photo summary
   const photoKeys = Object.keys(photos).filter(k => photos[k] && photos[k] !== null)
   if (photoKeys.length > 0) {
-    result['📷 Fotos capturadas'] = {
-      'Total fotos en formulario': photoKeys.length,
-      'Subidas al storage': photoKeys.filter(k => photos[k] === '__photo__').length,
+    result['📷 Fotos capturadas en formulario'] = {
+      'Total fotos': photoKeys.length,
+      'Subidas a storage': photoKeys.filter(k => photos[k] === '__photo__').length,
     }
   }
 
   return result
 }
 
-/**
- * Build clean display payload for an INSPECCIÓN GENERAL submission.
- */
+// ===== INSPECTION BUILDER =====
 function buildInspectionPayload(data) {
   const result = {}
   const siteInfo = data.siteInfo || {}
   const items = data.items || {}
   const photos = data.photos || {}
 
-  // 1. Site info
-  const siteFields = {}
+  // Site info
   const siteLabels = {
     proveedor: 'Proveedor', idSitio: 'ID Sitio', nombreSitio: 'Nombre Sitio',
     tipoSitio: 'Tipo de Sitio', coordenadas: 'Coordenadas GPS', direccion: 'Dirección',
     fecha: 'Fecha', hora: 'Hora', tipoTorre: 'Tipo de Torre', alturaTorre: 'Altura Torre (m)',
   }
+  const siteFields = {}
   for (const [key, label] of Object.entries(siteLabels)) {
     if (siteInfo[key]) siteFields[label] = siteInfo[key]
   }
   if (Object.keys(siteFields).length > 0) result['📋 Información del sitio'] = siteFields
 
-  // 2. Inspection items by section
+  // Items by section
   for (const section of inspectionSections) {
     if (!section.items) continue
     const sectionItems = []
@@ -246,18 +236,13 @@ function buildInspectionPayload(data) {
     }
   }
 
-  // 3. Photos
-  const photoKeys = Object.keys(photos).filter(k => photos[k] && photos[k] !== null)
-  if (photoKeys.length > 0) {
-    result['📷 Fotos'] = { 'Total': photoKeys.length }
-  }
+  const photoKeys = Object.keys(photos).filter(k => photos[k])
+  if (photoKeys.length > 0) result['📷 Fotos'] = { 'Total': photoKeys.length }
 
   return result
 }
 
-/**
- * Build clean display for GROUNDING / SAFETY forms (flat section-based).
- */
+// ===== FLAT SECTION BUILDER (grounding, safety) =====
 function buildFlatSectionPayload(data) {
   const result = {}
   const skipKeys = new Set(['currentStep', 'completedSteps'])
@@ -268,14 +253,8 @@ function buildFlatSectionPayload(data) {
 
     const fields = {}
     for (const [key, val] of Object.entries(sectionData)) {
-      if (val === null || val === undefined || val === '') continue
-      if (typeof val === 'string' && val.startsWith('data:')) {
-        fields[labelize(key)] = '📷 Foto capturada'
-      } else if (val === '__photo__') {
-        fields[labelize(key)] = '📷 Foto subida'
-      } else {
-        fields[labelize(key)] = val
-      }
+      const clean = cleanVal(val)
+      if (clean !== null) fields[labelize(key)] = clean
     }
     if (Object.keys(fields).length > 0) {
       result[labelize(sectionId)] = fields
@@ -285,121 +264,86 @@ function buildFlatSectionPayload(data) {
   return result
 }
 
-/**
- * Build clean display for EQUIPMENT INVENTORY.
- */
+// ===== EQUIPMENT BUILDER =====
 function buildEquipmentPayload(data) {
   const result = {}
   const siteInfo = data.siteInfo || {}
 
-  // Site info
   const siteFields = {}
   for (const [k, v] of Object.entries(siteInfo)) {
-    if (v && v !== '') siteFields[labelize(k)] = v
+    const clean = cleanVal(v)
+    if (clean !== null) siteFields[labelize(k)] = clean
   }
   if (Object.keys(siteFields).length > 0) result['📋 Datos del sitio'] = siteFields
 
-  // Torre
   if (data.torre?.items?.length > 0) {
-    result['🗼 Equipos en torre'] = data.torre.items.filter(i =>
-      Object.values(i).some(v => v !== '')
-    )
+    result['🗼 Equipos en torre'] = data.torre.items.filter(i => Object.values(i).some(v => v !== ''))
   }
-
-  // Piso / clientes
   if (data.piso?.clientes?.length > 0) {
-    const clientes = data.piso.clientes.map((c, i) => {
-      const clean = { '#': i + 1, 'Tipo': c.tipoCliente }
-      if (c.nombreCliente) clean['Cliente'] = c.nombreCliente
-      if (c.areaArrendada) clean['Área arrendada'] = c.areaArrendada
-      if (c.gabinetes?.length) clean['Gabinetes'] = c.gabinetes.length
-      return clean
-    })
-    result['🏗️ Clientes en piso'] = clientes
-  }
-
-  // Drawings
-  if (data.distribucionTorre?.pngDataUrl || data.distribucionTorre?.scene?.objects?.length) {
-    result['📐 Distribución torre'] = { 'Estado': 'Capturado' }
-  }
-  if (data.croquisEsquematico?.pngDataUrl) {
-    result['✏️ Croquis esquemático'] = {
-      'Estado': 'Capturado',
-      ...(data.croquisEsquematico.niveles || {}),
-    }
-  }
-  if (data.planoPlanta?.pngDataUrl) {
-    result['📐 Plano de planta'] = { 'Estado': 'Capturado' }
-  }
-
-  return result
-}
-
-/**
- * Build clean display for PM EXECUTED.
- */
-function buildPMExecutedPayload(data) {
-  const result = {}
-  const siteInfo = data.siteInfo || {}
-  const photos = data.photos || {}
-
-  const siteFields = {}
-  for (const [k, v] of Object.entries(siteInfo)) {
-    if (v && v !== '') siteFields[labelize(k)] = v
-  }
-  if (Object.keys(siteFields).length > 0) result['📋 Datos del sitio'] = siteFields
-
-  // Photos: grouped by activity
-  const photoKeys = Object.keys(photos).filter(k => photos[k])
-  if (photoKeys.length > 0) {
-    const activities = {}
-    for (const key of photoKeys) {
-      const parts = key.split('-')
-      const actId = parts.slice(0, -1).join('-')
-      const type = parts[parts.length - 1] // before or after
-      if (!activities[actId]) activities[actId] = {}
-      activities[actId][type === 'before' ? 'Antes' : type === 'after' ? 'Después' : type] = '📷'
-    }
-    result['📷 Fotos por actividad'] = Object.entries(activities).map(([id, data]) => ({
-      'Actividad': id,
-      ...data,
+    result['🏗️ Clientes en piso'] = data.piso.clientes.map((c, i) => ({
+      '#': i + 1,
+      Tipo: c.tipoCliente,
+      ...(c.nombreCliente ? { Cliente: c.nombreCliente } : {}),
     }))
   }
 
   return result
 }
 
-// ===== MAIN EXPORT =====
+// ===== PM EXECUTED BUILDER =====
+function buildPMExecutedPayload(data) {
+  const result = {}
+  const siteInfo = data.siteInfo || {}
 
-/**
- * Get a clean, human-readable payload organized by sections.
- * Uses form configs to map IDs → labels for all form types.
- */
+  const siteFields = {}
+  for (const [k, v] of Object.entries(siteInfo)) {
+    const clean = cleanVal(v)
+    if (clean !== null) siteFields[labelize(k)] = clean
+  }
+  if (Object.keys(siteFields).length > 0) result['📋 Datos del sitio'] = siteFields
+
+  return result
+}
+
+// ===== MAIN EXPORT =====
 export function getCleanPayload(submission) {
-  const payload = submission?.payload || {}
-  const data = payload.data || {}
-  const meta = payload.meta || {}
-  const formCode = submission?.form_code || payload.autosave_bucket || ''
+  const { inner, data, meta } = resolveInner(submission)
+  const outer = submission?.payload || {}
+
+  // Determine form code — check multiple locations
+  const formCode = outer.form_code || inner.autosave_bucket || submission?.form_code || ''
 
   const result = {}
 
-  // Meta info
+  // Meta
   if (meta && Object.keys(meta).some(k => meta[k])) {
-    const metaClean = {}
-    if (meta.date) metaClean['Fecha'] = meta.date
-    if (meta.time) metaClean['Hora'] = meta.time
-    if (meta.startedAt) metaClean['Inicio'] = new Date(meta.startedAt).toLocaleString()
-    if (meta.lat) metaClean['GPS'] = `${Number(meta.lat).toFixed(5)}, ${Number(meta.lng).toFixed(5)}`
-    if (Object.keys(metaClean).length) result['📍 Inicio de inspección'] = metaClean
+    const m = {}
+    if (meta.date) m['Fecha'] = meta.date
+    if (meta.time) m['Hora'] = meta.time
+    if (meta.startedAt) m['Inicio'] = new Date(meta.startedAt).toLocaleString()
+    if (meta.lat) m['GPS'] = `${Number(meta.lat).toFixed(5)}, ${Number(meta.lng).toFixed(5)}`
+    if (Object.keys(m).length) result['📍 Inicio de inspección'] = m
   }
 
-  // Form-specific processing
-  const isMantenimiento = formCode.includes('preventive-maintenance') || formCode === 'mantenimiento'
-  const isInspeccion = formCode.includes('inspection') || formCode === 'inspeccion'
-  const isEquipment = formCode.includes('equipment') || formCode === 'inventario'
-  const isExecuted = formCode.includes('executed') || formCode === 'mantenimiento-ejecutado'
-  const isGrounding = formCode.includes('grounding') || formCode === 'puesta-tierra'
-  const isSafety = formCode.includes('safety')
+  // Submitted by
+  const submitter = inner.submitted_by
+  if (submitter) {
+    result['👤 Enviado por'] = {
+      Nombre: submitter.name || '—',
+      Rol: submitter.role || '—',
+      Usuario: submitter.username || '—',
+      ...(inner.submitted_at ? { 'Fecha envío': new Date(inner.submitted_at).toLocaleString() } : {}),
+    }
+  }
+
+  // Form-specific
+  const fc = formCode.toLowerCase()
+  const isMantenimiento = fc.includes('preventive-maintenance') || fc === 'mantenimiento'
+  const isInspeccion = fc.includes('inspection') || fc === 'inspeccion'
+  const isEquipment = fc.includes('equipment') || fc === 'inventario'
+  const isExecuted = fc.includes('executed') || fc === 'mantenimiento-ejecutado'
+  const isGrounding = fc.includes('grounding') || fc === 'puesta-tierra'
+  const isSafety = fc.includes('safety')
 
   let formResult = {}
 
@@ -407,14 +351,14 @@ export function getCleanPayload(submission) {
     formResult = buildMaintenancePayload(data)
   } else if (isInspeccion && (data.siteInfo || data.items)) {
     formResult = buildInspectionPayload(data)
-  } else if (isEquipment && data.siteInfo) {
+  } else if (isEquipment) {
     formResult = buildEquipmentPayload(data)
   } else if (isExecuted) {
     formResult = buildPMExecutedPayload(data)
   } else if (isGrounding || isSafety) {
     formResult = buildFlatSectionPayload(data)
   } else {
-    // Generic fallback: show all data except internal keys
+    // Generic fallback
     formResult = buildFlatSectionPayload(data)
   }
 

@@ -33,13 +33,15 @@ export const useSubmissionsStore = create((set, get) => ({
       if (!codeOk) return false
       if (!q) return true
 
-      // Search through: id, form_code, device_id, and payload fields
+      // Search through normalized fields and nested payload data
       const payload = s.payload || {}
-      const data = payload.data || {}
-      const meta = payload.meta || {}
+      const inner = payload.payload || payload
+      const data = inner.data || {}
+      const meta = inner.meta || {}
       const siteInfo = data.siteInfo || {}
       const formData = data.formData || {}
       const datosSection = data.datos || {}
+      const submitter = inner.submitted_by || {}
       const searchableText = [
         s.id,
         s.form_code,
@@ -53,6 +55,8 @@ export const useSubmissionsStore = create((set, get) => ({
         formData.proveedor || '',
         datosSection.nombreSitio || '',
         datosSection.idSitio || '',
+        submitter.name || '',
+        submitter.username || '',
       ].join(' ').toLowerCase()
 
       return searchableText.includes(q)
