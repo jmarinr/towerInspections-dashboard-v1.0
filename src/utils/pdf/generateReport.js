@@ -1,5 +1,6 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { getFormMeta } from '../../data/formTypes'
+import { extractSiteInfo, extractMeta, getCleanPayload } from '../../lib/payloadUtils'
 
 const C = {
   primary: rgb(15/255, 42/255, 74/255),
@@ -131,22 +132,31 @@ export async function generateSubmissionPdf(submission, assets = []) {
   y = PAGE.height - headerH - 18
 
   // ===== SITE INFO =====
-  const payload = submission?.payload || {}
-  const data = payload.data || payload
-  const siteInfo = data.siteInfo || data.formData || {}
-  const siteName = siteInfo.nombreSitio || '—'
-  const siteId = siteInfo.idSitio || '—'
+  const site = extractSiteInfo(submission)
+  const inspMeta = extractMeta(submission)
+  const cleanPayload = getCleanPayload(submission)
 
-  drawText(siteName, { size: 15, bold: true })
-  drawText(`Sitio: ${siteId}  ·  Formulario: ${submission?.form_code || '—'}`, { size: 9, color: C.textLight })
+  drawText(site.nombreSitio, { size: 15, bold: true })
+  drawText(`Sitio: ${site.idSitio}  ·  Formulario: ${submission?.form_code || '—'}`, { size: 9, color: C.textLight })
+  if (site.proveedor !== '—') drawText(`Proveedor: ${site.proveedor}`, { size: 9, color: C.textLight })
   drawText(`Device: ${submission?.device_id || '—'}  ·  App v${submission?.app_version || '?'}`, { size: 8, color: C.textLight })
+  if (inspMeta.date) drawText(`Fecha: ${inspMeta.date}  ·  Hora: ${inspMeta.time || '—'}`, { size: 8, color: C.textLight })
   drawText(`Creado: ${submission?.created_at ? new Date(submission.created_at).toLocaleString() : '—'}  ·  Actualizado: ${submission?.updated_at ? new Date(submission.updated_at).toLocaleString() : '—'}`, { size: 8, color: C.textLight })
   y -= 4
   drawLine(1, C.accent)
 
-  // ===== STRUCTURED DATA =====
-  drawText('Datos del formulario', { size: 13, bold: true })
+  // ===== STRUCTURED DATA (Clean) =====
+  drawText('Datos de la inspección', { size: 13, bold: true })
   y -= 4
+
+  for (const [sectionTitle, sectionData] of Object.entries(cleanPayload)) {
+    drawText(sectionTitle.toUpperCase(), { size: 9, bold: true, color: C.accent })
+    y -= 2
+    if (sectionData && typeof sectionData === 'object') {
+      renderObject(sectionData, 0)
+    }
+    y -= 4
+  }
 
   const renderValue = (key, value, indent = 0) => {
     const label = safeLabel(key)
@@ -181,8 +191,6 @@ export async function generateSubmissionPdf(submission, assets = []) {
     if (!keys.length) { drawText('—', { size: 9, indent, color: C.textLight }); return }
     for (const k of keys) renderValue(k, obj[k], indent)
   }
-
-  renderObject(payload, 0)
 
   // ===== PHOTOS =====
   const photoUrls = assets.filter(a => a.public_url).map(a => ({ url: a.public_url, label: a.asset_type || 'foto' }))

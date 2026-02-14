@@ -35,9 +35,11 @@ export const useSubmissionsStore = create((set, get) => ({
 
       // Search through: id, form_code, device_id, and payload fields
       const payload = s.payload || {}
-      const meta = payload.meta || {}
       const data = payload.data || {}
-      const siteInfo = data.siteInfo || data.formData || {}
+      const meta = payload.meta || {}
+      const siteInfo = data.siteInfo || {}
+      const formData = data.formData || {}
+      const datosSection = data.datos || {}
       const searchableText = [
         s.id,
         s.form_code,
@@ -46,6 +48,11 @@ export const useSubmissionsStore = create((set, get) => ({
         siteInfo.nombreSitio || '',
         siteInfo.idSitio || '',
         siteInfo.proveedor || '',
+        formData.nombreSitio || '',
+        formData.idSitio || '',
+        formData.proveedor || '',
+        datosSection.nombreSitio || '',
+        datosSection.idSitio || '',
       ].join(' ').toLowerCase()
 
       return searchableText.includes(q)

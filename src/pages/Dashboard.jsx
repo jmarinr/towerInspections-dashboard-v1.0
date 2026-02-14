@@ -7,6 +7,7 @@ import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { FORM_TYPES, getFormMeta } from '../data/formTypes'
+import { extractSiteInfo } from '../lib/payloadUtils'
 
 function StatCard({ icon: Icon, title, value, hint, tone = 'neutral' }) {
   return (
@@ -44,10 +45,8 @@ function FormTypeCard({ code, count }) {
 function RecentRow({ submission }) {
   const meta = getFormMeta(submission.form_code)
   const Icon = meta.icon
-  const payload = submission.payload || {}
-  const data = payload.data || payload
-  const siteInfo = data.siteInfo || data.formData || {}
-  const siteName = siteInfo.nombreSitio || '—'
+  const site = extractSiteInfo(submission)
+  const siteName = site.nombreSitio
   const updatedAt = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : '—'
 
   return (

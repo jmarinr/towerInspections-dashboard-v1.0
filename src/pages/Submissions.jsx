@@ -10,22 +10,15 @@ import Spinner from '../components/ui/Spinner'
 import EmptyState from '../components/ui/EmptyState'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { FORM_TYPES, getFormMeta } from '../data/formTypes'
-
-function extractSiteInfo(submission) {
-  const payload = submission.payload || {}
-  const data = payload.data || payload
-  const siteInfo = data.siteInfo || data.formData || {}
-  return {
-    siteName: siteInfo.nombreSitio || siteInfo.nombreSitio || '—',
-    siteId: siteInfo.idSitio || '—',
-    proveedor: siteInfo.proveedor || '—',
-  }
-}
+import { extractSiteInfo as extractSite, extractMeta } from '../lib/payloadUtils'
 
 function SubmissionCard({ submission }) {
   const meta = getFormMeta(submission.form_code)
   const Icon = meta.icon
-  const { siteName, siteId } = extractSiteInfo(submission)
+  const site = extractSite(submission)
+  const siteName = site.nombreSitio
+  const siteId = site.idSitio
+  const inspMeta = extractMeta(submission)
   const updatedAt = submission.updated_at ? new Date(submission.updated_at).toLocaleString() : '—'
   const createdAt = submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—'
 
