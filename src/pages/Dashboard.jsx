@@ -10,7 +10,7 @@ import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { FORM_TYPES, getFormMeta } from '../data/formTypes'
-import { extractSiteInfo, extractMeta } from '../lib/payloadUtils'
+import { extractSiteInfo, extractMeta, isFinalized } from '../lib/payloadUtils'
 
 // ===== STAT CARD =====
 function StatCard({ icon: Icon, title, value, sub, accent }) {
@@ -37,6 +37,7 @@ function SubmissionRow({ submission }) {
   const site = extractSiteInfo(submission)
   const inspMeta = extractMeta(submission)
   const updatedAt = submission.updated_at ? new Date(submission.updated_at) : null
+  const finalized = submission.finalized || isFinalized(submission)
 
   return (
     <Link to={`/submissions/${submission.id}`}>
@@ -50,21 +51,15 @@ function SubmissionRow({ submission }) {
           </div>
           <div className="text-[11px] text-primary/50 mt-0.5 flex items-center gap-2 flex-wrap">
             <span className="font-bold">{meta.shortLabel}</span>
-            <span>·</span>
-            <span>{site.idSitio !== '—' ? `ID ${site.idSitio}` : ''}</span>
-            {inspMeta.date && (
-              <>
-                <span>·</span>
-                <span>{inspMeta.date}</span>
-              </>
-            )}
+            {site.idSitio !== '—' && <><span>·</span><span>ID {site.idSitio}</span></>}
+            {inspMeta.date && <><span>·</span><span>{inspMeta.date}</span></>}
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          {updatedAt && (
-            <span className="text-[10px] text-primary/40 hidden sm:block">
-              {updatedAt.toLocaleDateString()}
-            </span>
+          {finalized ? (
+            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">✓ Final</span>
+          ) : (
+            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">Borrador</span>
           )}
           <ChevronRight size={16} className="text-primary/20 group-hover:text-accent transition-colors" />
         </div>

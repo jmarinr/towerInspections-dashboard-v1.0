@@ -85,6 +85,12 @@ export function extractSubmittedBy(submission) {
   return inner.submitted_by || null
 }
 
+// ===== EXTRACT FINALIZED STATUS =====
+export function isFinalized(submission) {
+  const { inner } = resolveInner(submission)
+  return inner.finalized === true
+}
+
 // ===== BUILD LABEL MAPS =====
 function buildMaintenanceChecklistMap() {
   const map = {}
@@ -127,8 +133,8 @@ const INSPECTION_ITEM_MAP = buildInspectionItemMap()
 // ===== CLEAN VALUE =====
 function cleanVal(val) {
   if (val === null || val === undefined || val === '') return null
-  if (typeof val === 'string' && val.startsWith('data:')) return '📷 Foto capturada'
-  if (val === '__photo__') return '📷 Foto subida'
+  if (typeof val === 'string' && val.startsWith('data:')) return null
+  if (typeof val === 'string' && val.startsWith('__photo')) return null
   return val
 }
 

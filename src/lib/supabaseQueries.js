@@ -175,16 +175,17 @@ export async function fetchDashboardStats() {
 function normalizeSubmission(raw) {
   if (!raw) return raw
   const p = raw.payload || raw.data || {}
+  const inner = p.payload || {}
 
   return {
     ...raw,
-    // Ensure form_code etc. exist at top level (they may be DB columns, or only in payload)
     form_code: raw.form_code || p.form_code || '',
     device_id: raw.device_id || p.device_id || '',
     org_code: raw.org_code || p.org_code || '',
     app_version: raw.app_version || p.app_version || '',
     form_version: raw.form_version || p.form_version || '',
-    // Ensure payload is always present
+    site_visit_id: raw.site_visit_id || p.site_visit_id || null,
+    finalized: inner.finalized === true,
     payload: p,
   }
 }

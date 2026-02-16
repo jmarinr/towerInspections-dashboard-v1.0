@@ -12,7 +12,7 @@ import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta } from '../data/formTypes'
-import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection } from '../lib/payloadUtils'
+import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { downloadSubmissionPdf } from '../utils/pdf/generateReport'
 
 // ===== STATUS PILL =====
@@ -276,6 +276,8 @@ export default function SubmissionDetail() {
   const cleanPayload = getCleanPayload(submission)
   const totalPhotos = assets.filter(a => a.public_url).length
   const createdAt = submission.created_at ? new Date(submission.created_at) : null
+  const finalized = submission.finalized || isFinalized(submission)
+  const submitter = extractSubmittedBy(submission)
 
   // Checklist stats
   let totalItems = 0, bueno = 0, regular = 0, malo = 0, pendiente = 0
@@ -343,6 +345,15 @@ export default function SubmissionDetail() {
             <div className="text-white text-lg font-extrabold">{site.nombreSitio}</div>
           </div>
           <Badge tone="neutral" className="bg-white/20 text-white border-0">{site.idSitio}</Badge>
+          {finalized ? (
+            <Badge tone="success" className="bg-emerald-500/30 text-white border-0 ml-1">
+              <CheckCircle2 size={10} /> Finalizado
+            </Badge>
+          ) : (
+            <Badge tone="warning" className="bg-amber-500/30 text-white border-0 ml-1">
+              <Clock size={10} /> Borrador
+            </Badge>
+          )}
         </div>
 
         <div className="p-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
