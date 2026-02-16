@@ -116,8 +116,8 @@ function ChecklistTable({ items }) {
 }
 
 // ===== SECTION PHOTO STRIP (collapsible, lazy) =====
-function SectionPhotos({ photos }) {
-  const [open, setOpen] = useState(false)
+function SectionPhotos({ photos, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
   const [zoomedPhoto, setZoomedPhoto] = useState(null)
 
   if (!photos || !photos.length) return null
@@ -437,7 +437,7 @@ export default function SubmissionDetail() {
       {unmatchedPhotos.length > 0 && (
         <Card className="p-4">
           <SectionHeader title="📷 Otras fotos" count={unmatchedPhotos.length} />
-          <SectionPhotos photos={unmatchedPhotos} />
+          <SectionPhotos photos={unmatchedPhotos} defaultOpen={true} />
         </Card>
       )}
     </div>
