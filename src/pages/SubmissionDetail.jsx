@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Download, Image as ImageIcon, MapPin, Calendar,
   Clock, Globe, FileText, CheckCircle2, AlertTriangle,
-  XCircle, Minus, ClipboardList, ChevronDown, ChevronRight, X,
+  XCircle, Minus, ClipboardList, X,
   User2,
 } from 'lucide-react'
 import Card from '../components/ui/Card'
@@ -115,46 +115,41 @@ function ChecklistTable({ items }) {
   )
 }
 
-// ===== SECTION PHOTO STRIP (collapsible, lazy) =====
+// ===== SECTION PHOTO STRIP (always visible thumbnails) =====
 function SectionPhotos({ photos, defaultOpen = false }) {
-  const [open, setOpen] = useState(defaultOpen)
   const [zoomedPhoto, setZoomedPhoto] = useState(null)
 
   if (!photos || !photos.length) return null
 
   return (
     <div className="mt-3">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 text-xs font-bold text-accent hover:text-accent/80 transition-colors"
-      >
-        <ImageIcon size={13} />
-        {photos.length} foto{photos.length !== 1 ? 's' : ''} en esta sección
-        {open ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-      </button>
+      <div className="flex items-center gap-2 mb-2">
+        <ImageIcon size={13} className="text-accent" />
+        <span className="text-xs font-bold text-accent">
+          {photos.length} foto{photos.length !== 1 ? 's' : ''} en esta sección
+        </span>
+      </div>
 
-      {open && (
-        <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-          {photos.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setZoomedPhoto(p)}
-              className="rounded-xl overflow-hidden border border-primary/8 bg-white hover:shadow-soft transition-all text-left group"
-            >
-              <img
-                src={p.public_url}
-                alt={p.label}
-                className="w-full h-28 object-cover bg-primary/5"
-                loading="lazy"
-              />
-              <div className="p-2">
-                <div className="text-[10px] font-bold text-primary truncate">{p.label}</div>
-                <div className="text-[9px] text-primary/40 mt-0.5">{new Date(p.created_at).toLocaleDateString()}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+        {photos.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setZoomedPhoto(p)}
+            className="rounded-xl overflow-hidden border border-primary/8 bg-white hover:shadow-soft transition-all text-left group"
+          >
+            <img
+              src={p.public_url}
+              alt={p.label}
+              className="w-full h-28 object-cover bg-primary/5"
+              loading="lazy"
+            />
+            <div className="p-2">
+              <div className="text-[10px] font-bold text-primary truncate">{p.label}</div>
+              <div className="text-[9px] text-primary/40 mt-0.5">{new Date(p.created_at).toLocaleDateString()}</div>
+            </div>
+          </button>
+        ))}
+      </div>
 
       {/* Lightbox */}
       {zoomedPhoto && (
