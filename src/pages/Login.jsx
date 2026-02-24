@@ -13,9 +13,9 @@ export default function Login() {
   const handleSubmit = (e) => {
     e.preventDefault()
     setError('')
-    const ok = login(username, password)
-    if (ok) navigate('/dashboard')
-    else setError('Credenciales inválidas. Verifique usuario y contraseña.')
+    const result = login({ username, password })
+    if (result?.ok) navigate('/dashboard')
+    else setError(result?.message || 'Credenciales inválidas')
   }
 
   return (
