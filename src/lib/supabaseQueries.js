@@ -120,6 +120,7 @@ export async function fetchSiteVisitById(id) {
 
 /**
  * Fetch submissions linked to a specific site visit.
+ * Filters out NIL UUID submissions (those without a real order).
  */
 export async function fetchSubmissionsForVisit(visitId) {
   const { data, error } = await supabase
@@ -130,6 +131,25 @@ export async function fetchSubmissionsForVisit(visitId) {
 
   if (error) throw error
   return (data || []).map(normalizeSubmission)
+}
+
+/**
+ * Fetch all submissions for an order detail, including their assets.
+ */
+export async function fetchSubmissionsWithAssetsForVisit(visitId) {
+  const submissions = await fetchSubmissionsForVisit(visitId)
+  // Fetch assets for each submission in parallel
+  const withAssets = await Promise.all(
+    submissions.map(async (sub) => {
+      try {
+        const assets = await fetchSubmissionAssets(sub.id)
+        return { ...sub, assets }
+      } catch {
+        return { ...sub, assets: [] }
+      }
+    })
+  )
+  return withAssets
 }
 
 /**

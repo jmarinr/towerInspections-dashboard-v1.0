@@ -40,6 +40,12 @@ button { font-family: inherit; }
 }
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 
+/* Thin scrollbar for photo strips */
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.1) transparent; }
+.scrollbar-thin::-webkit-scrollbar { height: 4px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 99px; }
+.scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+
 /* Print */
 @media print {
   .no-print { display: none !important; }

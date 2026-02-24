@@ -4,7 +4,7 @@ import {
   ArrowLeft, Download, Image as ImageIcon, MapPin, Calendar,
   Clock, Globe, FileText, CheckCircle2, AlertTriangle,
   XCircle, Minus, ClipboardList, X,
-  User2,
+  User2, ChevronRight,
 } from 'lucide-react'
 import Card from '../components/ui/Card'
 import Badge from '../components/ui/Badge'
@@ -273,6 +273,8 @@ export default function SubmissionDetail() {
   const createdAt = submission.created_at ? new Date(submission.created_at) : null
   const finalized = submission.finalized || isFinalized(submission)
   const submitter = extractSubmittedBy(submission)
+  const visitId = submission.site_visit_id
+  const hasOrder = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
 
   // Checklist stats
   let totalItems = 0, bueno = 0, regular = 0, malo = 0, pendiente = 0
@@ -353,9 +355,9 @@ export default function SubmissionDetail() {
 
         <div className="p-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
           <InfoChip icon={MapPin} label="Sitio" value={site.nombreSitio} sub={site.tipoSitio || site.idSitio} />
-          <InfoChip icon={Globe} label="Ubicación"
-            value={inspMeta.lat ? `${Number(inspMeta.lat).toFixed(4)}, ${Number(inspMeta.lng).toFixed(4)}` : (site.coordenadas || '—')}
-            sub={site.direccion || null}
+          <InfoChip icon={User2} label="Inspector"
+            value={submitter ? (submitter.name || submitter.username || '—') : '—'}
+            sub={submitter?.role || null}
           />
           <InfoChip icon={Calendar} label="Fecha"
             value={inspMeta.date || (createdAt ? createdAt.toLocaleDateString() : '—')}
@@ -363,9 +365,22 @@ export default function SubmissionDetail() {
           />
           <InfoChip icon={ImageIcon} label="Evidencia"
             value={`${totalPhotos} foto${totalPhotos !== 1 ? 's' : ''}`}
-            sub={`App v${submission.app_version || '?'}`}
+            sub={hasOrder ? null : `App v${submission.app_version || '?'}`}
           />
         </div>
+
+        {/* Link to parent order */}
+        {hasOrder && (
+          <div className="px-4 pb-3">
+            <Link to={`/orders/${visitId}`}>
+              <div className="rounded-xl border border-accent/20 bg-accent/5 p-2.5 flex items-center gap-2 hover:bg-accent/10 transition-colors">
+                <Globe size={13} className="text-accent" />
+                <span className="text-xs font-bold text-accent">Ver orden de visita completa</span>
+                <ChevronRight size={13} className="text-accent/50 ml-auto" />
+              </div>
+            </Link>
+          </div>
+        )}
 
         {/* Checklist summary */}
         {totalItems > 0 && (
