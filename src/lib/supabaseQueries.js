@@ -39,7 +39,15 @@ export async function fetchSubmissions({ formCode, limit = 200 } = {}) {
   const { data, error } = await query
   if (error) throw error
 
-  return (data || []).map(normalizeSubmission)
+  return (data || [])
+    .map(normalizeSubmission)
+    // Filter out ghost rows created by ensureSubmissionId (empty payload, no real data)
+    .filter(s => {
+      const p = s.payload || {}
+      const inner = p.payload || p
+      // Keep if has actual form data or has been saved with real payload
+      return inner.data || inner.meta || p._meta || p.form_code
+    })
 }
 
 /**
@@ -72,12 +80,50 @@ export async function fetchSubmissionAssets(submissionId) {
 
 /**
  * Fetch submission + its assets.
+ *
+ * IMPORTANT: Due to a constraint mismatch in the inspector app, assets may be
+ * linked to a "sibling" submission (same org_code + device_id + form_code but
+ * different site_visit_id — e.g. one row with site_visit_id and one without).
+ * We fetch assets from ALL sibling submissions to ensure photos are found.
  */
 export async function fetchSubmissionWithAssets(id) {
-  const [submission, assets] = await Promise.all([
-    fetchSubmissionById(id),
-    fetchSubmissionAssets(id),
-  ])
+  const submission = await fetchSubmissionById(id)
+
+  // 1) Direct assets (the common/correct case)
+  let assets = await fetchSubmissionAssets(id)
+
+  // 2) If no assets found, look for sibling submissions and their assets
+  if (assets.length === 0 && submission) {
+    try {
+      const { org_code, device_id, form_code } = submission
+      if (org_code && device_id && form_code) {
+        // Find all submissions with the same org+device+form
+        const { data: siblings } = await supabase
+          .from('submissions')
+          .select('id')
+          .eq('org_code', org_code)
+          .eq('device_id', device_id)
+          .eq('form_code', form_code)
+          .neq('id', id)
+
+        if (siblings?.length) {
+          const siblingIds = siblings.map(s => s.id)
+          const { data: siblingAssets } = await supabase
+            .from('submission_assets')
+            .select('*')
+            .in('submission_id', siblingIds)
+            .order('created_at', { ascending: true })
+
+          if (siblingAssets?.length) {
+            assets = siblingAssets
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[Admin] Sibling asset lookup failed:', e?.message)
+    }
+  }
+
   return { submission, assets }
 }
 
@@ -135,14 +181,38 @@ export async function fetchSubmissionsForVisit(visitId) {
 
 /**
  * Fetch all submissions for an order detail, including their assets.
+ * Uses sibling lookup to find assets that may be on a different submission row.
  */
 export async function fetchSubmissionsWithAssetsForVisit(visitId) {
   const submissions = await fetchSubmissionsForVisit(visitId)
-  // Fetch assets for each submission in parallel
+
   const withAssets = await Promise.all(
     submissions.map(async (sub) => {
       try {
-        const assets = await fetchSubmissionAssets(sub.id)
+        // Direct assets first
+        let assets = await fetchSubmissionAssets(sub.id)
+
+        // If none found, search sibling submissions
+        if (assets.length === 0 && sub.org_code && sub.device_id && sub.form_code) {
+          const { data: siblings } = await supabase
+            .from('submissions')
+            .select('id')
+            .eq('org_code', sub.org_code)
+            .eq('device_id', sub.device_id)
+            .eq('form_code', sub.form_code)
+            .neq('id', sub.id)
+
+          if (siblings?.length) {
+            const { data: siblingAssets } = await supabase
+              .from('submission_assets')
+              .select('*')
+              .in('submission_id', siblings.map(s => s.id))
+              .order('created_at', { ascending: true })
+
+            if (siblingAssets?.length) assets = siblingAssets
+          }
+        }
+
         return { ...sub, assets }
       } catch {
         return { ...sub, assets: [] }
