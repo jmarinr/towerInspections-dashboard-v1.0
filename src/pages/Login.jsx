@@ -1,101 +1,79 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Shield, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
-import Button from '../components/ui/Button'
+import { LogIn, AlertCircle } from 'lucide-react'
 
 export default function Login() {
-  const navigate = useNavigate()
-  const login = useAuthStore((s) => s.login)
   const [username, setUsername] = useState('')
-  const [pin, setPin] = useState('')
-  const [showPin, setShowPin] = useState(false)
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const login = useAuthStore((s) => s.login)
+  const navigate = useNavigate()
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault()
     setError('')
-    setLoading(true)
-
-    // small delay for UX
-    await new Promise((r) => setTimeout(r, 300))
-
-    const result = login({ username, password: pin })
-    setLoading(false)
-
-    if (result.ok) {
-      navigate('/dashboard', { replace: true })
-    } else {
-      setError(result.message)
-    }
+    const ok = login(username, password)
+    if (ok) navigate('/dashboard')
+    else setError('Credenciales inválidas. Verifique usuario y contraseña.')
   }
 
   return (
-    <div className="min-h-[100dvh] bg-primary flex items-center justify-center p-4">
+    <div className="min-h-[100dvh] bg-surface flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-3xl bg-white/10 border border-white/20 flex items-center justify-center mb-4">
-            <Shield size={28} className="text-accent" />
+        {/* Brand */}
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 rounded-2xl bg-sidebar text-white flex items-center justify-center mx-auto mb-4 shadow-elevated">
+            <span className="font-black text-lg">PTI</span>
           </div>
-          <h1 className="text-white font-extrabold text-xl tracking-tight">PTI Admin Panel</h1>
-          <p className="text-white/50 text-sm mt-1">Panel de supervisión de inspecciones</p>
+          <h1 className="text-xl font-bold text-gray-800">TeleInspect</h1>
+          <p className="text-[13px] text-gray-400 mt-1">Panel de Supervisión</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="bg-white rounded-3xl p-6 shadow-soft space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-primary/60 mb-1.5">Usuario</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Ej: supervisor1"
-              autoComplete="username"
-              className="w-full rounded-2xl border border-primary/12 bg-surface px-4 py-3 text-sm text-primary placeholder:text-primary/35 focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-primary/60 mb-1.5">PIN</label>
-            <div className="relative">
+        <div className="bg-white rounded-xl border border-gray-200/60 shadow-card p-6">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[12px] font-semibold text-gray-500 mb-1.5">Usuario</label>
               <input
-                type={showPin ? 'text' : 'password'}
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                placeholder="••••"
-                autoComplete="current-password"
-                className="w-full rounded-2xl border border-primary/12 bg-surface px-4 py-3 pr-12 text-sm text-primary placeholder:text-primary/35 focus:outline-none focus:ring-2 focus:ring-accent/40 transition-all"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Ingrese su usuario"
+                className="w-full px-3 py-2.5 text-[13px] bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+                autoFocus
               />
-              <button
-                type="button"
-                onClick={() => setShowPin((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-primary/40 hover:text-primary/70 transition-colors"
-              >
-                {showPin ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
             </div>
-          </div>
-
-          {error && (
-            <div className="text-danger text-xs font-bold bg-danger-light rounded-xl px-3 py-2">
-              {error}
+            <div>
+              <label className="block text-[12px] font-semibold text-gray-500 mb-1.5">Contraseña</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Ingrese su contraseña"
+                className="w-full px-3 py-2.5 text-[13px] bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
+              />
             </div>
-          )}
 
-          <Button type="submit" className="w-full py-3" disabled={loading || !username || !pin}>
-            {loading ? 'Ingresando…' : 'Ingresar'}
-          </Button>
+            {error && (
+              <div className="flex items-center gap-2 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                <AlertCircle size={14} className="text-red-500 flex-shrink-0" />
+                <span className="text-[12px] text-red-700">{error}</span>
+              </div>
+            )}
 
-          <div className="text-center text-[11px] text-primary/40 mt-2">
-            Solo supervisores y testing tienen acceso
-          </div>
-        </form>
-
-        <div className="text-center text-white/30 text-[11px] mt-6">
-          PTI Inspect · Admin Panel v2.0
+            <button
+              type="submit"
+              className="w-full flex items-center justify-center gap-2 bg-sidebar hover:bg-teal-800 text-white font-semibold text-[13px] py-2.5 rounded-lg shadow-sm transition-colors"
+            >
+              <LogIn size={15} /> Iniciar sesión
+            </button>
+          </form>
         </div>
+
+        <p className="text-center text-[11px] text-gray-400 mt-6">
+          Phoenix Tower International · Panel de Supervisión
+        </p>
       </div>
     </div>
   )

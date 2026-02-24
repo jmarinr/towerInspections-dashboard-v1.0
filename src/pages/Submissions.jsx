@@ -1,64 +1,33 @@
 import { useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Eye, ArrowRight, CheckCircle2, Clock, ChevronRight } from 'lucide-react'
-import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
-import Input from '../components/ui/Input'
-import Select from '../components/ui/Select'
+import { Search, CheckCircle2, Clock, ChevronRight } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
-import EmptyState from '../components/ui/EmptyState'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { FORM_TYPES, getFormMeta } from '../data/formTypes'
-import { extractSiteInfo as extractSite, extractMeta, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
+import { extractSiteInfo, extractMeta, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
-function SubmissionCard({ submission }) {
-  const meta = getFormMeta(submission.form_code)
+function FormCodeBadge({ formCode }) {
+  const meta = getFormMeta(formCode)
   const Icon = meta.icon
-  const site = extractSite(submission)
-  const inspMeta = extractMeta(submission)
-  const finalized = submission.finalized || isFinalized(submission)
-  const submitter = extractSubmittedBy(submission)
-  const updatedAt = submission.updated_at ? new Date(submission.updated_at) : null
-
   return (
-    <Link to={`/submissions/${submission.id}`}>
-      <Card className="p-4 hover:shadow-soft transition-all group cursor-pointer">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-start gap-3 min-w-0">
-            <div className={`w-10 h-10 rounded-xl ${meta.color} text-white flex items-center justify-center flex-shrink-0`}>
-              <Icon size={18} />
-            </div>
-            <div className="min-w-0">
-              <div className="font-extrabold text-primary text-sm truncate">{site.nombreSitio}</div>
-              <div className="text-[11px] text-primary/50 mt-0.5 truncate">
-                {meta.shortLabel} · ID: <span className="font-bold">{site.idSitio}</span>
-              </div>
-            </div>
-          </div>
-          {finalized ? (
-            <Badge tone="success">
-              <CheckCircle2 size={10} /> Finalizado
-            </Badge>
-          ) : (
-            <Badge tone="warning">
-              <Clock size={10} /> Borrador
-            </Badge>
-          )}
-        </div>
+    <div className="flex items-center gap-2.5">
+      <div className={`w-8 h-8 rounded-lg ${meta.color} text-white flex items-center justify-center flex-shrink-0`}>
+        <Icon size={14} />
+      </div>
+      <span className="text-[13px] font-medium text-gray-800">{meta.shortLabel}</span>
+    </div>
+  )
+}
 
-        <div className="mt-3 flex items-center justify-between text-[11px] text-primary/50">
-          <div className="flex items-center gap-3 flex-wrap">
-            {submitter && (
-              <span><span className="font-bold">Inspector:</span> {submitter.name || submitter.username}</span>
-            )}
-            {inspMeta.date && <span>{inspMeta.date}</span>}
-            {updatedAt && <span>{updatedAt.toLocaleTimeString()}</span>}
-          </div>
-          <ChevronRight size={16} className="text-primary/20 group-hover:text-accent transition-colors flex-shrink-0" />
-        </div>
-      </Card>
-    </Link>
+function StatusBadge({ finalized }) {
+  return finalized ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+      <CheckCircle2 size={10} /> Finalizado
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+      <Clock size={10} /> Borrador
+    </span>
   )
 }
 
@@ -73,74 +42,130 @@ export default function Submissions() {
   const error = useSubmissionsStore((s) => s.error)
 
   useEffect(() => { load() }, [])
-
   const filtered = useMemo(() => getFiltered(), [submissions, filterFormCode, search])
 
   return (
-    <div className="space-y-4 max-w-5xl">
-      <Card className="p-4">
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <div>
-            <div className="text-sm font-extrabold text-primary">Formularios</div>
-            <div className="text-[11px] text-primary/50 mt-0.5">Inspecciones y reportes enviados por los inspectores</div>
+    <div className="max-w-6xl space-y-5">
+      {/* Header + filters */}
+      <div className="bg-white rounded-xl border border-gray-200/60 shadow-card">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-[15px] font-semibold text-gray-800">Lista de formularios</h2>
+              <p className="text-[12px] text-gray-400 mt-0.5">Inspecciones y reportes enviados por los inspectores</p>
+            </div>
+            <span className="text-[12px] font-medium text-gray-400">
+              Mostrando <span className="text-gray-600 font-semibold">{filtered.length}</span> de {submissions.length}
+            </span>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="relative">
-            <div className="absolute left-3.5 top-[38px] text-primary/40 pointer-events-none">
-              <Search size={16} />
-            </div>
-            <Input
-              label="Buscar"
+        <div className="px-5 py-3 flex items-center gap-3 flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
               value={search}
               onChange={(e) => setFilter({ search: e.target.value })}
-              placeholder="Sitio, ID, inspector…"
-              className="pl-10"
+              placeholder="Buscar sitio, ID, inspector…"
+              className="w-full pl-9 pr-3 py-2 text-[13px] bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
             />
           </div>
-
-          <Select
-            label="Tipo de formulario"
+          <select
             value={filterFormCode}
             onChange={(e) => setFilter({ filterFormCode: e.target.value })}
+            className="px-3 py-2 text-[13px] bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 min-w-[180px]"
           >
-            <option value="all">Todos los tipos</option>
-            {Object.entries(FORM_TYPES).map(([code, meta]) => (
-              <option key={code} value={code}>{meta.label}</option>
+            <option value="all">Todos los formularios</option>
+            {Object.entries(FORM_TYPES).map(([code, m]) => (
+              <option key={code} value={code}>{m.label}</option>
             ))}
-          </Select>
+          </select>
         </div>
-
-        <div className="mt-3 text-[11px] text-primary/50">
-          Mostrando <span className="font-bold">{filtered.length}</span> de <span className="font-bold">{submissions.length}</span>
-        </div>
-      </Card>
-
-      {error && (
-        <Card className="p-4 border-danger/20 bg-danger-light">
-          <div className="text-sm text-danger font-bold">{error}</div>
-          <Button variant="outline" className="mt-2" onClick={() => load(true)}>Reintentar</Button>
-        </Card>
-      )}
-
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Spinner size={24} />
-          <span className="ml-3 text-sm text-primary/60 font-bold">Cargando formularios…</span>
-        </div>
-      )}
-
-      {!isLoading && filtered.length === 0 && (
-        <EmptyState
-          title="Sin formularios"
-          description={search || filterFormCode !== 'all' ? 'Prueba ajustando los filtros' : 'Aún no hay inspecciones registradas'}
-        />
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {filtered.map((s) => <SubmissionCard key={s.id} submission={s} />)}
       </div>
+
+      {/* Error */}
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-5 py-3">
+          <span className="text-sm font-medium text-red-700">{error}</span>
+        </div>
+      )}
+
+      {/* Loading */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-16">
+          <Spinner size={20} />
+          <span className="ml-3 text-sm text-gray-400 font-medium">Cargando formularios…</span>
+        </div>
+      )}
+
+      {/* Table */}
+      {!isLoading && filtered.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200/60 shadow-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-100">
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Formulario</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Sitio</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden md:table-cell">Inspector</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide hidden lg:table-cell">Fecha</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((sub) => {
+                  const site = extractSiteInfo(sub)
+                  const submitter = extractSubmittedBy(sub)
+                  const finalized = sub.finalized || isFinalized(sub)
+                  const updatedAt = sub.updated_at ? new Date(sub.updated_at) : null
+                  return (
+                    <tr key={sub.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors group">
+                      <td className="px-5 py-3.5">
+                        <FormCodeBadge formCode={sub.form_code} />
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="text-[13px] font-medium text-gray-800">{site.nombreSitio}</div>
+                        <div className="text-[11px] text-gray-400">ID: {site.idSitio}</div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden md:table-cell">
+                        <div className="text-[13px] text-gray-600">{submitter?.name || submitter?.username || '—'}</div>
+                      </td>
+                      <td className="px-5 py-3.5 hidden lg:table-cell">
+                        <div className="text-[13px] text-gray-500">
+                          {updatedAt ? updatedAt.toLocaleDateString() : '—'}
+                        </div>
+                        <div className="text-[11px] text-gray-400">
+                          {updatedAt ? updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <StatusBadge finalized={finalized} />
+                      </td>
+                      <td className="pr-4">
+                        <Link to={`/submissions/${sub.id}`}>
+                          <ChevronRight size={16} className="text-gray-300 group-hover:text-teal-600 transition-colors" />
+                        </Link>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Empty */}
+      {!isLoading && filtered.length === 0 && (
+        <div className="bg-white rounded-xl border border-gray-200/60 py-16 text-center">
+          <ClipboardList size={32} className="mx-auto text-gray-300 mb-3" />
+          <div className="text-sm font-medium text-gray-500">Sin formularios</div>
+          <div className="text-[12px] text-gray-400 mt-1">
+            {search || filterFormCode !== 'all' ? 'Prueba ajustando los filtros' : 'Aún no hay inspecciones registradas'}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

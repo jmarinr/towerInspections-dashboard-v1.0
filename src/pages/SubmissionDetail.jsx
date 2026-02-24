@@ -2,171 +2,66 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Download, Image as ImageIcon, MapPin, Calendar,
-  Clock, Globe, FileText, CheckCircle2, AlertTriangle,
-  XCircle, Minus, ClipboardList, X,
-  User2, ChevronRight,
+  Clock, FileText, CheckCircle2, AlertTriangle,
+  XCircle, Minus, X, User2, ChevronRight, ExternalLink,
 } from 'lucide-react'
-import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { downloadSubmissionPdf } from '../utils/pdf/generateReport'
 
-// ===== STATUS PILL =====
-const STATUS_CONFIG = {
-  '✅ Bueno': { icon: CheckCircle2, bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200' },
-  '⚠️ Regular': { icon: AlertTriangle, bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200' },
-  '❌ Malo': { icon: XCircle, bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
-  '➖ N/A': { icon: Minus, bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-200' },
-  '⏳ Pendiente': { icon: Clock, bg: 'bg-blue-50', text: 'text-blue-500', border: 'border-blue-200' },
+// ── Status Pill ──
+const STATUS_MAP = {
+  '✅ Bueno': { icon: CheckCircle2, cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+  '⚠️ Regular': { icon: AlertTriangle, cls: 'text-amber-700 bg-amber-50 border-amber-200' },
+  '❌ Malo': { icon: XCircle, cls: 'text-red-700 bg-red-50 border-red-200' },
+  '➖ N/A': { icon: Minus, cls: 'text-gray-500 bg-gray-50 border-gray-200' },
+  '⏳ Pendiente': { icon: Clock, cls: 'text-blue-600 bg-blue-50 border-blue-200' },
+  '✅ Ejecutada': { icon: CheckCircle2, cls: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
 }
 
 function StatusPill({ value }) {
   const raw = String(value || '')
-  const cfg = STATUS_CONFIG[raw]
-  if (!cfg) return <span className="text-sm text-primary/80">{value || '—'}</span>
+  const cfg = STATUS_MAP[raw]
+  if (!cfg) return <span className="text-[12px] text-gray-600">{value || '—'}</span>
   const Icon = cfg.icon
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${cfg.bg} ${cfg.text} border ${cfg.border}`}>
-      <Icon size={13} /> {raw.replace(/^[^\s]+\s/, '')}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold border ${cfg.cls}`}>
+      <Icon size={10} /> {raw.replace(/^[^\s]+\s/, '')}
     </span>
   )
 }
 
-// ===== INFO CHIP =====
-function InfoChip({ icon: Icon, label, value, sub }) {
-  return (
-    <div className="rounded-2xl border border-primary/8 p-3.5 bg-white">
-      <div className="text-[11px] text-primary/50 font-bold flex items-center gap-1.5">
-        {Icon && <Icon size={12} />} {label}
-      </div>
-      <div className="font-bold text-primary text-sm mt-1 break-words">{value || '—'}</div>
-      {sub && <div className="text-[11px] text-primary/40 mt-0.5">{sub}</div>}
-    </div>
-  )
-}
-
-// ===== SECTION HEADER =====
-function SectionHeader({ title, count }) {
-  return (
-    <div className="flex items-center gap-2 mb-3 pt-1">
-      <div className="w-1 h-5 rounded-full bg-accent" />
-      <h3 className="text-sm font-extrabold text-primary">{title}</h3>
-      {count != null && (
-        <span className="text-[10px] font-bold text-primary/40 bg-primary/5 px-2 py-0.5 rounded-full">{count}</span>
-      )}
-    </div>
-  )
-}
-
-// ===== KEY-VALUE FIELDS =====
-function FieldGrid({ data }) {
-  if (!data || typeof data !== 'object') return null
-  const entries = Object.entries(data).filter(([, v]) => v != null && v !== '' && v !== '—')
-  if (!entries.length) return <div className="text-sm text-primary/40 italic">Sin datos capturados</div>
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-      {entries.map(([label, value]) => (
-        <div key={label} className="rounded-xl border border-primary/6 bg-surface p-3">
-          <div className="text-[10px] text-primary/50 font-bold uppercase tracking-wide">{label}</div>
-          <div className="text-sm font-semibold text-primary mt-0.5 break-words">
-            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ===== CHECKLIST TABLE =====
-function ChecklistTable({ items }) {
-  if (!Array.isArray(items) || !items.length) return null
-  const hasValue = items.some(i => i['Valor'])
-  const hasObs = items.some(i => i['Observación'])
+// ── Section Photos (always visible) ──
+function SectionPhotos({ photos }) {
+  const [zoomed, setZoomed] = useState(null)
+  if (!photos?.length) return null
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-primary/8">
-      <table className="min-w-full text-sm">
-        <thead>
-          <tr className="bg-primary/[0.03]">
-            <th className="text-left px-3 py-2.5 text-[10px] font-extrabold text-primary/60 uppercase tracking-wide w-12">#</th>
-            <th className="text-left px-3 py-2.5 text-[10px] font-extrabold text-primary/60 uppercase tracking-wide">Ítem</th>
-            <th className="text-left px-3 py-2.5 text-[10px] font-extrabold text-primary/60 uppercase tracking-wide w-32">Estado</th>
-            {hasValue && <th className="text-left px-3 py-2.5 text-[10px] font-extrabold text-primary/60 uppercase tracking-wide w-28">Valor</th>}
-            {hasObs && <th className="text-left px-3 py-2.5 text-[10px] font-extrabold text-primary/60 uppercase tracking-wide">Observación</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, idx) => (
-            <tr key={idx} className="border-t border-primary/6 hover:bg-primary/[0.015] transition-colors">
-              <td className="px-3 py-2.5 text-xs text-primary/50 font-mono">{item['#'] || idx + 1}</td>
-              <td className="px-3 py-2.5 text-sm text-primary font-medium">{item['Ítem'] || item['Pregunta'] || '—'}</td>
-              <td className="px-3 py-2.5"><StatusPill value={item['Estado']} /></td>
-              {hasValue && <td className="px-3 py-2.5 text-sm text-primary/70">{item['Valor'] || ''}</td>}
-              {hasObs && <td className="px-3 py-2.5 text-sm text-primary/60 max-w-xs">{item['Observación'] || ''}</td>}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-// ===== SECTION PHOTO STRIP (always visible thumbnails) =====
-function SectionPhotos({ photos, defaultOpen = false }) {
-  const [zoomedPhoto, setZoomedPhoto] = useState(null)
-
-  if (!photos || !photos.length) return null
-
-  return (
-    <div className="mt-3">
+    <div className="mt-4">
       <div className="flex items-center gap-2 mb-2">
-        <ImageIcon size={13} className="text-accent" />
-        <span className="text-xs font-bold text-accent">
-          {photos.length} foto{photos.length !== 1 ? 's' : ''} en esta sección
-        </span>
+        <ImageIcon size={12} className="text-teal-600" />
+        <span className="text-[11px] font-semibold text-teal-700">{photos.length} foto{photos.length !== 1 ? 's' : ''}</span>
       </div>
-
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
         {photos.map((p) => (
-          <button
-            key={p.id}
-            onClick={() => setZoomedPhoto(p)}
-            className="rounded-xl overflow-hidden border border-primary/8 bg-white hover:shadow-soft transition-all text-left group"
-          >
-            <img
-              src={p.public_url}
-              alt={p.label}
-              className="w-full h-28 object-cover bg-primary/5"
-              loading="lazy"
-            />
-            <div className="p-2">
-              <div className="text-[10px] font-bold text-primary truncate">{p.label}</div>
-              <div className="text-[9px] text-primary/40 mt-0.5">{new Date(p.created_at).toLocaleDateString()}</div>
+          <button key={p.id} onClick={() => setZoomed(p)} className="rounded-lg overflow-hidden border border-gray-200 hover:shadow-soft transition-all text-left group bg-white">
+            <img src={p.public_url} alt={p.label} className="w-full h-24 object-cover bg-gray-100" loading="lazy" />
+            <div className="px-2 py-1.5">
+              <div className="text-[10px] font-medium text-gray-700 truncate">{p.label}</div>
             </div>
           </button>
         ))}
       </div>
-
-      {/* Lightbox */}
-      {zoomedPhoto && (
-        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4" onClick={() => setZoomedPhoto(null)}>
+      {zoomed && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4" onClick={() => setZoomed(null)}>
           <div className="relative max-w-3xl w-full" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => setZoomedPhoto(null)} className="absolute -top-10 right-0 text-white/70 hover:text-white">
-              <X size={24} />
-            </button>
-            <img src={zoomedPhoto.public_url} alt={zoomedPhoto.label} className="w-full rounded-2xl" />
-            <div className="text-center mt-3">
-              <div className="text-white font-bold text-sm">{zoomedPhoto.label}</div>
-              <div className="text-white/50 text-xs mt-1">{zoomedPhoto.asset_type}</div>
-            </div>
-            <a href={zoomedPhoto.public_url} target="_blank" rel="noopener noreferrer" className="block mt-3">
-              <Button variant="outline" className="w-full border-white/30 text-white hover:bg-white/10">
-                Abrir en nueva pestaña
-              </Button>
+            <button onClick={() => setZoomed(null)} className="absolute -top-10 right-0 text-white/70 hover:text-white"><X size={24} /></button>
+            <img src={zoomed.public_url} alt={zoomed.label} className="w-full rounded-xl" />
+            <div className="text-center mt-3 text-white text-sm font-medium">{zoomed.label}</div>
+            <a href={zoomed.public_url} target="_blank" rel="noopener noreferrer" className="mt-3 flex items-center justify-center gap-2 text-white/70 hover:text-white text-sm">
+              <ExternalLink size={14} /> Abrir en nueva pestaña
             </a>
           </div>
         </div>
@@ -175,48 +70,87 @@ function SectionPhotos({ photos, defaultOpen = false }) {
   )
 }
 
-// ===== DATA SECTION (with photos) =====
+// ── Field Grid ──
+function FieldGrid({ data }) {
+  if (!data || typeof data !== 'object') return null
+  const entries = Object.entries(data).filter(([, v]) => v != null && v !== '' && v !== '—')
+  if (!entries.length) return <div className="text-[12px] text-gray-400 italic py-2">Sin datos capturados</div>
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {entries.map(([label, value]) => (
+        <div key={label} className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+          <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide">{label}</div>
+          <div className="text-[13px] font-medium text-gray-800 mt-0.5 break-words">
+            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Checklist Table ──
+function ChecklistTable({ items }) {
+  if (!Array.isArray(items) || !items.length) return null
+  const hasValue = items.some(i => i['Valor'])
+  const hasObs = items.some(i => i['Observación'])
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200">
+      <table className="min-w-full text-[12px]">
+        <thead>
+          <tr className="bg-gray-50">
+            <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-12">#</th>
+            <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Ítem</th>
+            <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-28">Estado</th>
+            {hasValue && <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide w-24">Valor</th>}
+            {hasObs && <th className="text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Observación</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, idx) => (
+            <tr key={idx} className="border-t border-gray-100 hover:bg-gray-50/50">
+              <td className="px-3 py-2.5 text-gray-400 font-mono">{item['#'] || idx + 1}</td>
+              <td className="px-3 py-2.5 text-gray-700 font-medium">{item['Ítem'] || item['Pregunta'] || item['Actividad'] || '—'}</td>
+              <td className="px-3 py-2.5"><StatusPill value={item['Estado']} /></td>
+              {hasValue && <td className="px-3 py-2.5 text-gray-500">{item['Valor'] || ''}</td>}
+              {hasObs && <td className="px-3 py-2.5 text-gray-500 max-w-xs">{item['Observación'] || ''}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+// ── Data Section ──
 function DataSection({ title, data, photos }) {
   const isChecklist = Array.isArray(data) && data.some(d => d?.['Estado'])
-  const isGenericTable = Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && !isChecklist
+  const isTable = Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && !isChecklist
   const isFields = data && typeof data === 'object' && !Array.isArray(data)
 
   return (
     <div>
-      <SectionHeader title={title} count={isChecklist ? data.length : null} />
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-1 h-4 rounded-full bg-teal-500" />
+        <h3 className="text-[13px] font-semibold text-gray-800">{title}</h3>
+        {isChecklist && <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{data.length}</span>}
+      </div>
       {isChecklist && <ChecklistTable items={data} />}
-      {isGenericTable && (
-        <div className="overflow-x-auto rounded-2xl border border-primary/8">
-          <table className="min-w-full text-sm">
-            <thead>
-              <tr className="bg-primary/[0.03]">
-                {Object.keys(data[0]).map(key => (
-                  <th key={key} className="text-left px-3 py-2.5 text-[10px] font-extrabold text-primary/60 uppercase tracking-wide">{key}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.map((row, idx) => (
-                <tr key={idx} className="border-t border-primary/6">
-                  {Object.values(row).map((val, vi) => (
-                    <td key={vi} className="px-3 py-2.5 text-sm text-primary/80">{val != null ? String(val) : '—'}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
+      {isTable && (
+        <div className="overflow-x-auto rounded-lg border border-gray-200">
+          <table className="min-w-full text-[12px]">
+            <thead><tr className="bg-gray-50">{Object.keys(data[0]).map(k => <th key={k} className="text-left px-3 py-2.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{k}</th>)}</tr></thead>
+            <tbody>{data.map((row, i) => <tr key={i} className="border-t border-gray-100">{Object.values(row).map((v, j) => <td key={j} className="px-3 py-2.5 text-gray-600">{v != null ? String(v) : '—'}</td>)}</tr>)}</tbody>
           </table>
         </div>
       )}
       {isFields && <FieldGrid data={data} />}
-      {!isChecklist && !isGenericTable && !isFields && (
-        <div className="text-sm text-primary/70">{String(data)}</div>
-      )}
       <SectionPhotos photos={photos} />
     </div>
   )
 }
 
-// ===== MAIN =====
+// ── MAIN ──
 export default function SubmissionDetail() {
   const { submissionId } = useParams()
   const navigate = useNavigate()
@@ -227,10 +161,7 @@ export default function SubmissionDetail() {
   const isLoading = useSubmissionsStore((s) => s.isLoadingDetail)
   const [pdfLoading, setPdfLoading] = useState(false)
 
-  useEffect(() => {
-    if (submissionId) loadDetail(submissionId)
-    return () => clearDetail()
-  }, [submissionId])
+  useEffect(() => { if (submissionId) loadDetail(submissionId); return () => clearDetail() }, [submissionId])
 
   const handleDownloadPdf = async () => {
     if (!submission) return
@@ -239,27 +170,20 @@ export default function SubmissionDetail() {
     setPdfLoading(false)
   }
 
-  // Group photos by section
   const photosBySection = useMemo(() => {
     if (!assets?.length || !submission) return {}
     return groupAssetsBySection(assets, submission.form_code)
   }, [assets, submission])
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-3">
-        <Spinner size={28} />
-        <span className="text-sm text-primary/60 font-bold">Cargando informe…</span>
-      </div>
-    )
+    return <div className="flex items-center justify-center py-20"><Spinner size={20} /><span className="ml-3 text-sm text-gray-400">Cargando informe…</span></div>
   }
-
   if (!submission) {
     return (
       <div className="text-center py-20">
-        <ClipboardList size={40} className="mx-auto text-primary/20 mb-3" />
-        <div className="font-extrabold text-primary">Orden no encontrada</div>
-        <Link to="/submissions"><Button variant="outline" className="mt-4">Volver</Button></Link>
+        <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+        <div className="text-sm font-medium text-gray-500">Formulario no encontrado</div>
+        <Link to="/submissions"><button className="mt-4 text-sm font-medium text-teal-600 hover:underline">← Volver a formularios</button></Link>
       </div>
     )
   }
@@ -270,7 +194,6 @@ export default function SubmissionDetail() {
   const inspMeta = extractMeta(submission)
   const cleanPayload = getCleanPayload(submission)
   const totalPhotos = assets.filter(a => a.public_url).length
-  const createdAt = submission.created_at ? new Date(submission.created_at) : null
   const finalized = submission.finalized || isFinalized(submission)
   const submitter = extractSubmittedBy(submission)
   const visitId = submission.site_visit_id
@@ -284,27 +207,24 @@ export default function SubmissionDetail() {
       if (!item['Estado']) continue
       totalItems++
       const st = item['Estado']
-      if (st.includes('Bueno')) bueno++
+      if (st.includes('Bueno') || st.includes('Ejecutada')) bueno++
       else if (st.includes('Regular')) regular++
       else if (st.includes('Malo')) malo++
       else if (st.includes('Pendiente')) pendiente++
     }
   }
 
-  // Find matching section photos by title similarity
-  const findPhotosForSection = (sectionTitle) => {
-    // Direct match
-    if (photosBySection[sectionTitle]) return photosBySection[sectionTitle]
-    // Partial match (remove emoji prefix)
-    const clean = sectionTitle.replace(/^[^\w]*/, '').trim().toLowerCase()
+  // Photo matching
+  const findPhotosForSection = (title) => {
+    if (photosBySection[title]) return photosBySection[title]
+    const clean = title.replace(/^[^\w]*/, '').trim().toLowerCase()
     for (const [key, photos] of Object.entries(photosBySection)) {
-      const keyClean = key.replace(/^[^\w]*/, '').trim().toLowerCase()
-      if (keyClean.includes(clean) || clean.includes(keyClean)) return photos
+      const kc = key.replace(/^[^\w]*/, '').trim().toLowerCase()
+      if (kc.includes(clean) || clean.includes(kc)) return photos
     }
     return null
   }
 
-  // Collect unmatched photos
   const matchedSections = new Set()
   const sectionEntries = Object.entries(cleanPayload)
   for (const [title] of sectionEntries) {
@@ -315,140 +235,122 @@ export default function SubmissionDetail() {
       }
     }
   }
-  const unmatchedPhotos = Object.entries(photosBySection)
-    .filter(([key]) => !matchedSections.has(key))
-    .flatMap(([, photos]) => photos)
+  const unmatchedPhotos = Object.entries(photosBySection).filter(([k]) => !matchedSections.has(k)).flatMap(([, p]) => p)
 
   return (
-    <div className="space-y-4 max-w-5xl">
+    <div className="max-w-5xl space-y-5">
       {/* Top bar */}
-      <div className="flex items-center justify-between gap-3">
-        <Button variant="outline" onClick={() => navigate(-1)}>
+      <div className="flex items-center justify-between">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-700 transition-colors">
           <ArrowLeft size={16} /> Volver
-        </Button>
-        <Button variant="accent" onClick={handleDownloadPdf} disabled={pdfLoading}>
-          <Download size={16} /> {pdfLoading ? 'Generando…' : 'Descargar PDF'}
-        </Button>
+        </button>
+        <button onClick={handleDownloadPdf} disabled={pdfLoading} className="flex items-center gap-1.5 px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-[12px] font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-50">
+          <Download size={14} /> {pdfLoading ? 'Generando…' : 'Descargar PDF'}
+        </button>
       </div>
 
-      {/* Report header */}
-      <Card className="p-0 overflow-hidden">
-        <div className={`${meta.color} px-5 py-4 flex items-center gap-3`}>
-          <div className="w-11 h-11 rounded-2xl bg-white/20 flex items-center justify-center">
-            <Icon size={22} className="text-white" />
+      {/* Header card */}
+      <div className="bg-white rounded-xl border border-gray-200/60 shadow-card overflow-hidden">
+        <div className={`${meta.color} px-6 py-4 flex items-center gap-4`}>
+          <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+            <Icon size={20} className="text-white" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-white/70 text-[11px] font-bold">{meta.label}</div>
-            <div className="text-white text-lg font-extrabold">{site.nombreSitio}</div>
+          <div className="flex-1 min-w-0">
+            <div className="text-white/70 text-[11px] font-medium">{meta.label}</div>
+            <div className="text-white text-lg font-bold">{site.nombreSitio}</div>
           </div>
-          <Badge tone="neutral" className="bg-white/20 text-white border-0">{site.idSitio}</Badge>
-          {finalized ? (
-            <Badge tone="success" className="bg-emerald-500/30 text-white border-0 ml-1">
-              <CheckCircle2 size={10} /> Finalizado
-            </Badge>
-          ) : (
-            <Badge tone="warning" className="bg-amber-500/30 text-white border-0 ml-1">
-              <Clock size={10} /> Borrador
-            </Badge>
-          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="bg-white/20 text-white text-[11px] font-semibold px-2.5 py-1 rounded-md">{site.idSitio}</span>
+            {finalized ? (
+              <span className="bg-emerald-500/30 text-white text-[10px] font-semibold px-2 py-1 rounded-md flex items-center gap-1"><CheckCircle2 size={10} /> Final</span>
+            ) : (
+              <span className="bg-amber-500/30 text-white text-[10px] font-semibold px-2 py-1 rounded-md flex items-center gap-1"><Clock size={10} /> Borrador</span>
+            )}
+          </div>
         </div>
 
-        <div className="p-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <InfoChip icon={MapPin} label="Sitio" value={site.nombreSitio} sub={site.tipoSitio || site.idSitio} />
-          <InfoChip icon={User2} label="Inspector"
-            value={submitter ? (submitter.name || submitter.username || '—') : '—'}
-            sub={submitter?.role || null}
-          />
-          <InfoChip icon={Calendar} label="Fecha"
-            value={inspMeta.date || (createdAt ? createdAt.toLocaleDateString() : '—')}
-            sub={inspMeta.time ? `Hora: ${inspMeta.time}` : null}
-          />
-          <InfoChip icon={ImageIcon} label="Evidencia"
-            value={`${totalPhotos} foto${totalPhotos !== 1 ? 's' : ''}`}
-            sub={hasOrder ? null : `App v${submission.app_version || '?'}`}
-          />
+        <div className="p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><MapPin size={10} /> Sitio</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{site.nombreSitio}</div>
+            <div className="text-[10px] text-gray-400">{site.tipoSitio || site.idSitio}</div>
+          </div>
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><User2 size={10} /> Inspector</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{submitter?.name || submitter?.username || '—'}</div>
+            <div className="text-[10px] text-gray-400">{submitter?.role || ''}</div>
+          </div>
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><Calendar size={10} /> Fecha</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{inspMeta.date || (submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—')}</div>
+            <div className="text-[10px] text-gray-400">{inspMeta.time ? `Hora: ${inspMeta.time}` : ''}</div>
+          </div>
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><ImageIcon size={10} /> Evidencia</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{totalPhotos} foto{totalPhotos !== 1 ? 's' : ''}</div>
+            <div className="text-[10px] text-gray-400">App v{submission.app_version || '?'}</div>
+          </div>
         </div>
 
-        {/* Link to parent order */}
+        {/* Order link */}
         {hasOrder && (
-          <div className="px-4 pb-3">
-            <Link to={`/orders/${visitId}`}>
-              <div className="rounded-xl border border-accent/20 bg-accent/5 p-2.5 flex items-center gap-2 hover:bg-accent/10 transition-colors">
-                <Globe size={13} className="text-accent" />
-                <span className="text-xs font-bold text-accent">Ver orden de visita completa</span>
-                <ChevronRight size={13} className="text-accent/50 ml-auto" />
-              </div>
+          <div className="px-5 pb-4">
+            <Link to={`/orders/${visitId}`} className="flex items-center gap-2 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 hover:bg-teal-100 transition-colors">
+              <FileText size={12} className="text-teal-600" />
+              <span className="text-[11px] font-semibold text-teal-700">Ver orden de visita completa</span>
+              <ChevronRight size={12} className="text-teal-400 ml-auto" />
             </Link>
           </div>
         )}
 
-        {/* Checklist summary */}
+        {/* Checklist summary bar */}
         {totalItems > 0 && (
-          <div className="px-4 pb-4">
-            <div className="rounded-2xl bg-surface border border-primary/6 p-3">
-              <div className="text-[10px] text-primary/50 font-bold uppercase tracking-wide mb-2">Resumen de evaluación</div>
-              <div className="flex flex-wrap gap-3">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 size={14} className="text-emerald-600" />
-                  <span className="text-sm font-bold text-emerald-700">{bueno}</span>
-                  <span className="text-xs text-primary/50">Bueno</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle size={14} className="text-amber-600" />
-                  <span className="text-sm font-bold text-amber-700">{regular}</span>
-                  <span className="text-xs text-primary/50">Regular</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <XCircle size={14} className="text-red-600" />
-                  <span className="text-sm font-bold text-red-700">{malo}</span>
-                  <span className="text-xs text-primary/50">Malo</span>
-                </div>
-                {pendiente > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <Clock size={14} className="text-blue-500" />
-                    <span className="text-sm font-bold text-blue-600">{pendiente}</span>
-                    <span className="text-xs text-primary/50">Pendiente</span>
-                  </div>
-                )}
-                <div className="ml-auto text-xs text-primary/40 font-bold self-center">{totalItems} ítems</div>
+          <div className="px-5 pb-5">
+            <div className="bg-gray-50 border border-gray-100 rounded-lg p-3">
+              <div className="text-[10px] text-gray-400 font-semibold uppercase tracking-wide mb-2">Resumen de evaluación</div>
+              <div className="flex flex-wrap gap-4 text-[12px]">
+                <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-600" /> <b className="text-emerald-700">{bueno}</b> <span className="text-gray-400">Bueno</span></span>
+                <span className="flex items-center gap-1"><AlertTriangle size={12} className="text-amber-500" /> <b className="text-amber-600">{regular}</b> <span className="text-gray-400">Regular</span></span>
+                <span className="flex items-center gap-1"><XCircle size={12} className="text-red-500" /> <b className="text-red-600">{malo}</b> <span className="text-gray-400">Malo</span></span>
+                {pendiente > 0 && <span className="flex items-center gap-1"><Clock size={12} className="text-blue-500" /> <b className="text-blue-600">{pendiente}</b> <span className="text-gray-400">Pendiente</span></span>}
+                <span className="ml-auto text-[11px] text-gray-400 font-medium">{totalItems} ítems</span>
               </div>
-              <div className="mt-2 h-2 rounded-full bg-primary/10 overflow-hidden flex">
+              <div className="mt-2 h-1.5 rounded-full bg-gray-200 overflow-hidden flex">
                 {bueno > 0 && <div className="h-full bg-emerald-500" style={{ width: `${(bueno / totalItems) * 100}%` }} />}
                 {regular > 0 && <div className="h-full bg-amber-400" style={{ width: `${(regular / totalItems) * 100}%` }} />}
                 {malo > 0 && <div className="h-full bg-red-500" style={{ width: `${(malo / totalItems) * 100}%` }} />}
-                {pendiente > 0 && <div className="h-full bg-blue-300" style={{ width: `${(pendiente / totalItems) * 100}%` }} />}
+                {pendiente > 0 && <div className="h-full bg-blue-400" style={{ width: `${(pendiente / totalItems) * 100}%` }} />}
               </div>
             </div>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* All data sections with inline photos */}
-      {sectionEntries.map(([sectionTitle, sectionData]) => (
-        <Card key={sectionTitle} className="p-4">
-          <DataSection
-            title={sectionTitle}
-            data={sectionData}
-            photos={findPhotosForSection(sectionTitle)}
-          />
-        </Card>
+      {/* Data sections */}
+      {sectionEntries.map(([title, data]) => (
+        <div key={title} className="bg-white rounded-xl border border-gray-200/60 shadow-card p-5">
+          <DataSection title={title} data={data} photos={findPhotosForSection(title)} />
+        </div>
       ))}
 
-      {/* Empty state */}
       {sectionEntries.length === 0 && (
-        <Card className="p-8 text-center">
-          <FileText size={32} className="mx-auto text-primary/20 mb-3" />
-          <div className="text-sm font-bold text-primary/50">Sin datos de formulario</div>
-          <div className="text-xs text-primary/40 mt-1">El inspector aún no ha capturado datos</div>
-        </Card>
+        <div className="bg-white rounded-xl border border-gray-200/60 py-16 text-center">
+          <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+          <div className="text-sm font-medium text-gray-500">Sin datos de formulario</div>
+          <div className="text-[12px] text-gray-400 mt-1">El inspector aún no ha capturado datos</div>
+        </div>
       )}
 
-      {/* Unmatched photos (ones that couldn't be mapped to a section) */}
+      {/* Unmatched photos */}
       {unmatchedPhotos.length > 0 && (
-        <Card className="p-4">
-          <SectionHeader title="📷 Otras fotos" count={unmatchedPhotos.length} />
-          <SectionPhotos photos={unmatchedPhotos} defaultOpen={true} />
-        </Card>
+        <div className="bg-white rounded-xl border border-gray-200/60 shadow-card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-1 h-4 rounded-full bg-amber-500" />
+            <h3 className="text-[13px] font-semibold text-gray-800">📷 Otras fotos</h3>
+            <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">{unmatchedPhotos.length}</span>
+          </div>
+          <SectionPhotos photos={unmatchedPhotos} />
+        </div>
       )}
     </div>
   )

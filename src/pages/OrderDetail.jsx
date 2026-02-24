@@ -1,91 +1,69 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
-  ArrowLeft, MapPin, Calendar, Clock, User2, Globe,
+  ArrowLeft, MapPin, Calendar, User2, Globe,
   CheckCircle2, FileText, ChevronRight, Image as ImageIcon,
-  Package, AlertTriangle,
+  Clock, AlertTriangle,
 } from 'lucide-react'
-import Card from '../components/ui/Card'
-import Badge from '../components/ui/Badge'
-import Button from '../components/ui/Button'
 import Spinner from '../components/ui/Spinner'
-import EmptyState from '../components/ui/EmptyState'
 import { fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { getFormMeta } from '../data/formTypes'
-import { extractSiteInfo, isFinalized, extractSubmittedBy, groupAssetsBySection } from '../lib/payloadUtils'
+import { isFinalized, extractSubmittedBy, groupAssetsBySection } from '../lib/payloadUtils'
 
-function InfoChip({ icon: Icon, label, value, sub }) {
-  return (
-    <div className="rounded-2xl border border-primary/8 p-3.5 bg-white">
-      <div className="text-[11px] text-primary/50 font-bold flex items-center gap-1.5">
-        {Icon && <Icon size={12} />} {label}
-      </div>
-      <div className="font-bold text-primary text-sm mt-1 break-words">{value || '—'}</div>
-      {sub && <div className="text-[11px] text-primary/40 mt-0.5">{sub}</div>}
-    </div>
-  )
-}
-
-function FormSubmissionCard({ submission }) {
+function FormCard({ submission }) {
   const meta = getFormMeta(submission.form_code)
   const Icon = meta.icon
   const finalized = submission.finalized || isFinalized(submission)
   const submitter = extractSubmittedBy(submission)
   const updatedAt = submission.updated_at ? new Date(submission.updated_at) : null
   const assets = submission.assets || []
-  const photoCount = assets.filter(a => a.public_url).length
   const photosBySection = groupAssetsBySection(assets, submission.form_code)
   const allPhotos = Object.values(photosBySection).flat()
+  const photoCount = allPhotos.length
 
   return (
-    <Card className="overflow-hidden">
-      {/* Header */}
+    <div className="bg-white rounded-xl border border-gray-200/60 shadow-card overflow-hidden">
       <Link to={`/submissions/${submission.id}`}>
         <div className={`${meta.color} px-4 py-3 flex items-center gap-3 group cursor-pointer`}>
-          <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-            <Icon size={18} className="text-white" />
+          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center flex-shrink-0">
+            <Icon size={16} className="text-white" />
           </div>
-          <div className="min-w-0 flex-1">
-            <div className="text-white font-extrabold text-sm">{meta.label}</div>
-            <div className="text-white/60 text-[11px] mt-0.5 flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="text-white font-bold text-[13px]">{meta.label}</div>
+            <div className="text-white/55 text-[10px] flex items-center gap-2 mt-0.5">
               {submitter && <span>{submitter.name || submitter.username}</span>}
-              {updatedAt && <span>· {updatedAt.toLocaleDateString()} {updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+              {updatedAt && <span>· {updatedAt.toLocaleDateString()}</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {finalized ? (
-              <span className="text-[10px] font-bold text-white bg-white/20 px-2.5 py-1 rounded-full flex items-center gap-1">
-                <CheckCircle2 size={10} /> Final
-              </span>
+              <span className="text-[10px] font-semibold text-white bg-white/20 px-2 py-1 rounded-md flex items-center gap-1"><CheckCircle2 size={9} /> Final</span>
             ) : (
-              <span className="text-[10px] font-bold text-white bg-white/20 px-2.5 py-1 rounded-full flex items-center gap-1">
-                <Clock size={10} /> Borrador
-              </span>
+              <span className="text-[10px] font-semibold text-white bg-white/20 px-2 py-1 rounded-md flex items-center gap-1"><Clock size={9} /> Borrador</span>
             )}
-            <ChevronRight size={16} className="text-white/50 group-hover:text-white transition-colors" />
+            <ChevronRight size={14} className="text-white/40 group-hover:text-white transition-colors" />
           </div>
         </div>
       </Link>
 
-      {/* Photo strip */}
-      {allPhotos.length > 0 && (
-        <div className="p-3 border-t border-primary/6">
+      {photoCount > 0 && (
+        <div className="px-4 py-3">
           <div className="flex items-center gap-2 mb-2">
-            <ImageIcon size={12} className="text-accent" />
-            <span className="text-[11px] font-bold text-accent">{photoCount} foto{photoCount !== 1 ? 's' : ''}</span>
+            <ImageIcon size={11} className="text-teal-600" />
+            <span className="text-[10px] font-semibold text-teal-700">{photoCount} foto{photoCount !== 1 ? 's' : ''}</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-            {allPhotos.slice(0, 8).map((p) => (
+            {allPhotos.slice(0, 6).map((p) => (
               <Link key={p.id} to={`/submissions/${submission.id}`} className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-xl overflow-hidden border border-primary/8 hover:shadow-soft transition-all">
+                <div className="w-16 h-16 rounded-lg overflow-hidden border border-gray-200 hover:shadow-soft transition-all">
                   <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
                 </div>
               </Link>
             ))}
-            {allPhotos.length > 8 && (
+            {allPhotos.length > 6 && (
               <Link to={`/submissions/${submission.id}`} className="flex-shrink-0">
-                <div className="w-20 h-20 rounded-xl border border-primary/8 bg-primary/5 flex items-center justify-center">
-                  <span className="text-xs font-bold text-primary/50">+{allPhotos.length - 8}</span>
+                <div className="w-16 h-16 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center">
+                  <span className="text-[11px] font-semibold text-gray-400">+{allPhotos.length - 6}</span>
                 </div>
               </Link>
             )}
@@ -93,15 +71,12 @@ function FormSubmissionCard({ submission }) {
         </div>
       )}
 
-      {/* No photos state */}
-      {allPhotos.length === 0 && (
-        <div className="px-4 py-3 border-t border-primary/6">
-          <div className="text-[11px] text-primary/40 italic flex items-center gap-1.5">
-            <ImageIcon size={11} /> Sin fotos capturadas aún
-          </div>
+      {photoCount === 0 && (
+        <div className="px-4 py-2.5">
+          <span className="text-[10px] text-gray-400 italic flex items-center gap-1"><ImageIcon size={10} /> Sin fotos aún</span>
         </div>
       )}
-    </Card>
+    </div>
   )
 }
 
@@ -115,129 +90,102 @@ export default function OrderDetail() {
 
   useEffect(() => {
     async function load() {
-      setLoading(true)
-      setError(null)
+      setLoading(true); setError(null)
       try {
-        const [orderData, subsData] = await Promise.all([
-          fetchSiteVisitById(orderId),
-          fetchSubmissionsWithAssetsForVisit(orderId),
-        ])
-        setOrder(orderData)
-        setSubmissions(subsData)
-      } catch (err) {
-        setError(err?.message || 'Error al cargar la orden')
-      } finally {
-        setLoading(false)
-      }
+        const [o, s] = await Promise.all([fetchSiteVisitById(orderId), fetchSubmissionsWithAssetsForVisit(orderId)])
+        setOrder(o); setSubmissions(s)
+      } catch (e) { setError(e?.message || 'Error') }
+      finally { setLoading(false) }
     }
     load()
   }, [orderId])
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <Spinner size={24} />
-        <span className="ml-3 text-sm text-primary/60 font-bold">Cargando orden…</span>
-      </div>
-    )
-  }
+  if (loading) return <div className="flex items-center justify-center py-20"><Spinner size={20} /><span className="ml-3 text-sm text-gray-400">Cargando orden…</span></div>
 
   if (error || !order) {
     return (
       <div className="max-w-3xl space-y-4">
-        <Button variant="outline" onClick={() => navigate(-1)}><ArrowLeft size={16} /> Volver</Button>
-        <EmptyState title="Error" description={error || 'Orden no encontrada'} />
+        <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-700"><ArrowLeft size={16} /> Volver</button>
+        <div className="bg-white rounded-xl border border-gray-200/60 py-16 text-center">
+          <div className="text-sm font-medium text-gray-500">{error || 'Orden no encontrada'}</div>
+        </div>
       </div>
     )
   }
 
   const isOpen = order.status === 'open'
-  const totalPhotos = submissions.reduce((sum, s) => sum + (s.assets || []).filter(a => a.public_url).length, 0)
+  const totalPhotos = submissions.reduce((s, sub) => s + (sub.assets || []).filter(a => a.public_url).length, 0)
   const finalizedCount = submissions.filter(s => s.finalized || isFinalized(s)).length
 
   return (
-    <div className="space-y-4 max-w-5xl">
-      {/* Top bar */}
-      <Button variant="outline" onClick={() => navigate('/orders')}>
+    <div className="max-w-5xl space-y-5">
+      <button onClick={() => navigate('/orders')} className="flex items-center gap-1.5 text-[13px] font-medium text-gray-500 hover:text-gray-700 transition-colors">
         <ArrowLeft size={16} /> Órdenes
-      </Button>
+      </button>
 
       {/* Order header */}
-      <Card className="p-0 overflow-hidden">
-        <div className={`${isOpen ? 'bg-emerald-600' : 'bg-[#0F2A4A]'} px-5 py-4`}>
+      <div className="bg-white rounded-xl border border-gray-200/60 shadow-card overflow-hidden">
+        <div className={`${isOpen ? 'bg-emerald-600' : 'bg-gray-700'} px-6 py-5`}>
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-white/60 text-[11px] font-bold uppercase tracking-wider">Orden de visita</div>
-              <div className="text-white text-2xl font-extrabold mt-0.5">{order.order_number}</div>
+              <div className="text-white/55 text-[10px] font-semibold uppercase tracking-wider">Orden de visita</div>
+              <div className="text-white text-xl font-bold mt-0.5">{order.order_number}</div>
+              <div className="text-white/65 text-[12px] mt-0.5">{order.site_name}</div>
             </div>
-            <Badge tone={isOpen ? 'success' : 'neutral'} className={`${isOpen ? 'bg-white/20 text-white border-0' : 'bg-white/20 text-white border-0'}`}>
-              {isOpen ? '🟢 Abierta' : '🔵 Cerrada'}
-            </Badge>
+            <span className={`text-[11px] font-semibold px-3 py-1 rounded-md ${isOpen ? 'bg-white/20 text-white' : 'bg-white/15 text-white'}`}>
+              {isOpen ? '● Abierta' : '● Cerrada'}
+            </span>
           </div>
-          <div className="text-white/70 text-sm mt-1">{order.site_name}</div>
         </div>
 
-        <div className="p-4 grid grid-cols-2 lg:grid-cols-4 gap-2">
-          <InfoChip icon={MapPin} label="Sitio" value={order.site_name} sub={`ID: ${order.site_id}`} />
-          <InfoChip icon={User2} label="Inspector"
-            value={order.inspector_name || order.inspector_username || '—'}
-            sub={order.inspector_role || null}
-          />
-          <InfoChip icon={Calendar} label="Inicio"
-            value={order.started_at ? new Date(order.started_at).toLocaleDateString() : '—'}
-            sub={order.started_at ? new Date(order.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null}
-          />
-          <InfoChip icon={Globe} label="GPS Inicio"
-            value={order.start_lat ? `${Number(order.start_lat).toFixed(4)}, ${Number(order.start_lng).toFixed(4)}` : '—'}
-            sub={order.closed_at ? `Cerrada: ${new Date(order.closed_at).toLocaleDateString()}` : null}
-          />
+        <div className="p-5 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><MapPin size={10} /> Sitio</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{order.site_name}</div>
+            <div className="text-[10px] text-gray-400">ID: {order.site_id}</div>
+          </div>
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><User2 size={10} /> Inspector</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{order.inspector_name || '—'}</div>
+          </div>
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><Calendar size={10} /> Inicio</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{order.started_at ? new Date(order.started_at).toLocaleDateString() : '—'}</div>
+          </div>
+          <div className="bg-gray-50/80 rounded-lg px-3 py-2.5 border border-gray-100">
+            <div className="text-[10px] text-gray-400 font-semibold flex items-center gap-1"><Globe size={10} /> GPS</div>
+            <div className="text-[13px] font-medium text-gray-800 mt-0.5">{order.start_lat ? `${Number(order.start_lat).toFixed(4)}, ${Number(order.start_lng).toFixed(4)}` : '—'}</div>
+          </div>
         </div>
 
-        {/* Summary strip */}
-        <div className="px-4 pb-4">
-          <div className="rounded-2xl bg-surface border border-primary/6 p-3 flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-1.5">
-              <FileText size={14} className="text-primary/50" />
-              <span className="text-sm font-bold text-primary">{submissions.length}</span>
-              <span className="text-xs text-primary/50">formulario{submissions.length !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <CheckCircle2 size={14} className="text-emerald-600" />
-              <span className="text-sm font-bold text-emerald-700">{finalizedCount}</span>
-              <span className="text-xs text-primary/50">finalizado{finalizedCount !== 1 ? 's' : ''}</span>
-            </div>
+        {/* Stats strip */}
+        <div className="px-5 pb-5">
+          <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 flex items-center gap-5 flex-wrap">
+            <span className="flex items-center gap-1.5 text-[12px]"><FileText size={13} className="text-gray-400" /> <b className="text-gray-700">{submissions.length}</b> <span className="text-gray-400">formulario{submissions.length !== 1 ? 's' : ''}</span></span>
+            <span className="flex items-center gap-1.5 text-[12px]"><CheckCircle2 size={13} className="text-emerald-600" /> <b className="text-emerald-700">{finalizedCount}</b> <span className="text-gray-400">finalizado{finalizedCount !== 1 ? 's' : ''}</span></span>
             {submissions.length - finalizedCount > 0 && (
-              <div className="flex items-center gap-1.5">
-                <AlertTriangle size={14} className="text-amber-500" />
-                <span className="text-sm font-bold text-amber-600">{submissions.length - finalizedCount}</span>
-                <span className="text-xs text-primary/50">borrador{submissions.length - finalizedCount !== 1 ? 'es' : ''}</span>
-              </div>
+              <span className="flex items-center gap-1.5 text-[12px]"><AlertTriangle size={13} className="text-amber-500" /> <b className="text-amber-600">{submissions.length - finalizedCount}</b> <span className="text-gray-400">borrador{submissions.length - finalizedCount !== 1 ? 'es' : ''}</span></span>
             )}
-            <div className="flex items-center gap-1.5">
-              <ImageIcon size={14} className="text-accent" />
-              <span className="text-sm font-bold text-accent">{totalPhotos}</span>
-              <span className="text-xs text-primary/50">foto{totalPhotos !== 1 ? 's' : ''}</span>
-            </div>
+            <span className="flex items-center gap-1.5 text-[12px]"><ImageIcon size={13} className="text-teal-600" /> <b className="text-teal-700">{totalPhotos}</b> <span className="text-gray-400">foto{totalPhotos !== 1 ? 's' : ''}</span></span>
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* Submissions list */}
+      {/* Submissions */}
       {submissions.length > 0 ? (
         <div className="space-y-3">
-          <div className="text-sm font-extrabold text-primary flex items-center gap-2">
-            <Package size={15} />
+          <div className="text-[13px] font-semibold text-gray-700 flex items-center gap-2 px-1">
+            <FileText size={14} className="text-gray-400" />
             Formularios de esta orden
           </div>
-          {submissions.map((sub) => (
-            <FormSubmissionCard key={sub.id} submission={sub} />
-          ))}
+          {submissions.map(sub => <FormCard key={sub.id} submission={sub} />)}
         </div>
       ) : (
-        <EmptyState
-          title="Sin formularios"
-          description="El inspector aún no ha enviado formularios en esta orden"
-        />
+        <div className="bg-white rounded-xl border border-gray-200/60 py-16 text-center">
+          <FileText size={32} className="mx-auto text-gray-300 mb-3" />
+          <div className="text-sm font-medium text-gray-500">Sin formularios</div>
+          <div className="text-[12px] text-gray-400 mt-1">El inspector aún no ha enviado formularios</div>
+        </div>
       )}
     </div>
   )
