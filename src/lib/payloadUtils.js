@@ -409,17 +409,17 @@ export function getCleanPayload(submission) {
   const fc = formCode.toLowerCase()
   let formResult = {}
 
-  if ((fc.includes('preventive-maintenance') || fc === 'mantenimiento') && (data.formData || data.checklistData)) {
+  if (fc === 'mantenimiento' || fc.includes('preventive-maintenance') || (fc === 'mantenimiento' && (data.formData || data.checklistData))) {
     formResult = buildMaintenancePayload(data)
-  } else if ((fc.includes('inspection') || fc === 'inspeccion') && (data.siteInfo || data.items)) {
+  } else if (fc === 'inspeccion' || fc.includes('inspection')) {
     formResult = buildInspectionPayload(data)
-  } else if (fc.includes('grounding') || fc === 'puesta-tierra') {
+  } else if (fc === 'puesta-tierra' || fc.includes('grounding')) {
     formResult = buildGroundingPayload(data)
-  } else if (fc.includes('safety') || fc === 'sistema-ascenso') {
+  } else if (fc === 'sistema-ascenso' || fc.includes('safety')) {
     formResult = buildSafetyClimbingPayload(data)
-  } else if (fc.includes('equipment') || fc === 'inventario') {
+  } else if (fc === 'inventario' || fc.includes('equipment')) {
     formResult = buildEquipmentPayload(data)
-  } else if (fc.includes('executed') || fc === 'mantenimiento-ejecutado') {
+  } else if (fc === 'mantenimiento-ejecutado' || fc.includes('executed')) {
     formResult = buildPMExecutedPayload(data)
   } else {
     formResult = buildGenericPayload(data)
@@ -475,7 +475,7 @@ export function groupAssetsBySection(assets, formCode) {
     let label = type
 
     // ── Mantenimiento Preventivo ──
-    if (fc.includes('mantenimiento') || fc.includes('preventive-maintenance')) {
+    if (fc === 'mantenimiento' || fc.includes('preventive-maintenance')) {
       const itemId = parts[1] || ''
       const photoType = parts[2] || 'photo'
 
@@ -496,7 +496,7 @@ export function groupAssetsBySection(assets, formCode) {
       }
 
     // ── Inspección General ──
-    } else if (fc.includes('inspeccion') || fc.includes('inspection')) {
+    } else if (fc === 'inspeccion' || fc.includes('inspection')) {
       const itemId = parts[1] || ''
       const photoType = parts[2] || 'photo'
       const info = INSPECTION_ITEM_MAP[itemId]
@@ -508,7 +508,7 @@ export function groupAssetsBySection(assets, formCode) {
       }
 
     // ── Mantenimiento Ejecutado ──
-    } else if (fc.includes('executed') || fc.includes('mantenimiento-ejecutado')) {
+    } else if (fc === 'mantenimiento-ejecutado' || fc.includes('executed')) {
       const actId = parts[1] || ''
       const photoType = parts[2] || ''
       const info = PM_EXECUTED_MAP[actId]
@@ -521,7 +521,7 @@ export function groupAssetsBySection(assets, formCode) {
       }
 
     // ── Inventario de Equipos ──
-    } else if (fc.includes('equipment') || fc.includes('inventario')) {
+    } else if (fc === 'inventario' || fc.includes('equipment')) {
       const field = parts[1] || ''
       const labels = { fotoTorre: 'Foto de la Torre', croquisEsquematico: 'Croquis Esquemático', planoPlanta: 'Plano de Planta' }
       sectionTitle = '📐 Documentación del Sitio'
@@ -529,7 +529,7 @@ export function groupAssetsBySection(assets, formCode) {
 
     // ── Puesta a Tierra ──
     // Photos have NO prefix — asset_type is the raw fieldId like "fotoPataTorre"
-    } else if (fc.includes('grounding') || fc.includes('puesta-tierra')) {
+    } else if (fc === 'puesta-tierra' || fc.includes('grounding')) {
       if (GROUNDING_PHOTO_IDS.has(type)) {
         const info = GROUNDING_FIELD_MAP[type]
         sectionTitle = `⚡ ${info?.sectionTitle || 'Evidencia Fotográfica'}`
@@ -545,7 +545,7 @@ export function groupAssetsBySection(assets, formCode) {
 
     // ── Sistema de Ascenso ──
     // Photos have NO prefix — asset_type is the raw fieldId like "fotoEscalera"
-    } else if (fc.includes('safety') || fc.includes('sistema-ascenso')) {
+    } else if (fc === 'sistema-ascenso' || fc.includes('safety')) {
       if (SAFETY_PHOTO_IDS.has(type)) {
         const info = SAFETY_FIELD_MAP[type]
         sectionTitle = `🧗 ${info?.sectionTitle || 'Evidencia'}`

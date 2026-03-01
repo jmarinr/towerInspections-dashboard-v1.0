@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { normalizeFormCode, getFormCodeSiblings } from '../data/formTypes'
 
 /**
  * The submissions table has columns:
@@ -81,42 +82,45 @@ export async function fetchSubmissionAssets(submissionId) {
 /**
  * Fetch submission + its assets.
  *
- * IMPORTANT: Due to a constraint mismatch in the inspector app, assets may be
- * linked to a "sibling" submission (same org_code + device_id + form_code but
- * different site_visit_id — e.g. one row with site_visit_id and one without).
- * We fetch assets from ALL sibling submissions to ensure photos are found.
+ * IMPORTANT: Due to a code mismatch in the inspector app, assets may be linked
+ * to a "sibling" submission row. The inspector writes form data with Spanish
+ * form codes (e.g. 'mantenimiento') but uploads assets under English codes
+ * (e.g. 'preventive-maintenance'). These are different rows in the DB.
+ * We search across BOTH code variants and all sibling submissions.
  */
 export async function fetchSubmissionWithAssets(id) {
   const submission = await fetchSubmissionById(id)
 
-  // 1) Direct assets (the common/correct case)
+  // 1) Direct assets
   let assets = await fetchSubmissionAssets(id)
 
-  // 2) If no assets found, look for sibling submissions and their assets
+  // 2) If none found, search sibling submissions (same device, any form code variant)
   if (assets.length === 0 && submission) {
     try {
       const { org_code, device_id, form_code } = submission
       if (org_code && device_id && form_code) {
-        // Find all submissions with the same org+device+form
+        // Get all form code variants (Spanish + English)
+        // using static import
+        const siblingCodes = getFormCodeSiblings(form_code)
+        const allCodes = [form_code, ...siblingCodes]
+
+        // Find all submissions with same device and any code variant
         const { data: siblings } = await supabase
           .from('submissions')
           .select('id')
           .eq('org_code', org_code)
           .eq('device_id', device_id)
-          .eq('form_code', form_code)
+          .in('form_code', allCodes)
           .neq('id', id)
 
         if (siblings?.length) {
-          const siblingIds = siblings.map(s => s.id)
           const { data: siblingAssets } = await supabase
             .from('submission_assets')
             .select('*')
-            .in('submission_id', siblingIds)
+            .in('submission_id', siblings.map(s => s.id))
             .order('created_at', { ascending: true })
 
-          if (siblingAssets?.length) {
-            assets = siblingAssets
-          }
+          if (siblingAssets?.length) assets = siblingAssets
         }
       }
     } catch (e) {
@@ -181,7 +185,7 @@ export async function fetchSubmissionsForVisit(visitId) {
 
 /**
  * Fetch all submissions for an order detail, including their assets.
- * Uses sibling lookup to find assets that may be on a different submission row.
+ * Searches sibling form code variants (Spanish/English) to find assets.
  */
 export async function fetchSubmissionsWithAssetsForVisit(visitId) {
   const submissions = await fetchSubmissionsForVisit(visitId)
@@ -189,17 +193,18 @@ export async function fetchSubmissionsWithAssetsForVisit(visitId) {
   const withAssets = await Promise.all(
     submissions.map(async (sub) => {
       try {
-        // Direct assets first
         let assets = await fetchSubmissionAssets(sub.id)
 
-        // If none found, search sibling submissions
         if (assets.length === 0 && sub.org_code && sub.device_id && sub.form_code) {
+          const siblingCodes = getFormCodeSiblings(sub.form_code)
+          const allCodes = [sub.form_code, ...siblingCodes]
+
           const { data: siblings } = await supabase
             .from('submissions')
             .select('id')
             .eq('org_code', sub.org_code)
             .eq('device_id', sub.device_id)
-            .eq('form_code', sub.form_code)
+            .in('form_code', allCodes)
             .neq('id', sub.id)
 
           if (siblings?.length) {
@@ -234,12 +239,21 @@ export async function fetchDashboardStats() {
 
   if (subRes.error) throw subRes.error
   const rows = (subRes.data || []).map(normalizeSubmission)
+    // Filter out ghost rows (empty payload from ensureSubmissionId)
+    .filter(s => {
+      const p = s.payload || {}
+      const inner = p.payload || p
+      return inner.data || inner.meta || p._meta || p.form_code
+    })
   const visits = visitRes.data || []
+
+  // Normalize form codes for grouping
+  // using static import
 
   const total = rows.length
   const byFormCode = {}
   for (const r of rows) {
-    const fc = r.form_code || 'unknown'
+    const fc = normalizeFormCode(r.form_code || 'unknown')
     byFormCode[fc] = (byFormCode[fc] || 0) + 1
   }
 

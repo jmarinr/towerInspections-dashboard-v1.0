@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsForVisit } from '../lib/supabaseQueries'
+import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 
 export const useOrdersStore = create((set, get) => ({
   orders: [],
@@ -47,7 +47,7 @@ export const useOrdersStore = create((set, get) => ({
     try {
       const [order, submissions] = await Promise.all([
         fetchSiteVisitById(id),
-        fetchSubmissionsForVisit(id).catch(() => []),
+        fetchSubmissionsWithAssetsForVisit(id).catch(() => []),
       ])
       set({ activeOrder: order, activeOrderSubmissions: submissions, isLoadingDetail: false })
     } catch (err) {
