@@ -256,37 +256,75 @@ class GroundingPDF {
     this.y -= sumH + 4
   }
 
-  // ── Bar chart ─────────────────────────────────────────────────
+  // ── Vertical Bar Chart (matches Excel exactly) ─────────────────
   drawBarChart(data) {
-    this.checkSpace(130)
-    const x = ML, chartW = CW - 40, chartH = 90, barMaxW = chartW - 100
-    const x0 = x + 80, y0 = this.y - 20
+    this.checkSpace(160)
+    const x = ML
 
-    this.page.drawText('Resistencias medidas por electrodo de potencial', { x: x + CW / 2 - 100, y: y0, size: 7, font: this.fontBold, color: C.text })
+    // Title
+    this.page.drawText('Resistencias medidas por electrodo de potencial', { x: x + CW / 2 - 100, y: this.y - 10, size: 7, font: this.fontBold, color: C.text })
+    this.y -= 18
 
-    // Chart background
-    this.page.drawRectangle({ x: x0, y: y0 - chartH - 5, width: barMaxW, height: chartH, color: C.gray })
+    // Chart dimensions
+    const chartX = x + 40        // left margin for Y axis labels
+    const chartY = this.y - 120  // bottom of chart
+    const chartW = CW - 60       // width of chart area
+    const chartH = 110           // height of chart area
+    const distances = [5, 10, 15, 20, 25, 30, 35]
 
+    // Values mapped to distances
     const values = POINTS.map(pt => parseFloat(data[pt.id]) || 0)
-    const maxVal = Math.max(...values, 0.1)
-    const barH = 10, gap = (chartH - POINTS.length * barH) / (POINTS.length + 1)
+    const maxVal = Math.max(...values, 1)
+    // Round up to nearest integer for Y scale
+    const yMax = Math.ceil(maxVal)
 
-    POINTS.forEach((pt, i) => {
-      const val = values[i]
-      const by = y0 - chartH - 5 + chartH - gap * (i + 1) - barH * (i + 1)
-      const bw = (val / maxVal) * (barMaxW - 20)
+    // Chart background with grid lines
+    this.page.drawRectangle({ x: chartX, y: chartY, width: chartW, height: chartH, color: C.gray, borderColor: C.border, borderWidth: 0.5 })
 
-      // Label
-      this.page.drawText(pt.label, { x: x + 4, y: by + 2, size: 5.5, font: this.font, color: C.text })
-      // Bar
-      if (bw > 0) this.page.drawRectangle({ x: x0 + 2, y: by, width: Math.max(bw, 2), height: barH, color: C.blue })
-      // Value label
-      this.page.drawText(`${val} Ohm`, { x: x0 + bw + 8, y: by + 2, size: 5.5, font: this.font, color: C.text })
+    // Y axis grid lines and labels (0, 2, 4, 6, 8, 10 etc.)
+    const ySteps = Math.max(Math.ceil(yMax / 2), 1)
+    for (let i = 0; i <= ySteps; i++) {
+      const yVal = (yMax / ySteps) * i
+      const yPos = chartY + (i / ySteps) * chartH
+      // Grid line
+      this.page.drawLine({ start: { x: chartX, y: yPos }, end: { x: chartX + chartW, y: yPos }, thickness: 0.3, color: C.border })
+      // Y label
+      this.page.drawText(String(Math.round(yVal * 10) / 10), { x: chartX - 18, y: yPos - 3, size: 6, font: this.font, color: C.text })
+    }
+
+    // Y axis title (rotated text simulation - draw vertically)
+    const yTitle = 'Resistencia [Ohm]'
+    // Since pdf-lib can't rotate text easily, draw it at the left
+    this.page.drawText('Resistencia', { x: x, y: chartY + chartH / 2 + 15, size: 5.5, font: this.font, color: C.text })
+    this.page.drawText('[Ohm]', { x: x + 4, y: chartY + chartH / 2 + 5, size: 5.5, font: this.font, color: C.text })
+
+    // Bars
+    const barW = (chartW / distances.length) * 0.55
+    const barGap = chartW / distances.length
+
+    distances.forEach((dist, i) => {
+      const val = values[i] || 0
+      const barH = yMax > 0 ? (val / yMax) * chartH : 0
+      const bx = chartX + i * barGap + (barGap - barW) / 2
+
+      // Draw bar
+      if (barH > 0) {
+        this.page.drawRectangle({ x: bx, y: chartY, width: barW, height: barH, color: C.blue })
+      }
+
+      // X axis label (distance)
+      this.page.drawText(String(dist), { x: bx + barW / 2 - 4, y: chartY - 10, size: 6, font: this.font, color: C.text })
+
+      // Value label on top of bar
+      if (val > 0) {
+        this.page.drawText(`${val} Ohm`, { x: bx + barW + 2, y: chartY + barH - 3, size: 5, font: this.font, color: C.text })
+      }
     })
 
     // X axis label
-    this.page.drawText('Resistencia [Ohm]', { x: x0 + barMaxW / 2 - 30, y: y0 - chartH - 18, size: 5.5, font: this.font, color: C.textLight })
-    this.y -= chartH + 40
+    this.page.drawText('Distancia [m]', { x: chartX + chartW / 2 - 20, y: chartY - 20, size: 6, font: this.font, color: C.textLight })
+
+    this.y = chartY - 28
 
     // Caption
     this.page.drawText('En el grafico No 1 se observa la zona plana de potencial, equivalente a un valor constante de resistencia.', { x: x + 4, y: this.y, size: 5.5, font: this.font, color: C.textLight })
