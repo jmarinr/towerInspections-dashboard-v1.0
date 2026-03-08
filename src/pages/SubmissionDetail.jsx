@@ -195,7 +195,7 @@ export default function SubmissionDetail() {
     try {
       const fc = normalizeFormCode(submission.form_code)
       if (fc === 'preventive-maintenance') await downloadMaintenancePdf(submission)
-      else if (fc === 'grounding-system-test') await downloadGroundingPdf(submission)
+      else if (fc === 'grounding-system-test') await downloadGroundingPdf(submission, assets)
       else await downloadSubmissionPdf(submission, assets)
     } catch (e) { console.error('PDF error:', e) }
     setPdfLoading(false)
