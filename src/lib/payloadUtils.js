@@ -91,6 +91,24 @@ function extractFieldsFromConfig(fields, dataObj) {
   const out = {}
   for (const f of fields) {
     if (f.type === 'photo' || f.type === 'signature') continue
+    if (f.type === 'calculated') {
+      // Compute calculated values
+      if (f.id === 'sumResistencias') {
+        const keys = ['rPataTorre','rCerramiento','rPorton','rPararrayos','rBarraSPT','rEscalerilla1','rEscalerilla2']
+        const sum = keys.reduce((s, k) => s + (parseFloat(dataObj[k]) || 0), 0)
+        out[f.label] = sum.toFixed(4) + ' Ohm'
+      } else if (f.id === 'rg') {
+        const keys = ['rPataTorre','rCerramiento','rPorton','rPararrayos','rBarraSPT','rEscalerilla1','rEscalerilla2']
+        const vals = keys.map(k => parseFloat(dataObj[k]) || 0)
+        const nonZero = vals.filter(v => v > 0)
+        const rg = nonZero.length > 0 ? vals.reduce((a, b) => a + b, 0) / nonZero.length : 0
+        out[f.label] = rg.toFixed(4) + ' Ohm'
+      } else if (f.id === 'alturaTotal') {
+        const at = (parseFloat(dataObj.alturaTorre) || 0) + (parseFloat(dataObj.alturaEdificio) || 0)
+        if (at > 0) out[f.label] = at + ' m'
+      }
+      continue
+    }
     const val = cleanVal(dataObj[f.id])
     if (val !== null) out[f.label] = val
   }
@@ -244,8 +262,52 @@ function buildGroundingPayload(data) {
   const result = {}
   for (const section of groundingSystemTestConfig.sections) {
     const sectionData = data[section.id] || {}
-    const fields = extractFieldsFromConfig(section.fields, sectionData)
-    if (Object.keys(fields).length) result[`⚡ ${section.title}`] = fields
+
+    if (section.id === 'medicion') {
+      // Present measurements as a checklist-like table with values
+      const measurements = [
+        { id: 'rPataTorre', label: 'Pata de la torre' },
+        { id: 'rCerramiento', label: 'Cerramiento' },
+        { id: 'rPorton', label: 'Porton' },
+        { id: 'rPararrayos', label: 'Pararrayos' },
+        { id: 'rBarraSPT', label: 'Barra SPT' },
+        { id: 'rEscalerilla1', label: 'Escalerilla #1' },
+        { id: 'rEscalerilla2', label: 'Escalerilla #2' },
+      ]
+      const items = measurements.map((m, i) => {
+        const val = parseFloat(sectionData[m.id]) || 0
+        const status = val === 0 ? '-- Pendiente' : val <= 5 ? '\u2705 Bueno' : val <= 10 ? '\u26A0\uFE0F Regular' : '\u274C Malo'
+        return {
+          '#': i + 1,
+          'Item': m.label,
+          'Estado': status,
+          'Valor': val > 0 ? val + ' Ohm' : '0',
+          'Observacion': sectionData.observaciones && i === 0 ? sectionData.observaciones : '',
+        }
+      })
+
+      // Add summary rows
+      const vals = measurements.map(m => parseFloat(sectionData[m.id]) || 0)
+      const sum = vals.reduce((a, b) => a + b, 0)
+      const nonZero = vals.filter(v => v > 0)
+      const rg = nonZero.length > 0 ? sum / nonZero.length : 0
+
+      result['\u26A1 Medicion de resistencia'] = items
+
+      // Add calculated summary as field data
+      const calcFields = {}
+      calcFields['Distancia electrodo corriente'] = (sectionData.distanciaElectrodoCorriente || '50') + ' m'
+      calcFields['Sumatoria de resistencias'] = sum.toFixed(4) + ' Ohm'
+      calcFields['Rg promedio'] = rg.toFixed(4) + ' Ohm'
+      if (sectionData.observaciones) calcFields['Observaciones'] = sectionData.observaciones
+      result['\u26A1 Resultados'] = calcFields
+    } else if (section.id === 'evidencia') {
+      // Skip evidence section - photos handled separately
+      continue
+    } else {
+      const fields = extractFieldsFromConfig(section.fields, sectionData)
+      if (Object.keys(fields).length) result['\u26A1 ' + section.title] = fields
+    }
   }
   return result
 }

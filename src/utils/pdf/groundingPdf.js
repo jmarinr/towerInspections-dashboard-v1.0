@@ -6,6 +6,7 @@
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
+import { DIAGRAM_MAIN_B64, DIAGRAM_ALT_B64 } from './groundingDiagrams'
 
 const C = {
   black: rgb(0.1, 0.1, 0.1),
@@ -56,6 +57,8 @@ class GroundingPDF {
     this.font = await this.doc.embedFont(StandardFonts.Helvetica)
     this.fontBold = await this.doc.embedFont(StandardFonts.HelveticaBold)
     try { this.logo = await this.doc.embedPng(Uint8Array.from(atob(PTI_LOGO_BASE64), c => c.charCodeAt(0))) } catch { this.logo = null }
+    try { this.diagramMain = await this.doc.embedPng(Uint8Array.from(atob(DIAGRAM_MAIN_B64), c => c.charCodeAt(0))) } catch { this.diagramMain = null }
+    try { this.diagramAlt = await this.doc.embedPng(Uint8Array.from(atob(DIAGRAM_ALT_B64), c => c.charCodeAt(0))) } catch { this.diagramAlt = null }
   }
 
   newPage() { if (this.page) this._footer(); this.page = this.doc.addPage([PW, PH]); this.pageNum++; this.y = PH - MT }
@@ -397,6 +400,29 @@ export async function generateGroundingPdf(submission, assets = []) {
   p.fieldRow2('ULTIMO DIA DE LLUVIA:', v('ultimoDiaLluvia'), 'HORA:', v('hora'))
 
   p.y -= 4
+
+  // Measurement method diagrams (2 side by side like the Excel)
+  const diagH = 140
+  p.checkSpace(diagH + 10)
+  const halfW = (CW - 8) / 2
+  if (p.diagramMain) {
+    const dims = p.diagramMain.scale(1)
+    const scale = Math.min(halfW / dims.width, diagH / dims.height)
+    const iw = dims.width * scale, ih = dims.height * scale
+    p.page.drawRectangle({ x: ML, y: p.y - diagH, width: halfW, height: diagH, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawImage(p.diagramMain, { x: ML + (halfW - iw) / 2, y: p.y - diagH + (diagH - ih) / 2, width: iw, height: ih })
+  }
+  if (p.diagramAlt) {
+    const rx = ML + halfW + 8
+    const dims = p.diagramAlt.scale(1)
+    const scale = Math.min(halfW / dims.width, diagH / dims.height)
+    const iw = dims.width * scale, ih = dims.height * scale
+    p.page.drawRectangle({ x: rx, y: p.y - diagH, width: halfW, height: diagH, borderColor: C.border, borderWidth: 0.5 })
+    // Title for alt diagram
+    p.page.drawText('Sistema para sitios con piso que impida clavar picas', { x: rx + 10, y: p.y - 12, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawImage(p.diagramAlt, { x: rx + (halfW - iw) / 2, y: p.y - diagH + (diagH - ih) / 2, width: iw, height: ih })
+  }
+  p.y -= diagH + 4
 
   // Warning text
   p.checkSpace(20)
