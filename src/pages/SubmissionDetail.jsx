@@ -7,6 +7,7 @@ import { getFormMeta, normalizeFormCode } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { downloadSubmissionPdf } from '../utils/pdf/generateReport'
 import { downloadMaintenancePdf } from '../utils/pdf/maintenancePdf'
+import { downloadGroundingPdf } from '../utils/pdf/groundingPdf'
 
 // ── Score Ring SVG ─────────────────────────────────────────────
 function ScoreRing({ good, regular, bad, total, size = 56 }) {
@@ -194,6 +195,7 @@ export default function SubmissionDetail() {
     try {
       const fc = normalizeFormCode(submission.form_code)
       if (fc === 'preventive-maintenance') await downloadMaintenancePdf(submission)
+      else if (fc === 'grounding-system-test') await downloadGroundingPdf(submission)
       else await downloadSubmissionPdf(submission, assets)
     } catch (e) { console.error('PDF error:', e) }
     setPdfLoading(false)
