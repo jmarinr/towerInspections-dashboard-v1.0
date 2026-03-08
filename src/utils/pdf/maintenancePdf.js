@@ -245,7 +245,7 @@ class MaintenancePDF {
     while (this.font.widthOfTextAtSize(truncated, 6.5) > maxTextW && truncated.length > 3) {
       truncated = truncated.slice(0, -1)
     }
-    if (truncated !== display) truncated += '…'
+    if (truncated !== display) truncated += '...'
     this.page.drawText(truncated, { x: colN + 4, y: this.y - h + 4, size: 6.5, font: this.font, color: C.text })
 
     // Status with background color
@@ -269,7 +269,7 @@ class MaintenancePDF {
       const maxObsW = x + CW - colO - 8
       let obs = String(observation)
       while (this.font.widthOfTextAtSize(obs, 6) > maxObsW && obs.length > 3) obs = obs.slice(0, -1)
-      if (obs !== String(observation)) obs += '…'
+      if (obs !== String(observation)) obs += '...'
       this.page.drawText(obs, { x: colO + 4, y: this.y - h + 4, size: 6, font: this.font, color: C.textLight })
     }
 

@@ -167,7 +167,7 @@ class GroundingPDF {
     const colX = [x, x + cols[0], x + cols[0] + cols[1], x + cols[0] + cols[1] + cols[2]]
 
     this.page.drawRectangle({ x, y: this.y - h, width: CW, height: h, color: C.dark })
-    const headers = ['Dist. (m)', 'Electrodo de Potencial', 'Rg [Ω]', 'Observaciones']
+    const headers = ['Dist. (m)', 'Electrodo de Potencial', 'Rg [Ohm]', 'Observaciones']
     headers.forEach((txt, i) => {
       this.page.drawText(txt, { x: colX[i] + 4, y: this.y - h + 4, size: 6, font: this.fontBold, color: C.white })
     })
@@ -208,15 +208,15 @@ class GroundingPDF {
 
     this.page.drawRectangle({ x, y: this.y - sumH, width: CW, height: sumH, color: C.gray, borderColor: C.border, borderWidth: 0.5 })
     this.page.drawText('SUMATORIA DE RESISTENCIA OBTENIDA:', { x: x + 4, y: this.y - sumH + 4, size: 6.5, font: this.fontBold, color: C.text })
-    this.page.drawText(sum.toFixed(2) + ' Ω', { x: colX[2] + 4, y: this.y - sumH + 4, size: 7, font: this.fontBold, color: C.text })
-    this.page.drawText(`Rg = ${rg.toFixed(2)} [Ω]`, { x: colX[2] + 60, y: this.y - sumH + 4, size: 7, font: this.fontBold, color: rg > 10 ? C.warn : C.text })
+    this.page.drawText(sum.toFixed(2) + ' Ohm', { x: colX[2] + 4, y: this.y - sumH + 4, size: 7, font: this.fontBold, color: C.text })
+    this.page.drawText(`Rg = ${rg.toFixed(2)} [Ohm]`, { x: colX[2] + 60, y: this.y - sumH + 4, size: 7, font: this.fontBold, color: rg > 10 ? C.warn : C.text })
     this.y -= sumH
 
     // Warning note
     if (rg > 10) {
       this.checkSpace(16)
       this.page.drawRectangle({ x, y: this.y - 14, width: CW, height: 14, color: C.warnBg, borderColor: C.warn, borderWidth: 0.5 })
-      this.page.drawText('⚠ SI EL VALOR ES MAYOR A 10 Ω, SE DEBE REALIZAR DISEÑO DE MEJORA DEL SPT (MÉTODO WENNER)', { x: x + 6, y: this.y - 10, size: 6, font: this.fontBold, color: C.warn })
+      this.page.drawText('[!] SI EL VALOR ES MAYOR A 10 Ohm, SE DEBE REALIZAR DISENO DE MEJORA DEL SPT (METODO WENNER)', { x: x + 6, y: this.y - 10, size: 6, font: this.fontBold, color: C.warn })
       this.y -= 16
     }
   }
