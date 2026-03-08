@@ -7,6 +7,7 @@
  *   Sheet 4: Inspección de la Torre (sections 6-11)
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { PTI_LOGO_BASE64 } from './ptiLogo'
 
 // ── Colors matching the Excel ────────────────────────────────────
 const C = {
@@ -50,6 +51,14 @@ class MaintenancePDF {
     this.doc = await PDFDocument.create()
     this.font = await this.doc.embedFont(StandardFonts.Helvetica)
     this.fontBold = await this.doc.embedFont(StandardFonts.HelveticaBold)
+    // Embed PTI logo
+    try {
+      const logoBytes = Uint8Array.from(atob(PTI_LOGO_BASE64), c => c.charCodeAt(0))
+      this.logo = await this.doc.embedPng(logoBytes)
+    } catch (e) {
+      console.warn('Could not embed logo:', e)
+      this.logo = null
+    }
   }
 
   newPage() {
@@ -83,11 +92,11 @@ class MaintenancePDF {
   drawHeader(data) {
     const x = ML
     // Black bar
-    this.page.drawRectangle({ x, y: this.y - 16, width: CW, height: 16, color: C.black })
+    this.page.drawRectangle({ x, y: this.y - 18, width: CW, height: 18, color: C.black })
     this.page.drawText('PHOENIX TOWER INTERNATIONAL', {
-      x: x + 6, y: this.y - 12, size: 8.5, font: this.fontBold, color: C.white
+      x: x + 6, y: this.y - 13, size: 9, font: this.fontBold, color: C.white
     })
-    this.y -= 18
+    this.y -= 20
 
     // Red bar
     this.page.drawRectangle({ x, y: this.y - 14, width: CW, height: 14, color: C.red })
@@ -96,20 +105,71 @@ class MaintenancePDF {
     })
     this.y -= 16
 
-    // Provider / ID row
-    this.y -= 2
-    this._labelValueRow('Proveedor:', data.proveedor || '', 'ID Sitio:', data.idSitio || '')
-    this._labelValueRow('Tipo de Visita:', data.tipoVisita || '', 'Nombre Sitio:', data.nombreSitio || '')
-    this.y -= 4
+    // Logo + Provider/ID row (matching Excel: logo left, fields center, "Logo Proveedor" right)
+    const logoRowH = 42
+    this.page.drawRectangle({ x, y: this.y - logoRowH, width: CW, height: logoRowH, borderColor: C.border, borderWidth: 0.5 })
+
+    // Draw PTI logo on the left
+    if (this.logo) {
+      const logoDims = this.logo.scale(0.18)
+      const logoW = Math.min(logoDims.width, 110)
+      const logoH = Math.min(logoDims.height, 36)
+      this.page.drawImage(this.logo, {
+        x: x + 6,
+        y: this.y - logoRowH + (logoRowH - logoH) / 2,
+        width: logoW,
+        height: logoH,
+      })
+    }
+
+    // Provider and Visit Type fields (centered area)
+    const fieldX = x + 130
+    this.page.drawText('Proveedor:', { x: fieldX, y: this.y - 14, size: 7, font: this.fontBold, color: C.text })
+    this.page.drawText(data.proveedor || '', { x: fieldX + 55, y: this.y - 14, size: 7, font: this.font, color: C.text })
+    
+    // Dotted line after proveedor
+    const dotY = this.y - 16
+    for (let dx = fieldX + 55; dx < x + CW * 0.65; dx += 3) {
+      this.page.drawText('.', { x: dx, y: dotY, size: 5, font: this.font, color: C.border })
+    }
+
+    this.page.drawText('Tipo de Visita:', { x: fieldX, y: this.y - 30, size: 7, font: this.fontBold, color: C.text })
+    this.page.drawText(data.tipoVisita || '', { x: fieldX + 65, y: this.y - 30, size: 7, font: this.font, color: C.text })
+
+    // Dotted line after tipo visita
+    const dotY2 = this.y - 32
+    for (let dx = fieldX + 65; dx < x + CW * 0.65; dx += 3) {
+      this.page.drawText('.', { x: dx, y: dotY2, size: 5, font: this.font, color: C.border })
+    }
+
+    // ID Sitio and Nombre on the right side
+    const rightX = x + CW * 0.65
+    this.page.drawText('ID Sitio:', { x: rightX, y: this.y - 14, size: 7, font: this.fontBold, color: C.text })
+    this.page.drawText(data.idSitio || '', { x: rightX + 40, y: this.y - 14, size: 7, font: this.font, color: C.text })
+    this.page.drawText('Nombre Sitio:', { x: rightX, y: this.y - 30, size: 7, font: this.fontBold, color: C.text })
+    this.page.drawText(data.nombreSitio || '', { x: rightX + 60, y: this.y - 30, size: 7, font: this.font, color: C.text })
+
+    // "Logo Proveedor" text on far right
+    this.page.drawText('Logo Proveedor', { x: x + CW - 60, y: this.y - 14, size: 6, font: this.font, color: C.textLight })
+
+    // Red line under the row
+    this.page.drawRectangle({ x, y: this.y - logoRowH - 1.5, width: CW, height: 1.5, color: C.red })
+
+    this.y -= logoRowH + 4
   }
 
   _miniHeader() {
     const x = ML
-    this.page.drawRectangle({ x, y: this.y - 12, width: CW, height: 12, color: C.black })
-    this.page.drawText('PHOENIX TOWER INTERNATIONAL — Mantenimiento Preventivo (cont.)', {
-      x: x + 6, y: this.y - 9, size: 6, font: this.fontBold, color: C.white
+    // Black bar with logo
+    this.page.drawRectangle({ x, y: this.y - 14, width: CW, height: 14, color: C.black })
+    if (this.logo) {
+      const ld = this.logo.scale(0.06)
+      this.page.drawImage(this.logo, { x: x + 4, y: this.y - 12, width: Math.min(ld.width, 36), height: Math.min(ld.height, 10) })
+    }
+    this.page.drawText('PHOENIX TOWER INTERNATIONAL', {
+      x: x + (this.logo ? 44 : 6), y: this.y - 10, size: 6.5, font: this.fontBold, color: C.white
     })
-    this.y -= 14
+    this.y -= 16
     this.page.drawRectangle({ x, y: this.y - 9, width: CW, height: 9, color: C.red })
     this.page.drawText('REPORTE DE INSPECCIÓN DE MANTENIMIENTO PREVENTIVO', {
       x: x + 6, y: this.y - 7, size: 5.5, font: this.fontBold, color: C.white
