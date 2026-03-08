@@ -1,8 +1,62 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, ChevronRight } from 'lucide-react'
+import { Search, ChevronRight, Download, Loader2 } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useOrdersStore } from '../store/useOrdersStore'
+import { fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
+import { normalizeFormCode, isFormVisible } from '../data/formTypes'
+import { generateMaintenancePdf } from '../utils/pdf/maintenancePdf'
+import { generateGroundingPdf } from '../utils/pdf/groundingPdf'
+import { generatePMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
+import { generateSafetyPdf } from '../utils/pdf/safetyPdf'
+import { generateSubmissionPdf } from '../utils/pdf/generateReport'
+
+async function downloadAllPdfs(orderId, orderNumber) {
+  // Fetch all submissions with assets for this order
+  const subs = await fetchSubmissionsWithAssetsForVisit(orderId)
+  const visible = subs.filter(s => isFormVisible(s.form_code))
+  if (!visible.length) { alert('No hay formularios para descargar'); return }
+
+  for (const sub of visible) {
+    const fc = normalizeFormCode(sub.form_code)
+    let bytes
+    try {
+      if (fc === 'preventive-maintenance') bytes = await generateMaintenancePdf(sub)
+      else if (fc === 'grounding-system-test') bytes = await generateGroundingPdf(sub, sub.assets || [])
+      else if (fc === 'executed-maintenance') bytes = await generatePMExecutedPdf(sub, sub.assets || [])
+      else if (fc === 'safety-system') bytes = await generateSafetyPdf(sub, sub.assets || [])
+      else bytes = await generateSubmissionPdf(sub, sub.assets || [])
+    } catch (e) { console.error(`PDF error for ${fc}:`, e); continue }
+
+    if (bytes) {
+      const blob = new Blob([bytes], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${orderNumber || orderId.slice(0,8)}_${fc}.pdf`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      // Small delay between downloads so browser doesn't block them
+      await new Promise(r => setTimeout(r, 500))
+    }
+  }
+}
+
+function BulkDownloadBtn({ orderId, orderNumber }) {
+  const [loading, setLoading] = useState(false)
+  const handleClick = async (e) => {
+    e.stopPropagation(); e.preventDefault()
+    setLoading(true)
+    try { await downloadAllPdfs(orderId, orderNumber) } catch (e) { console.error(e) }
+    setLoading(false)
+  }
+  return (
+    <button onClick={handleClick} disabled={loading} title="Descargar todos los PDFs"
+      className="p-1.5 rounded-md hover:bg-accent/10 text-slate-400 hover:text-accent disabled:opacity-50 transition-colors">
+      {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+    </button>
+  )
+}
 
 export default function Orders() {
   const load = useOrdersStore((s) => s.load)
@@ -43,6 +97,7 @@ export default function Orders() {
                 <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500 hidden md:table-cell">Inspector</th>
                 <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500 hidden lg:table-cell">Fecha</th>
                 <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500">Estado</th>
+                <th className="text-center px-2 py-2 text-2xs font-medium text-gray-500 w-10">PDFs</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -64,6 +119,7 @@ export default function Orders() {
                         {open ? 'Abierta' : 'Cerrada'}
                       </span>
                     </td>
+                    <td className="px-2 py-2.5 text-center"><BulkDownloadBtn orderId={o.id} orderNumber={o.order_number} /></td>
                     <td className="pr-3"><ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" /></td>
                   </tr>
                 )

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
-import { FORM_TYPES, getFormMeta } from '../data/formTypes'
+import { FORM_TYPES, getFormMeta, isFormVisible } from '../data/formTypes'
 import { extractSiteInfo, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
 export default function Submissions() {
@@ -16,7 +16,7 @@ export default function Submissions() {
   const getFiltered = useSubmissionsStore((s) => s.getFiltered)
   const navigate = useNavigate()
   useEffect(() => { load() }, [])
-  const filtered = useMemo(() => getFiltered(), [submissions, filterFormCode, search])
+  const filtered = useMemo(() => getFiltered().filter(s => isFormVisible(s.form_code)), [submissions, filterFormCode, search])
 
   return (
     <div className="space-y-4">
@@ -30,7 +30,7 @@ export default function Submissions() {
         <select value={filterFormCode} onChange={e => setFilter({ filterFormCode: e.target.value })}
           className="h-8 px-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white">
           <option value="all">Todos los tipos</option>
-          {Object.entries(FORM_TYPES).map(([c, m]) => <option key={c} value={c}>{m.label}</option>)}
+          {Object.entries(FORM_TYPES).filter(([c]) => isFormVisible(c)).map(([c, m]) => <option key={c} value={c}>{m.label}</option>)}
         </select>
         <span className="text-2xs text-gray-400 hidden sm:block tabular-nums whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
       </div>

@@ -140,8 +140,8 @@ function SectionCard({ title, data, photos, index }) {
                   <StatusDot value={it['Estado']} />
                   <div className="flex-1 min-w-0">
                     <div className="text-[12px] text-slate-700">{it['Ítem'] || it['Pregunta'] || it['Actividad'] || '—'}</div>
-                    {it['Observación'] && <div className="text-[10px] text-slate-400 mt-0.5 italic">{it['Observación']}</div>}
-                    {it['Valor'] && <div className="text-[10px] text-accent font-mono mt-0.5">{it['Valor']}</div>}
+                    {it['Observación'] && <div className="text-[11px] text-slate-500 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1 whitespace-pre-wrap">{it['Observación']}</div>}
+                    {it['Valor'] && <div className="text-[11px] text-accent font-mono mt-0.5 bg-accent/5 rounded px-2 py-0.5 inline-block">{it['Valor']}</div>}
                   </div>
                   <StatusBadge value={it['Estado']} />
                 </div>
@@ -242,14 +242,38 @@ export default function SubmissionDetail() {
   const globalScore = totalItems > 0 ? Math.round((bueno / totalItems) * 100) : null
   const Icon = meta.icon
 
+  // Download all photos
+  const handleDownloadPhotos = async () => {
+    const photos = assets.filter(a => a.public_url)
+    if (!photos.length) return
+    for (const p of photos) {
+      try {
+        const a = document.createElement('a')
+        a.href = p.public_url
+        a.download = `${p.asset_type || 'foto'}.jpg`
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+        await new Promise(r => setTimeout(r, 300))
+      } catch {}
+    }
+  }
+
   return (
     <div className="space-y-4">
-      {/* Back + PDF */}
+      {/* Back + Actions */}
       <div className="flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="text-[13px] text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"><ArrowLeft size={15}/> Volver</button>
-        <button onClick={handlePdf} disabled={pdfLoading} className="h-8 px-3.5 text-[12px] font-semibold bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-card">
-          <Download size={13}/>{pdfLoading ? 'Generando…' : 'Descargar PDF'}
-        </button>
+        <div className="flex items-center gap-2">
+          {totalPhotos > 0 && (
+            <button onClick={handleDownloadPhotos} className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5 transition-all">
+              <Camera size={13}/> Fotos ({totalPhotos})
+            </button>
+          )}
+          <button onClick={handlePdf} disabled={pdfLoading} className="h-8 px-3.5 text-[12px] font-semibold bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-card">
+            <Download size={13}/>{pdfLoading ? 'Generando...' : 'Descargar PDF'}
+          </button>
+        </div>
       </div>
 
       {/* ── HERO CARD ─────────────────────────────────────────── */}

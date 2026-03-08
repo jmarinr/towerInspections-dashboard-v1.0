@@ -86,6 +86,15 @@ export function getFormCodeSiblings(code) {
 
 export const FORM_CODES = Object.keys(FORM_TYPES)
 
+/** Form codes that should be hidden from the admin panel */
+export const HIDDEN_FORM_CODES = new Set(['inspection-general', 'inspeccion'])
+
+/** Check if a form code should be visible in admin */
+export function isFormVisible(formCode) {
+  const normalized = normalizeFormCode(formCode)
+  return !HIDDEN_FORM_CODES.has(normalized) && !HIDDEN_FORM_CODES.has(formCode)
+}
+
 export function getFormMeta(formCode) {
   // Try direct lookup first, then normalized
   const direct = FORM_TYPES[formCode]

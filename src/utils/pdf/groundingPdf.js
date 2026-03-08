@@ -296,12 +296,13 @@ class GroundingPDF {
     this.page.drawText('Resistencia', { x: x, y: chartY + chartH / 2 + 12, size: 5.5, font: this.font, color: C.text })
     this.page.drawText('[Ohm]', { x: x + 4, y: chartY + chartH / 2 + 2, size: 5.5, font: this.font, color: C.text })
 
-    // Bars - one per electrode
-    const barGap = chartW / POINTS.length
+    // Bars - one per distance point (5, 10, 15, 20, 25, 30, 35)
+    const distances = [5, 10, 15, 20, 25, 30, 35]
+    const barGap = chartW / distances.length
     const barW = barGap * 0.55
 
-    POINTS.forEach((pt, i) => {
-      const val = values[i]
+    distances.forEach((dist, i) => {
+      const val = values[i] || 0
       const barH = yMax > 0 ? (val / yMax) * chartH : 0
       const bx = chartX + i * barGap + (barGap - barW) / 2
 
@@ -310,12 +311,17 @@ class GroundingPDF {
         this.page.drawRectangle({ x: bx, y: chartY, width: barW, height: barH, color: C.blue })
       }
 
-      // X axis label - electrode name (truncate if needed)
-      let label = pt.label
-      while (this.font.widthOfTextAtSize(label, 5) > barGap - 4 && label.length > 5) label = label.slice(0, -1)
-      if (label !== pt.label) label += '.'
-      const labelW = this.font.widthOfTextAtSize(label, 5)
-      this.page.drawText(label, { x: bx + (barW - labelW) / 2, y: chartY - 10, size: 5, font: this.font, color: C.text })
+      // X axis label - distance number (primary)
+      const label = String(dist)
+      const labelW = this.font.widthOfTextAtSize(label, 6)
+      this.page.drawText(label, { x: bx + (barW - labelW) / 2, y: chartY - 10, size: 6, font: this.font, color: C.text })
+
+      // Electrode name below distance (secondary, smaller)
+      let eName = POINTS[i]?.label || ''
+      while (this.font.widthOfTextAtSize(eName, 4) > barGap - 4 && eName.length > 4) eName = eName.slice(0, -1)
+      if (eName !== (POINTS[i]?.label || '')) eName += '.'
+      const eNameW = this.font.widthOfTextAtSize(eName, 4)
+      this.page.drawText(eName, { x: bx + (barW - eNameW) / 2, y: chartY - 18, size: 4, font: this.font, color: C.textLight })
 
       // Value on top of bar
       if (val > 0) {
@@ -385,8 +391,8 @@ export async function generateGroundingPdf(submission, assets = []) {
   p.sectionTitle('Inventario de Equipos en Piso')
   p.fieldRow2('ID Sitio:', v('idSitio'), 'Altura (Mts):', v('alturaMts'))
   p.fieldRow2('Nombre Sitio:', v('nombreSitio'), 'Tipo Sitio:', v('tipoSitio'))
-  p.fieldRow2('Fecha Inicio:', meta.startedAt || v('startedAt') || '', 'Tipo Estructura:', v('tipoEstructura'))
-  p.fieldRow2('Fecha Termino:', meta.endedAt || v('endedAt') || '', 'Latitud:', meta.lat || v('lat') || '')
+  p.fieldRow2('Fecha Inicio:', meta.startedAt || v('startedAt') || (submission?.created_at ? new Date(submission.created_at).toLocaleDateString('es') : ''), 'Tipo Estructura:', v('tipoEstructura'))
+  p.fieldRow2('Fecha Termino:', meta.endedAt || v('endedAt') || v('fechaTermino') || (submission?.updated_at ? new Date(submission.updated_at).toLocaleDateString('es') : ''), 'Latitud:', meta.lat || v('lat') || '')
   p.fieldRow2('Direccion:', v('direccion'), 'Longitud:', meta.lng || v('lng') || '')
 
   p.y -= 4

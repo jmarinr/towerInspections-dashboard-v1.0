@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { ChevronRight, ArrowUpRight, TrendingUp, ClipboardList, FolderOpen, Camera } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
-import { getFormMeta } from '../data/formTypes'
+import { getFormMeta, isFormVisible } from '../data/formTypes'
 import { extractSiteInfo, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
 function Stat({ icon: Icon, label, value, sub, color = 'bg-slate-100 text-slate-600' }) {
@@ -45,7 +45,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100"><h2 className="text-[13px] font-semibold text-slate-800">Por tipo</h2></div>
           <div className="p-2">
-            {Object.entries(byFormCode).sort((a,b)=>b[1]-a[1]).map(([code, count]) => {
+            {Object.entries(byFormCode).filter(([code]) => isFormVisible(code)).sort((a,b)=>b[1]-a[1]).map(([code, count]) => {
               const m = getFormMeta(code); const I = m.icon
               return (
                 <Link key={code} to={`/submissions?filter=${code}`} className="flex items-center justify-between py-2 px-2 rounded-lg hover:bg-slate-50 transition-colors group">
@@ -71,7 +71,7 @@ export default function Dashboard() {
             <Link to="/submissions" className="text-[10px] text-accent font-medium hover:underline flex items-center gap-0.5">Todo<ArrowUpRight size={9}/></Link>
           </div>
           <div className="divide-y divide-slate-50">
-            {(recent || []).slice(0, 8).map(sub => {
+            {(recent || []).filter(s => isFormVisible(s.form_code)).slice(0, 8).map(sub => {
               const m = getFormMeta(sub.form_code); const I = m.icon; const site = extractSiteInfo(sub); const who = extractSubmittedBy(sub); const fin = sub.finalized || isFinalized(sub)
               return (
                 <Link key={sub.id} to={`/submissions/${sub.id}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50/50 transition-colors group">

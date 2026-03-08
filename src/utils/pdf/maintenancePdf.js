@@ -422,8 +422,9 @@ export async function generateMaintenancePdf(submission) {
   const lng = meta.lng || v('lng') || ''
   p.fieldRow('Coordenadas:', lat && lng ? `${lat}, ${lng}` : '')
   p.fieldRow('Tipo de Sitio:', v('tipoSitio'))
-  p.fieldRow('Fecha de Inicio:', meta.startedAt || v('startedAt') || '')
-  p.fieldRow('Fecha de Término:', meta.endedAt || v('endedAt') || '')
+  p.fieldRow('Fecha de Inicio:', meta.startedAt || v('startedAt') || (submission?.created_at ? new Date(submission.created_at).toLocaleDateString('es') : ''))
+  const fechaTermino = meta.endedAt || v('endedAt') || v('fechaTermino') || (submission?.updated_at ? new Date(submission.updated_at).toLocaleDateString('es') : '')
+  p.fieldRow('Fecha de Termino:', fechaTermino)
   p.fieldRow('Hora de Entrada:', meta.startTime || v('horaEntrada') || '')
   p.fieldRow('Hora de Salida:', meta.endTime || v('horaSalida') || '')
 

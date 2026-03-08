@@ -1,10 +1,32 @@
 import { useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, ChevronRight, AlertTriangle } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useOrdersStore } from '../store/useOrdersStore'
-import { getFormMeta, normalizeFormCode } from '../data/formTypes'
+import { getFormMeta, normalizeFormCode, isFormVisible } from '../data/formTypes'
 import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
+
+/** Detect if a submission has "Malo" status in checklist data */
+function hasDamage(sub) {
+  const p = sub?.payload?.payload || sub?.payload || {}
+  const data = p.data || p
+  const cl = data.checklistData || {}
+  for (const key of Object.keys(cl)) {
+    const item = cl[key]
+    const st = typeof item === 'string' ? item : item?.status || ''
+    if (st.toLowerCase() === 'malo' || st.toLowerCase() === 'bad') return true
+  }
+  // Also check section data for status fields
+  for (const secKey of Object.keys(data)) {
+    const sec = data[secKey]
+    if (sec && typeof sec === 'object' && !Array.isArray(sec)) {
+      for (const fKey of Object.keys(sec)) {
+        if (typeof sec[fKey] === 'string' && (sec[fKey].toLowerCase() === 'malo' || sec[fKey].toLowerCase() === 'bad')) return true
+      }
+    }
+  }
+  return false
+}
 
 export default function OrderDetail() {
   const { orderId } = useParams()
@@ -61,17 +83,21 @@ export default function OrderDetail() {
       {/* Form list */}
       <div>
         <h2 className="text-sm font-medium text-gray-900 mb-3">Formularios</h2>
-        {submissions.length > 0 ? (
+        {submissions.filter(s => isFormVisible(s.form_code)).length > 0 ? (
           <div className="border border-gray-200 rounded-lg overflow-hidden">
-            {submissions.map((sub, i) => {
+            {submissions.filter(s => isFormVisible(s.form_code)).map((sub, i) => {
               const fc = normalizeFormCode(sub.form_code) || sub.form_code
               const m = getFormMeta(fc); const fin = sub.finalized || isFinalized(sub)
               const who = extractSubmittedBy(sub); const photos = (sub.assets || []).filter(a => a.public_url)
               const d = sub.updated_at ? new Date(sub.updated_at) : null
+              const damaged = hasDamage(sub)
               return (
                 <Link key={sub.id} to={`/submissions/${sub.id}`} className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors group ${i > 0 ? 'border-t border-gray-100' : ''}`}>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900">{m.label}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-900">{m.label}</span>
+                      {damaged && <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-bad bg-bad/10 px-1.5 py-0.5 rounded-full"><AlertTriangle size={9}/>Con dano</span>}
+                    </div>
                     <div className="text-2xs text-gray-400 mt-0.5">
                       {who?.name || '—'}
                       {d && <> · {d.toLocaleDateString('es', { day: 'numeric', month: 'short' })}</>}
@@ -83,17 +109,6 @@ export default function OrderDetail() {
                          : <span className="text-2xs font-medium text-warning">Borrador</span>}
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" />
                   </div>
-                  {/* Inline photo thumbnails */}
-                  {photos.length > 0 && (
-                    <div className="hidden sm:flex gap-1 flex-shrink-0">
-                      {photos.slice(0, 4).map(p => (
-                        <div key={p.id} className="w-8 h-8 rounded overflow-hidden border border-gray-200 bg-gray-50">
-                          <img src={p.public_url} alt="" className="w-full h-full object-cover" loading="lazy" />
-                        </div>
-                      ))}
-                      {photos.length > 4 && <div className="w-8 h-8 rounded border border-gray-200 bg-gray-50 flex items-center justify-center text-2xs text-gray-500">+{photos.length - 4}</div>}
-                    </div>
-                  )}
                 </Link>
               )
             })}

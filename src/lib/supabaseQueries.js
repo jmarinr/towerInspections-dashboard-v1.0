@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient'
-import { normalizeFormCode, getFormCodeSiblings } from '../data/formTypes'
+import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/formTypes'
 
 /**
  * The submissions table has columns:
@@ -49,6 +49,8 @@ export async function fetchSubmissions({ formCode, limit = 200 } = {}) {
       // Keep if has actual form data or has been saved with real payload
       return inner.data || inner.meta || p._meta || p.form_code
     })
+    // Filter out hidden form codes (e.g. inspection-general)
+    .filter(s => isFormVisible(s.form_code))
 }
 
 /**
@@ -239,12 +241,12 @@ export async function fetchDashboardStats() {
 
   if (subRes.error) throw subRes.error
   const rows = (subRes.data || []).map(normalizeSubmission)
-    // Filter out ghost rows (empty payload from ensureSubmissionId)
     .filter(s => {
       const p = s.payload || {}
       const inner = p.payload || p
       return inner.data || inner.meta || p._meta || p.form_code
     })
+    .filter(s => isFormVisible(s.form_code))
   const visits = visitRes.data || []
 
   // Normalize form codes for grouping
