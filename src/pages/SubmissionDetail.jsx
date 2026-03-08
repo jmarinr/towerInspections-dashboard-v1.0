@@ -6,6 +6,8 @@ import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { downloadSubmissionPdf } from '../utils/pdf/generateReport'
+import { downloadMaintenancePdf } from '../utils/pdf/maintenancePdf'
+import { normalizeFormCode } from '../data/formTypes'
 
 function StatusText({ value }) {
   const v = String(value || '')
@@ -114,7 +116,15 @@ export default function SubmissionDetail() {
 
   useEffect(() => { if (submissionId) loadDetail(submissionId); return () => clearDetail() }, [submissionId])
 
-  const handlePdf = async () => { if (!submission) return; setPdfLoading(true); try { await downloadSubmissionPdf(submission, assets) } catch (e) { console.error(e) } setPdfLoading(false) }
+  const handlePdf = async () => {
+    if (!submission) return; setPdfLoading(true)
+    try {
+      const fc = normalizeFormCode(submission.form_code)
+      if (fc === 'preventive-maintenance') { await downloadMaintenancePdf(submission) }
+      else { await downloadSubmissionPdf(submission, assets) }
+    } catch (e) { console.error('PDF error:', e) }
+    setPdfLoading(false)
+  }
 
   const photosBySection = useMemo(() => (!assets?.length || !submission) ? {} : groupAssetsBySection(assets, submission.form_code), [assets, submission])
 
