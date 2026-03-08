@@ -8,6 +8,8 @@ import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection, is
 import { downloadSubmissionPdf } from '../utils/pdf/generateReport'
 import { downloadMaintenancePdf } from '../utils/pdf/maintenancePdf'
 import { downloadGroundingPdf } from '../utils/pdf/groundingPdf'
+import { downloadPMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
+import { downloadSafetyPdf } from '../utils/pdf/safetyPdf'
 
 // ── Score Ring SVG ─────────────────────────────────────────────
 function ScoreRing({ good, regular, bad, total, size = 56 }) {
@@ -196,6 +198,8 @@ export default function SubmissionDetail() {
       const fc = normalizeFormCode(submission.form_code)
       if (fc === 'preventive-maintenance') await downloadMaintenancePdf(submission)
       else if (fc === 'grounding-system-test') await downloadGroundingPdf(submission, assets)
+      else if (fc === 'executed-maintenance') await downloadPMExecutedPdf(submission, assets)
+      else if (fc === 'safety-system') await downloadSafetyPdf(submission, assets)
       else await downloadSubmissionPdf(submission, assets)
     } catch (e) { console.error('PDF error:', e) }
     setPdfLoading(false)
