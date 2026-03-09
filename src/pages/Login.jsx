@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
 import { AlertCircle } from 'lucide-react'
+import { APP_VERSION } from '../version'
 
 export default function Login() {
   const [username, setUsername] = useState('')
@@ -33,6 +34,7 @@ export default function Login() {
           {error && <div className="flex items-center gap-2 text-sm text-danger"><AlertCircle size={14}/>{error}</div>}
           <button type="submit" className="w-full h-9 bg-accent hover:bg-accent/90 text-white text-sm font-medium rounded-md transition-colors">Continuar</button>
         </form>
+        <p className="mt-8 text-center text-[10px] text-gray-300">v{APP_VERSION}</p>
       </div>
     </div>
   )

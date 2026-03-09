@@ -3,6 +3,7 @@ import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X 
 import { useState } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
+import { APP_VERSION } from '../../version'
 
 const NAV = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Inicio' },
@@ -37,6 +38,7 @@ export default function Shell({ children }) {
             <div className="px-3 py-1 text-[11px] text-slate-400 truncate">{user?.name || 'Usuario'}</div>
             <button onClick={refresh} className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors"><RefreshCw size={13}/>Actualizar</button>
             <button onClick={() => { logout(); navigate('/login') }} className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12px] text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><LogOut size={13}/>Salir</button>
+            <div className="px-3 pt-1 text-[9px] text-slate-300">v{APP_VERSION}</div>
           </div>
         </aside>
         <div className="flex-1 flex flex-col min-w-0">
@@ -60,7 +62,7 @@ export default function Shell({ children }) {
         {mob && <div className="fixed inset-0 z-[60]"><div className="absolute inset-0 bg-black/30" onClick={() => setMob(false)}/><aside className="absolute left-0 top-0 bottom-0 w-64 bg-white flex flex-col animate-slide-in shadow-lg">
           <div className="px-4 pt-4 pb-3 flex items-center justify-between border-b border-slate-100"><div className="flex items-center gap-2"><div className="w-6 h-6 rounded-lg bg-accent flex items-center justify-center"><span className="text-white font-bold text-[8px]">PTI</span></div><span className="text-[13px] font-semibold">TeleInspect</span></div><button onClick={() => setMob(false)} className="text-slate-400"><X size={18}/></button></div>
           <nav className="px-2 pt-2 flex-1 space-y-0.5">{NAV.map(n => <NavLink key={n.to} to={n.to} onClick={() => setMob(false)} className={({isActive}) => lnk(isActive)}><n.icon size={16}/>{n.label}</NavLink>)}</nav>
-          <div className="px-3 pb-4 border-t border-slate-100 pt-2 mx-2"><button onClick={() => { logout(); navigate('/login'); setMob(false) }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-red-600"><LogOut size={15}/>Salir</button></div>
+          <div className="px-3 pb-4 border-t border-slate-100 pt-2 mx-2"><button onClick={() => { logout(); navigate('/login'); setMob(false) }} className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[13px] text-slate-400 hover:text-red-600"><LogOut size={15}/>Salir</button><div className="text-[9px] text-slate-300 px-3 pt-1">v{APP_VERSION}</div></div>
         </aside></div>}
       </div>
     </div>

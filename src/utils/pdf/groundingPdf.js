@@ -311,17 +311,10 @@ class GroundingPDF {
         this.page.drawRectangle({ x: bx, y: chartY, width: barW, height: barH, color: C.blue })
       }
 
-      // X axis label - distance number (primary)
+      // X axis label - distance number only (no electrode name to avoid overlap)
       const label = String(dist)
       const labelW = this.font.widthOfTextAtSize(label, 6)
       this.page.drawText(label, { x: bx + (barW - labelW) / 2, y: chartY - 10, size: 6, font: this.font, color: C.text })
-
-      // Electrode name below distance (secondary, smaller)
-      let eName = POINTS[i]?.label || ''
-      while (this.font.widthOfTextAtSize(eName, 4) > barGap - 4 && eName.length > 4) eName = eName.slice(0, -1)
-      if (eName !== (POINTS[i]?.label || '')) eName += '.'
-      const eNameW = this.font.widthOfTextAtSize(eName, 4)
-      this.page.drawText(eName, { x: bx + (barW - eNameW) / 2, y: chartY - 18, size: 4, font: this.font, color: C.textLight })
 
       // Value on top of bar
       if (val > 0) {
@@ -330,7 +323,7 @@ class GroundingPDF {
       }
     })
 
-    this.y = chartY - 18
+    this.y = chartY - 14
 
     // Caption
     this.page.drawText('En el grafico No 1 se observa la zona plana de potencial, equivalente a un valor constante de resistencia.', { x: x + 4, y: this.y, size: 5.5, font: this.font, color: C.textLight })

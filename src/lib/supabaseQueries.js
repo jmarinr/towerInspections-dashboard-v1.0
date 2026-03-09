@@ -281,17 +281,25 @@ export async function fetchDashboardStats() {
 function normalizeSubmission(raw) {
   if (!raw) return raw
   const p = raw.payload || raw.data || {}
-  const inner = p.payload || {}
+  // payload may be double-wrapped { payload: { finalized, data } }
+  // or already flat after a prior normalization { finalized, data }
+  const inner = p.payload || p
+
+  // Check finalized at every possible nesting level
+  const finalized =
+    raw.finalized === true ||
+    p.finalized === true ||
+    (p.payload != null && p.payload.finalized === true)
 
   return {
     ...raw,
-    form_code: raw.form_code || p.form_code || '',
+    form_code: raw.form_code || p.form_code || inner.form_code || '',
     device_id: raw.device_id || p.device_id || '',
     org_code: raw.org_code || p.org_code || '',
     app_version: raw.app_version || p.app_version || '',
     form_version: raw.form_version || p.form_version || '',
     site_visit_id: raw.site_visit_id || p.site_visit_id || null,
-    finalized: inner.finalized === true,
+    finalized,
     payload: p,
   }
 }

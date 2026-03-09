@@ -61,6 +61,9 @@ export function extractSubmittedBy(submission) {
 }
 
 export function isFinalized(submission) {
+  // Check top-level (set by normalizeSubmission) first
+  if (submission?.finalized === true) return true
+  // Fallback: dig into payload nesting
   const { inner } = resolveInner(submission)
   return inner.finalized === true
 }
