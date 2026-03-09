@@ -410,67 +410,172 @@ export async function generateMaintenancePdf(submission, assets = []) {
     return { status: item.status || '', observation: item.observation || '', value: item.value || '' }
   }
 
-  // ── PAGE 1: Información General ─────────────────────────────
+  // ── Fetch photos for embedding ─────────────────────────────
+  const photoMap = {}
+  for (const a of (assets || [])) { if (a.public_url && a.asset_type) photoMap[a.asset_type] = a.public_url }
+
+  async function embedPhoto(url) {
+    if (!url) return null
+    try {
+      const r = await fetch(url); if (!r.ok) return null
+      const b = new Uint8Array(await r.arrayBuffer())
+      if (b[0]===0xFF && b[1]===0xD8) return await p.doc.embedJpg(b)
+      if (b[0]===0x89 && b[1]===0x50) return await p.doc.embedPng(b)
+      try { return await p.doc.embedJpg(b) } catch { return null }
+    } catch { return null }
+  }
+
+  const fotoTorreImg = await embedPhoto(photoMap['fotoTorre'] || photoMap['maintenance:fotoTorre'])
+  const fotoCandadoImg = await embedPhoto(photoMap['fotoCandado'] || photoMap['maintenance:fotoCandado'])
+
+  // ── PAGE 1: Informacion General ─────────────────────────────
   p.newPage()
   p.drawHeader({ proveedor: v('proveedor'), tipoVisita: v('tipoVisita'), idSitio: v('idSitio'), nombreSitio: v('nombreSitio') })
-  p.sectionTitle('Información General del Sitio')
+  p.sectionTitle('Informacion General del Sitio')
 
-  p.darkSubheader('Información del Sitio')
+  p.darkSubheader('Informacion del Sitio')
   p.fieldRow('Nombre del Sitio:', v('nombreSitio'))
-  p.fieldRow('Número del Sitio:', v('idSitio'))
+  p.fieldRow('Numero del Sitio:', v('idSitio'))
   const lat = meta.lat || v('lat') || ''
   const lng = meta.lng || v('lng') || ''
-  p.fieldRow('Coordenadas:', lat && lng ? `${lat}, ${lng}` : '')
-  p.fieldRow('Tipo de Sitio:', v('tipoSitio'))
+  p.fieldRow('Coordenadas (centro de la torre):', lat && lng ? `Latitud: ${lat}  Longitud: ${lng}` : '')
+  
+  // Tipo de Sitio with checkboxes
+  const tipoSitio = (v('tipoSitio') || '').toLowerCase()
+  p.checkSpace(14)
+  const rowH = 13
+  p.page.drawRectangle({ x: ML, y: p.y - rowH, width: CW, height: rowH, borderColor: C.border, borderWidth: 0.5 })
+  p.page.drawText('Tipo de Sitio:', { x: ML + 4, y: p.y - rowH + 4, size: 6.5, font: p.fontBold, color: C.text })
+  const checks = [['Urbano','urbano'], ['Rawland','rawland'], ['Rural','rural'], ['Rooftop','rooftop']]
+  let cx = ML + 80
+  for (const [label, val] of checks) {
+    p.page.drawRectangle({ x: cx, y: p.y - rowH + 2, width: 10, height: 9, borderColor: C.border, borderWidth: 0.5 })
+    if (tipoSitio.includes(val)) p.page.drawText('X', { x: cx + 2.5, y: p.y - rowH + 3, size: 7, font: p.fontBold, color: C.text })
+    p.page.drawText(label + ':', { x: cx + 13, y: p.y - rowH + 4, size: 6, font: p.font, color: C.text })
+    cx += 65
+  }
+  p.y -= rowH
+
   p.fieldRow('Fecha de Inicio:', meta.startedAt || v('startedAt') || (submission?.created_at ? new Date(submission.created_at).toLocaleDateString('es') : ''))
   const fechaTermino = meta.endedAt || v('endedAt') || v('fechaTermino') || (submission?.updated_at ? new Date(submission.updated_at).toLocaleDateString('es') : '')
   p.fieldRow('Fecha de Termino:', fechaTermino)
   p.fieldRow('Hora de Entrada:', meta.startTime || v('horaEntrada') || '')
   p.fieldRow('Hora de Salida:', meta.endTime || v('horaSalida') || '')
 
-  p.y -= 4
+  p.y -= 2
   p.fieldRow('Tipo de Torre:', v('tipoTorre'))
-  p.fieldRow('Altura de la Torre:', v('alturaTorre') ? `${v('alturaTorre')} m` : '')
-  p.fieldRow('Altura del Edificio:', v('alturaEdificio') ? `${v('alturaEdificio')} m` : '')
+  p.fieldRow('Altura de la Torre:', v('alturaTorre') ? `${v('alturaTorre')}` : '')
+  p.fieldRow('Altura del Edificio hasta la base de la torre:', v('alturaEdificio') || 'N/A')
   let altTotal = ''
-  try { const at = (parseFloat(v('alturaTorre')||0)) + (parseFloat(v('alturaEdificio')||0)); if (at > 0) altTotal = `${at} m` } catch(_){}
-  p.fieldRow('Altura Total:', altTotal)
-  p.fieldRow('Condición de la Torre:', v('condicionTorre'))
-  p.fieldRow('Número de Secciones:', v('numSecciones'))
-  p.fieldRow('Tipo de Sección:', v('tipoSeccion'))
-  p.fieldRow('Tipo de Pierna:', v('tipoPierna'))
-  p.fieldRow('¿Tiene Camuflaje?:', v('tieneCamuflaje'))
-  p.fieldRow('Tipo de Camuflaje:', v('tipoCamuflaje'))
+  try { const at = (parseFloat(v('alturaTorre')||0)) + (parseFloat(v('alturaEdificio')||0)); if (at > 0) altTotal = `${at}` } catch(_){}
+  p.fieldRow('Altura total:', altTotal)
+  p.fieldRow('Condicion de la Torre:', v('condicionTorre'))
+
+  // Embed fotoTorre to the right of the tower info section
+  if (fotoTorreImg) {
+    const dims = fotoTorreImg.scale(1)
+    const maxW = 130, maxH = 100
+    const sc = Math.min(maxW / dims.width, maxH / dims.height)
+    const iw = dims.width * sc, ih = dims.height * sc
+    p.page.drawImage(fotoTorreImg, { x: ML + CW - iw - 5, y: p.y + 10, width: iw, height: ih })
+    p.page.drawRectangle({ x: ML + CW - iw - 7, y: p.y + 8, width: iw + 4, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawText('Foto de la Torre', { x: ML + CW - iw + 5, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
+  }
 
   p.y -= 4
-  p.darkSubheader('Dirección del Sitio')
+  p.darkSubheader('Direccion del Sitio')
   p.fieldRow('Calle:', v('calle'))
-  p.fieldRow('Número:', v('numero'))
+  p.fieldRow('Numero:', v('numero'))
   p.fieldRow('Colonia:', v('colonia'))
   p.fieldRow('Ciudad:', v('ciudad'))
   p.fieldRow('Estado:', v('estado'))
-  p.fieldRow('Código Postal:', v('codigoPostal'))
-  p.fieldRow('País:', v('pais'))
+  p.fieldRow('Codigo Postal:', v('codigoPostal'))
+  p.fieldRow('Pais:', v('pais'))
 
   p.y -= 4
   p.darkSubheader('Acceso al Sitio')
-  p.fieldRow('Descripción del Sitio:', v('descripcionSitio'))
-  p.fieldRow('Restricción de Horario:', v('restriccionHorario'))
-  p.fieldRow('Descripción de Acceso:', v('descripcionAcceso'))
+  p.fieldRow('Descripcion del Sitio:', v('descripcionSitio'))
+  p.fieldRow('Descripcion de Acceso:', v('descripcionAcceso'))
+  p.fieldRow('Restriccion de Horario:', v('restriccionHorario'))
   p.fieldRow('Propietario localizable:', v('propietarioLocalizable'))
-  p.fieldRow('Clave:', v('clave'))
-  p.fieldRow('Llave:', v('llave'))
-  p.fieldRow('Memorándum:', v('memorandum'))
-  p.textBlock('Problemas de Acceso:', v('problemasAcceso'))
+  p.fieldRow('Clave:', v('claveCombinacion'))
+  p.fieldRow('Llave:', v('tipoLlave'))
+  p.fieldRow('Memorandum:', v('memorandumRequerido'))
+  p.fieldRow('Problemas de acceso:', v('problemasAcceso'))
+  p.fieldRow('Notificaciones en los Sitios:', v('notificaciones') || v('notificacionesSitio'))
+
+  // Embed fotoCandado to the right
+  if (fotoCandadoImg) {
+    const dims = fotoCandadoImg.scale(1)
+    const maxW = 120, maxH = 80
+    const sc = Math.min(maxW / dims.width, maxH / dims.height)
+    const iw = dims.width * sc, ih = dims.height * sc
+    p.page.drawImage(fotoCandadoImg, { x: ML + CW - iw - 5, y: p.y + 10, width: iw, height: ih })
+    p.page.drawRectangle({ x: ML + CW - iw - 7, y: p.y + 8, width: iw + 4, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawText('Foto de Candado y/o Llave', { x: ML + CW - iw - 5, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
+  }
 
   p.y -= 4
   p.darkSubheader('Servicios en Sitio')
-  p.fieldRow('Ubicación de Medidores:', v('ubicacionMedidores'))
-  p.fieldRow('Tipo de Conexión Eléctrica:', v('tipoConexion'))
+  p.fieldRow('Ubicacion de los Medidores Electricos:', v('ubicacionMedidores'))
+  p.fieldRow('Tipo de Conexion Electrica:', v('tipoConexion'))
   p.fieldRow('Capacidad del Transformador:', v('capacidadTransformador'))
-  p.fieldRow('Número de Medidores:', v('numMedidores'))
-  p.fieldRow('Medidor separado luces:', v('medidorSeparadoLuces'))
-  p.fieldRow('Fibra Óptica en Sitio:', v('fibraOptica'))
+  p.fieldRow('Numero de Medidores:', v('numMedidores'))
+  p.fieldRow('Medidor separado para luz de torre:', v('medidorSeparadoLuces'))
+  p.fieldRow('Fibra Optica en Sitio:', v('fibraOptica'))
+  p._drawFooter()
+
+  // ── PAGE 2: Información de la Estructura Principal ─────────
+  p.newPage()
+  p.drawHeader({ proveedor: v('proveedor'), tipoVisita: v('tipoVisita'), idSitio: v('idSitio'), nombreSitio: v('nombreSitio') })
+  p.sectionTitle('Informacion de la Estructura Principal')
+
+  const towerType = (v('tipoTorre') || '').toLowerCase()
+  const structures = [
+    { key: 'autosoportada', label: 'Torre Autosoportada' },
+    { key: 'monopolo', label: 'Monopolo' },
+    { key: 'arriostrada', label: 'Torre Arriostrada' },
+    { key: 'mastil', label: 'Mastiles' },
+  ]
+  for (const st of structures) {
+    p.y -= 4
+    p.checkSpace(60)
+    p.page.drawRectangle({ x: ML, y: p.y - 14, width: CW, height: 14, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawText(st.label, { x: ML + 4, y: p.y - 11, size: 7, font: p.fontBold, color: C.text })
+
+    // If this is the active tower type, show data
+    if (towerType.includes(st.key)) {
+      // Mark with X
+      p.page.drawText('[X]', { x: ML + CW - 30, y: p.y - 11, size: 7, font: p.fontBold, color: C.text })
+    }
+    p.y -= 14
+
+    if (towerType.includes(st.key)) {
+      if (v('tipoSeccion')) p.fieldRow('Seccion:', v('tipoSeccion'))
+      if (v('tipoPierna')) p.fieldRow('Tipo Pierna:', v('tipoPierna'))
+      p.fieldRow('Numero de Secciones:', v('numSecciones'))
+      p.fieldRow('Separacion de Piernas (m):', v('separacionPiernas'))
+      p.fieldRow('Medida Por Seccion (m):', v('medidaPorSeccion'))
+      p.fieldRow('Ancho de Celosia (m):', v('anchoCelosia'))
+      // Camuflaje
+      p.checkSpace(14)
+      p.page.drawRectangle({ x: ML, y: p.y - 13, width: CW, height: 13, borderColor: C.border, borderWidth: 0.5 })
+      const hasCam = (v('tieneCamuflaje') || '').toLowerCase()
+      p.page.drawRectangle({ x: ML + 4, y: p.y - 11, width: 14, height: 9, borderColor: C.border, borderWidth: 0.5 })
+      if (hasCam === 'si' || hasCam === 'yes') p.page.drawText('X', { x: ML + 7, y: p.y - 10, size: 7, font: p.fontBold, color: C.text })
+      if (hasCam === 'no') p.page.drawText('No', { x: ML + 7, y: p.y - 10, size: 6, font: p.fontBold, color: C.text })
+      p.page.drawText('Tiene Camuflaje?', { x: ML + 22, y: p.y - 10, size: 6, font: p.font, color: C.text })
+      p.page.drawText('Tipo de Camuflaje:', { x: ML + 100, y: p.y - 10, size: 6, font: p.font, color: C.text })
+      p.page.drawText(v('tipoCamuflaje') || '', { x: ML + 175, y: p.y - 10, size: 6.5, font: p.font, color: C.text })
+      // Altura a la derecha
+      p.page.drawText('Altura', { x: ML + CW - 50, y: p.y, size: 6, font: p.font, color: C.text })
+      p.page.drawText(v('alturaTorre') ? v('alturaTorre') + ' m' : '', { x: ML + CW - 50, y: p.y - 10, size: 8, font: p.fontBold, color: C.text })
+      p.y -= 15
+    }
+  }
+
+  p.y -= 8
+  p.page.drawText('*Cuando un problema es observado debe enviar un reporte fotografico y explicacion del problema.', { x: ML + 4, y: p.y, size: 5.5, font: p.fontBold, color: C.red })
   p._drawFooter()
 
   // ── PAGE 2: Inspección Del Sitio ────────────────────────────
@@ -512,11 +617,7 @@ export async function generateMaintenancePdf(submission, assets = []) {
   p._drawFooter()
 
   // ── PHOTO EVIDENCE PAGES ────────────────────────────────────
-  // Build photo map from assets
-  const photoMap = {}
-  for (const a of (assets || [])) {
-    if (a.public_url && a.asset_type) photoMap[a.asset_type] = a.public_url
-  }
+  // photoMap already built above
 
   // Collect all photos with labels
   const allPhotos = []

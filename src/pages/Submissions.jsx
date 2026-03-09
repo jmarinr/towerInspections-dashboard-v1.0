@@ -1,8 +1,9 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
+import { useOrdersStore } from '../store/useOrdersStore'
 import { FORM_TYPES, getFormMeta, isFormVisible } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
@@ -25,11 +26,20 @@ function getScore(sub) {
   return Math.round((good / total) * 100)
 }
 
-function MiniScore({ score }) {
+function MiniScoreRing({ score }) {
   if (score === null) return null
-  const color = score >= 80 ? 'text-good' : score >= 50 ? 'text-warn' : 'text-bad'
-  const bg = score >= 80 ? 'bg-good/10' : score >= 50 ? 'bg-warn/10' : 'bg-bad/10'
-  return <span className={`text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded ${color} ${bg}`}>{score}%</span>
+  const size = 32, r = 12, c = 2 * Math.PI * r
+  const color = score >= 80 ? '#22C55E' : score >= 50 ? '#F59E0B' : '#EF4444'
+  const offset = c - (score / 100) * c
+  return (
+    <svg width={size} height={size} className="block mx-auto">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e5e7eb" strokeWidth="3" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3"
+        strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`} />
+      <text x={size/2} y={size/2 + 3.5} textAnchor="middle" fontSize="8" fontWeight="700" fill={color}>{score}%</text>
+    </svg>
+  )
 }
 
 export default function Submissions() {
@@ -40,9 +50,18 @@ export default function Submissions() {
   const search = useSubmissionsStore((s) => s.search)
   const setFilter = useSubmissionsStore((s) => s.setFilter)
   const getFiltered = useSubmissionsStore((s) => s.getFiltered)
+  const loadOrders = useOrdersStore((s) => s.load)
+  const orders = useOrdersStore((s) => s.orders)
   const navigate = useNavigate()
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadOrders() }, [])
   const filtered = useMemo(() => getFiltered().filter(s => isFormVisible(s.form_code)), [submissions, filterFormCode, search])
+
+  // Build order_number lookup: visit_id → order_number
+  const orderMap = useMemo(() => {
+    const map = {}
+    for (const o of orders) { map[o.id] = o.order_number || o.id.slice(0, 8) }
+    return map
+  }, [orders])
 
   return (
     <div className="space-y-4">
@@ -114,7 +133,7 @@ export default function Submissions() {
                     </td>
                     <td className="px-3 py-2.5 hidden md:table-cell">
                       {hasOrder
-                        ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()} className="text-2xs text-accent hover:underline">{visitId.slice(0, 8)}...</Link>
+                        ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()} className="text-2xs text-accent hover:underline font-medium">{orderMap[visitId] || '--'}</Link>
                         : <span className="text-2xs text-gray-300">--</span>}
                     </td>
                     <td className="px-3 py-2.5 text-sm text-gray-500 hidden md:table-cell">{who?.name || '--'}</td>
@@ -127,7 +146,7 @@ export default function Submissions() {
                            : <span className="text-2xs font-medium text-warning">Borrador</span>}
                     </td>
                     <td className="px-2 py-2.5 text-center hidden sm:table-cell">
-                      <MiniScore score={score} />
+                      <MiniScoreRing score={score} />
                     </td>
                     <td className="pr-3"><ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" /></td>
                   </tr>
