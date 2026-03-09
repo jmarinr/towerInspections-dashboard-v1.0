@@ -4,14 +4,14 @@ import { Search, ChevronRight } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useOrdersStore } from '../store/useOrdersStore'
-import { FORM_TYPES, getFormMeta, isFormVisible } from '../data/formTypes'
+import { FORM_TYPES, getFormMeta, isFormVisible, normalizeFormCode } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
 /** Compute checklist score for a submission */
 function getScore(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
   const data = p.data || p
-  const formType = sub?.form_code || sub?.form_type || p?.form_code || p?.form_type || ''
+  const formType = normalizeFormCode(sub?.form_code || sub?.form_type || p?.form_code || p?.form_type || '')
 
   // --- Standard checklist forms (Inspección General, Mant. Preventivo) ---
   const cl = data.checklistData || {}
@@ -30,7 +30,7 @@ function getScore(sub) {
 
   // --- Puesta a Tierra: score por resistencia (Ω) ---
   // ≤5Ω = Bueno (100pts), ≤10Ω = Regular (50pts), >10Ω = Malo (0pts)
-  if (formType === 'grounding-system-test' || formType === 'puesta-tierra') {
+  if (formType === 'grounding-system-test') {
     const OHM_FIELDS = ['rPataTorre', 'rCerramiento', 'rPorton', 'rPararrayos', 'rBarraSPT', 'rEscalerilla1', 'rEscalerilla2']
     let total = 0, points = 0
     for (const field of OHM_FIELDS) {
@@ -45,12 +45,20 @@ function getScore(sub) {
     return null
   }
 
-  // --- Sistema de Ascenso: score por campos de status (Bueno/Regular/Malo) ---
-  if (formType === 'safety-system' || formType === 'sistema-ascenso') {
-    const STATUS_FIELDS = ['herrajeInferior', 'herrajeSuperior', 'estadoCable', 'estadoPrensacables', 'estadoEscalera']
+  // --- Sistema de Ascenso: status fields anidados en secciones ---
+  if (formType === 'safety-system') {
+    // Campos type:'status' y sus secciones padre
+    const STATUS_FIELDS = [
+      { section: 'herrajes', field: 'herrajeInferior' },
+      { section: 'herrajes', field: 'herrajeSuperior' },
+      { section: 'herrajes', field: 'estadoCable' },
+      { section: 'prensacables', field: 'estadoPrensacables' },
+      { section: 'tramos', field: 'estadoEscalera' },
+    ]
     let total = 0, good = 0
-    for (const field of STATUS_FIELDS) {
-      const val = (data[field] || '').toLowerCase()
+    for (const { section, field } of STATUS_FIELDS) {
+      // Intenta anidado (data.herrajes.herrajeInferior) y flat (data.herrajeInferior)
+      const val = ((data[section] && data[section][field]) || data[field] || '').toLowerCase()
       if (!val) continue
       total++
       if (val === 'bueno' || val === 'good') good++
@@ -59,20 +67,45 @@ function getScore(sub) {
     return null
   }
 
-  // --- Mantenimiento Ejecutado: score por actividades con foto "after" ---
-  if (formType === 'executed-maintenance' || formType === 'mantenimiento-ejecutado') {
-    const activities = data.activities || data.actividades || {}
-    const actKeys = Object.keys(activities)
-    if (!actKeys.length) return null
-    let total = 0, completed = 0
-    for (const k of actKeys) {
-      const act = activities[k]
-      if (!act) continue
-      total++
-      // Una actividad se considera completa si tiene foto "after" o está marcada como completada
-      if (act.photoAfter || act.fotoAfter || act.completed || act.completada) completed++
+  // --- Mantenimiento Ejecutado: score por actividades con foto after en assets ---
+  if (formType === 'executed-maintenance') {
+    // Método 1: activities array en data
+    const activitiesArr = data.activities || data.pmActivities || []
+    if (activitiesArr.length > 0) {
+      const total = activitiesArr.length
+      const completed = activitiesArr.filter(a => a.afterUrl || a.photoAfter || a.fotoAfter).length
+      if (total) return Math.round((completed / total) * 100)
     }
-    if (total) return Math.round((completed / total) * 100)
+    // Método 2: derivar de assets (executed:pmx-N:before/after)
+    const assets = sub?.assets || []
+    if (assets.length > 0) {
+      const beforeIds = new Set()
+      const afterIds = new Set()
+      for (const a of assets) {
+        const m = (a.asset_type || '').match(/^executed:(pmx-\d+):(before|after)$/)
+        if (m) {
+          if (m[2] === 'before') beforeIds.add(m[1])
+          if (m[2] === 'after') afterIds.add(m[1])
+        }
+      }
+      // Actividades que tienen al menos before o after
+      const allIds = new Set([...beforeIds, ...afterIds])
+      const total = allIds.size
+      if (total) return Math.round((afterIds.size / total) * 100)
+    }
+    // Método 3: activityStatus en data
+    const actData = data.activityStatus || data.pmExecutedActivities || {}
+    const actKeys = Object.keys(actData)
+    if (actKeys.length) {
+      let total = 0, completed = 0
+      for (const k of actKeys) {
+        const st = actData[k]
+        total++
+        const stVal = (typeof st === 'string' ? st : st?.status || '').toLowerCase()
+        if (stVal === 'completado' || stVal === 'done' || stVal === 'completed') completed++
+      }
+      if (total) return Math.round((completed / total) * 100)
+    }
     return null
   }
 
