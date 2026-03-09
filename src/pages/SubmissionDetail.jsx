@@ -243,20 +243,38 @@ export default function SubmissionDetail() {
   const Icon = meta.icon
 
   // Download all photos
+  const [photosLoading, setPhotosLoading] = useState(false)
   const handleDownloadPhotos = async () => {
     const photos = assets.filter(a => a.public_url)
     if (!photos.length) return
-    for (const p of photos) {
-      try {
-        const a = document.createElement('a')
-        a.href = p.public_url
-        a.download = `${p.asset_type || 'foto'}.jpg`
-        a.target = '_blank'
-        a.rel = 'noopener noreferrer'
-        document.body.appendChild(a); a.click(); document.body.removeChild(a)
-        await new Promise(r => setTimeout(r, 300))
-      } catch {}
-    }
+    setPhotosLoading(true)
+    try {
+      const JSZip = (await import('jszip')).default
+      const zip = new JSZip()
+      const siteId = site.idSitio || 'sitio'
+      const formLabel = meta.shortLabel || submission.form_code || 'form'
+
+      for (let i = 0; i < photos.length; i++) {
+        const p = photos[i]
+        try {
+          const resp = await fetch(p.public_url)
+          if (!resp.ok) continue
+          const blob = await resp.blob()
+          const ext = (p.mime || p.public_url || '').includes('png') ? 'png' : 'jpg'
+          const name = `${String(p.asset_type || 'foto_' + i).replace(/[^a-zA-Z0-9_\-.:]/g, '_')}.${ext}`
+          zip.file(name, blob)
+        } catch {}
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' })
+      const url = URL.createObjectURL(content)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `fotos_${siteId}_${formLabel}.zip`
+      document.body.appendChild(a); a.click(); document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e) { console.error('ZIP error:', e) }
+    setPhotosLoading(false)
   }
 
   return (
@@ -266,8 +284,8 @@ export default function SubmissionDetail() {
         <button onClick={() => navigate(-1)} className="text-[13px] text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"><ArrowLeft size={15}/> Volver</button>
         <div className="flex items-center gap-2">
           {totalPhotos > 0 && (
-            <button onClick={handleDownloadPhotos} className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 flex items-center gap-1.5 transition-all">
-              <Camera size={13}/> Fotos ({totalPhotos})
+            <button onClick={handleDownloadPhotos} disabled={photosLoading} className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1.5 transition-all">
+              {photosLoading ? <><Clock size={13} className="animate-spin"/> Descargando...</> : <><Download size={13}/> Descargar Fotos ({totalPhotos})</>}
             </button>
           )}
           <button onClick={handlePdf} disabled={pdfLoading} className="h-8 px-3.5 text-[12px] font-semibold bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-card">
