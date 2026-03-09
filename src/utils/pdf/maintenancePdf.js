@@ -388,7 +388,7 @@ const TOWER_SECTIONS = [
 // ══════════════════════════════════════════════════════════════════
 // MAIN EXPORT
 // ══════════════════════════════════════════════════════════════════
-export async function generateMaintenancePdf(submission) {
+export async function generateMaintenancePdf(submission, assets = []) {
   const p = new MaintenancePDF()
   await p.init()
 
@@ -511,11 +511,108 @@ export async function generateMaintenancePdf(submission) {
   }
   p._drawFooter()
 
+  // ── PHOTO EVIDENCE PAGES ────────────────────────────────────
+  // Build photo map from assets
+  const photoMap = {}
+  for (const a of (assets || [])) {
+    if (a.public_url && a.asset_type) photoMap[a.asset_type] = a.public_url
+  }
+
+  // Collect all photos with labels
+  const allPhotos = []
+
+  // Form photos (fotoTorre, fotoCandado)
+  const formPhotoFields = [
+    { id: 'fotoTorre', label: 'Foto de la Torre' },
+    { id: 'fotoCandado', label: 'Foto de Candado/Llave' },
+  ]
+  for (const fp of formPhotoFields) {
+    const url = photoMap[fp.id] || photoMap[`maintenance:${fp.id}`]
+    if (url) allPhotos.push({ label: fp.label, url })
+  }
+
+  // Checklist activity photos (maintenance:{activityId}:before/after)
+  for (const key of Object.keys(photoMap)) {
+    const m = key.match(/^maintenance:(.+):(before|after)$/)
+    if (m) {
+      const actId = m[1]
+      const type = m[2]
+      allPhotos.push({ label: `Actividad ${actId} - ${type === 'before' ? 'Antes' : 'Despues'}`, url: photoMap[key] })
+    }
+  }
+
+  // Any other unmatched photos
+  for (const key of Object.keys(photoMap)) {
+    if (!key.startsWith('maintenance:') && !formPhotoFields.some(f => f.id === key)) {
+      allPhotos.push({ label: key, url: photoMap[key] })
+    }
+  }
+
+  if (allPhotos.length > 0) {
+    p.newPage()
+    p._miniHeader()
+    p.sectionTitle('Evidencia Fotografica')
+
+    // Draw photos in pairs (2 per row)
+    for (let i = 0; i < allPhotos.length; i += 2) {
+      const photoH = 180
+      p.checkSpace(photoH + 22)
+      const halfW = (CW - 8) / 2
+      const hdrH = 14
+
+      // Left photo
+      const left = allPhotos[i]
+      p.page.drawRectangle({ x: ML, y: p.y - hdrH, width: halfW, height: hdrH, color: C.dark })
+      p.page.drawText(left.label, { x: ML + 6, y: p.y - hdrH + 4, size: 6, font: p.fontBold, color: C.white })
+      p.page.drawRectangle({ x: ML, y: p.y - hdrH - photoH, width: halfW, height: photoH, borderColor: C.border, borderWidth: 0.5 })
+
+      try {
+        const resp = await fetch(left.url)
+        if (resp.ok) {
+          const buf = new Uint8Array(await resp.arrayBuffer())
+          let img
+          try { img = (buf[0]===0xFF && buf[1]===0xD8) ? await p.doc.embedJpg(buf) : await p.doc.embedPng(buf) } catch { try { img = await p.doc.embedJpg(buf) } catch { img = null } }
+          if (img) {
+            const dims = img.scale(1)
+            const sc = Math.min((halfW - 10) / dims.width, (photoH - 10) / dims.height)
+            p.page.drawImage(img, { x: ML + (halfW - dims.width * sc) / 2, y: p.y - hdrH - photoH + (photoH - dims.height * sc) / 2, width: dims.width * sc, height: dims.height * sc })
+          }
+        }
+      } catch {}
+
+      // Right photo (if exists)
+      if (i + 1 < allPhotos.length) {
+        const right = allPhotos[i + 1]
+        const rx = ML + halfW + 8
+        p.page.drawRectangle({ x: rx, y: p.y - hdrH, width: halfW, height: hdrH, color: C.dark })
+        p.page.drawText(right.label, { x: rx + 6, y: p.y - hdrH + 4, size: 6, font: p.fontBold, color: C.white })
+        p.page.drawRectangle({ x: rx, y: p.y - hdrH - photoH, width: halfW, height: photoH, borderColor: C.border, borderWidth: 0.5 })
+
+        try {
+          const resp = await fetch(right.url)
+          if (resp.ok) {
+            const buf = new Uint8Array(await resp.arrayBuffer())
+            let img
+            try { img = (buf[0]===0xFF && buf[1]===0xD8) ? await p.doc.embedJpg(buf) : await p.doc.embedPng(buf) } catch { try { img = await p.doc.embedJpg(buf) } catch { img = null } }
+            if (img) {
+              const dims = img.scale(1)
+              const sc = Math.min((halfW - 10) / dims.width, (photoH - 10) / dims.height)
+              p.page.drawImage(img, { x: rx + (halfW - dims.width * sc) / 2, y: p.y - hdrH - photoH + (photoH - dims.height * sc) / 2, width: dims.width * sc, height: dims.height * sc })
+            }
+          }
+        } catch {}
+      }
+
+      p.y -= hdrH + photoH + 8
+    }
+    p._drawFooter()
+  }
+
   return await p.doc.save()
 }
 
-export async function downloadMaintenancePdf(submission) {
-  const bytes = await generateMaintenancePdf(submission)
+export async function downloadMaintenancePdf(submission, assets = []) {
+  const bytes = await generateMaintenancePdf(submission, assets)
   const blob = new Blob([bytes], { type: 'application/pdf' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')

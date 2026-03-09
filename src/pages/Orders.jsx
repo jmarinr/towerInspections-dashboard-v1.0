@@ -21,7 +21,7 @@ async function downloadAllPdfs(orderId, orderNumber) {
     const fc = normalizeFormCode(sub.form_code)
     let bytes
     try {
-      if (fc === 'preventive-maintenance') bytes = await generateMaintenancePdf(sub)
+      if (fc === 'preventive-maintenance') bytes = await generateMaintenancePdf(sub, sub.assets || [])
       else if (fc === 'grounding-system-test') bytes = await generateGroundingPdf(sub, sub.assets || [])
       else if (fc === 'executed-maintenance') bytes = await generatePMExecutedPdf(sub, sub.assets || [])
       else if (fc === 'safety-system') bytes = await generateSafetyPdf(sub, sub.assets || [])

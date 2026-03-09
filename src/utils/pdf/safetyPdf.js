@@ -231,26 +231,36 @@ export async function generateSafetyPdf(submission, assets = []) {
   y -= 18
 
   // Photo pairs
+  // Safety photos: the inspector app only captures fotoEscalera and fotoCertificacion
+  // But the real PDF shows more slots. We show what we have + empty slots for reference
   const photoPairs = [
-    ['HERRAJE INFERIOR', 'fotoHerrajeInferior', 'HERRAJE SUPERIOR', 'fotoHerrajeSuperior'],
-    ['PRENSACABLE SUPERIOR', 'fotoPrensacableSuperior', 'PRENSACABLE INFERIOR', 'fotoPrensacableInferior'],
-    ['TIPO DE CARRO', 'fotoCarro', 'OBSERVACION UNION (Tramos)', 'fotoUnionTramos'],
+    ['FOTO ESCALERA', 'fotoEscalera', 'FOTO CERTIFICACION', 'fotoCertificacion'],
   ]
 
-  // Safety photos use raw fieldId as asset_type
-  const safetyPhotoIds = ['fotoEscalera', 'fotoCertificacion']
-  // Build a combined map
-  const allPhotos = { ...photoMap }
+  // Also add any other photos found in assets dynamically
+  const usedIds = new Set(['fotoEscalera', 'fotoCertificacion'])
+  const extraPhotos = []
+  for (const key of Object.keys(photoMap)) {
+    if (!usedIds.has(key)) extraPhotos.push(key)
+  }
+  // Add extra photos in pairs
+  for (let i = 0; i < extraPhotos.length; i += 2) {
+    photoPairs.push([
+      extraPhotos[i], extraPhotos[i],
+      extraPhotos[i+1] || '', extraPhotos[i+1] || null,
+    ])
+  }
 
-  for (const [lTitle, lId, rTitle, rId] of photoPairs) {
+  for (const pair of photoPairs) {
+    const [lTitle, lId, rTitle, rId] = pair
     const halfW = (CW - 8) / 2, hdrH = 16, photoH = 170
 
     // Left
     page.drawRectangle({ x: ML, y: y - hdrH, width: halfW, height: hdrH, color: C.black })
-    page.drawText(lTitle, { x: ML + 6, y: y - hdrH + 4, size: 6.5, font: fontB, color: C.white })
+    page.drawText(lTitle || '', { x: ML + 6, y: y - hdrH + 4, size: 6.5, font: fontB, color: C.white })
     page.drawRectangle({ x: ML, y: y - hdrH - photoH, width: halfW, height: photoH, borderColor: C.border, borderWidth: 0.5 })
     
-    const lUrl = allPhotos[lId]
+    const lUrl = lId ? photoMap[lId] : null
     if (lUrl) {
       const img = await fetchImg(doc, lUrl)
       if (img) {
@@ -260,17 +270,19 @@ export async function generateSafetyPdf(submission, assets = []) {
     }
 
     // Right
-    const rx = ML + halfW + 8
-    page.drawRectangle({ x: rx, y: y - hdrH, width: halfW, height: hdrH, color: C.black })
-    page.drawText(rTitle, { x: rx + 6, y: y - hdrH + 4, size: 6.5, font: fontB, color: C.white })
-    page.drawRectangle({ x: rx, y: y - hdrH - photoH, width: halfW, height: photoH, borderColor: C.border, borderWidth: 0.5 })
+    if (rTitle) {
+      const rx = ML + halfW + 8
+      page.drawRectangle({ x: rx, y: y - hdrH, width: halfW, height: hdrH, color: C.black })
+      page.drawText(rTitle || '', { x: rx + 6, y: y - hdrH + 4, size: 6.5, font: fontB, color: C.white })
+      page.drawRectangle({ x: rx, y: y - hdrH - photoH, width: halfW, height: photoH, borderColor: C.border, borderWidth: 0.5 })
 
-    const rUrl = allPhotos[rId]
-    if (rUrl) {
-      const img = await fetchImg(doc, rUrl)
-      if (img) {
-        const d = img.scale(1), sc = Math.min((halfW - 10) / d.width, (photoH - 10) / d.height)
-        page.drawImage(img, { x: rx + (halfW - d.width * sc) / 2, y: y - hdrH - photoH + (photoH - d.height * sc) / 2, width: d.width * sc, height: d.height * sc })
+      const rUrl = rId ? photoMap[rId] : null
+      if (rUrl) {
+        const img = await fetchImg(doc, rUrl)
+        if (img) {
+          const d = img.scale(1), sc = Math.min((halfW - 10) / d.width, (photoH - 10) / d.height)
+          page.drawImage(img, { x: rx + (halfW - d.width * sc) / 2, y: y - hdrH - photoH + (photoH - d.height * sc) / 2, width: d.width * sc, height: d.height * sc })
+        }
       }
     }
 
