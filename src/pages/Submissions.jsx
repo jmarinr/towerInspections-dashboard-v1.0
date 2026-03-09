@@ -11,19 +11,72 @@ import { extractSiteInfo, extractMeta, isFinalized, extractSubmittedBy } from '.
 function getScore(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
   const data = p.data || p
+  const formType = sub?.form_code || sub?.form_type || p?.form_code || p?.form_type || ''
+
+  // --- Standard checklist forms (Inspección General, Mant. Preventivo) ---
   const cl = data.checklistData || {}
   const keys = Object.keys(cl)
-  if (!keys.length) return null // no checklist = no score
-  let total = 0, good = 0
-  for (const k of keys) {
-    const item = cl[k]
-    const st = (typeof item === 'string' ? item : item?.status || '').toLowerCase()
-    if (!st) continue
-    total++
-    if (st === 'bueno' || st === 'good') good++
+  if (keys.length) {
+    let total = 0, good = 0
+    for (const k of keys) {
+      const item = cl[k]
+      const st = (typeof item === 'string' ? item : item?.status || '').toLowerCase()
+      if (!st) continue
+      total++
+      if (st === 'bueno' || st === 'good') good++
+    }
+    if (total) return Math.round((good / total) * 100)
   }
-  if (!total) return null
-  return Math.round((good / total) * 100)
+
+  // --- Puesta a Tierra: score por resistencia (Ω) ---
+  // ≤5Ω = Bueno (100pts), ≤10Ω = Regular (50pts), >10Ω = Malo (0pts)
+  if (formType === 'grounding-system-test' || formType === 'puesta-tierra') {
+    const OHM_FIELDS = ['rPataTorre', 'rCerramiento', 'rPorton', 'rPararrayos', 'rBarraSPT', 'rEscalerilla1', 'rEscalerilla2']
+    let total = 0, points = 0
+    for (const field of OHM_FIELDS) {
+      const val = parseFloat(data[field])
+      if (isNaN(val) || val === 0) continue
+      total++
+      if (val <= 5) points += 100
+      else if (val <= 10) points += 50
+      // >10Ω = 0 pts (Malo)
+    }
+    if (total) return Math.round(points / total)
+    return null
+  }
+
+  // --- Sistema de Ascenso: score por campos de status (Bueno/Regular/Malo) ---
+  if (formType === 'safety-system' || formType === 'sistema-ascenso') {
+    const STATUS_FIELDS = ['herrajeInferior', 'herrajeSuperior', 'estadoCable', 'estadoPrensacables', 'estadoEscalera']
+    let total = 0, good = 0
+    for (const field of STATUS_FIELDS) {
+      const val = (data[field] || '').toLowerCase()
+      if (!val) continue
+      total++
+      if (val === 'bueno' || val === 'good') good++
+    }
+    if (total) return Math.round((good / total) * 100)
+    return null
+  }
+
+  // --- Mantenimiento Ejecutado: score por actividades con foto "after" ---
+  if (formType === 'executed-maintenance' || formType === 'mantenimiento-ejecutado') {
+    const activities = data.activities || data.actividades || {}
+    const actKeys = Object.keys(activities)
+    if (!actKeys.length) return null
+    let total = 0, completed = 0
+    for (const k of actKeys) {
+      const act = activities[k]
+      if (!act) continue
+      total++
+      // Una actividad se considera completa si tiene foto "after" o está marcada como completada
+      if (act.photoAfter || act.fotoAfter || act.completed || act.completada) completed++
+    }
+    if (total) return Math.round((completed / total) * 100)
+    return null
+  }
+
+  return null
 }
 
 function MiniScoreRing({ score }) {
