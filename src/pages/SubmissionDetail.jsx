@@ -189,6 +189,7 @@ export default function SubmissionDetail() {
   const assets = useSubmissionsStore((s) => s.activeAssets)
   const isLoading = useSubmissionsStore((s) => s.isLoadingDetail)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [photosLoading, setPhotosLoading] = useState(false)
 
   useEffect(() => { if (submissionId) loadDetail(submissionId); return () => clearDetail() }, [submissionId])
 
@@ -242,8 +243,7 @@ export default function SubmissionDetail() {
   const globalScore = totalItems > 0 ? Math.round((bueno / totalItems) * 100) : null
   const Icon = meta.icon
 
-  // Download all photos
-  const [photosLoading, setPhotosLoading] = useState(false)
+  // Download all photos as ZIP
   const handleDownloadPhotos = async () => {
     const photos = assets.filter(a => a.public_url)
     if (!photos.length) return
