@@ -192,21 +192,21 @@ class GroundingPDF {
     const cx = [x, x + colDist, x + colDist + colElec, x + colDist + colElec + colRes]
 
     // Table header
-    const thH = 24
+    const thH = 20
     this.page.drawRectangle({ x, y: this.y - thH, width: CW, height: thH, color: C.gray, borderColor: C.border, borderWidth: 0.5 })
     ;[1, 2, 3].forEach(i => this.page.drawLine({ start: { x: cx[i], y: this.y }, end: { x: cx[i], y: this.y - thH }, thickness: 0.5, color: C.border }))
-    this.page.drawText('Distancia de', { x: x + 4, y: this.y - 9, size: 5.5, font: this.fontBold, color: C.text })
-    this.page.drawText('Electrodo de', { x: x + 4, y: this.y - 16, size: 5.5, font: this.fontBold, color: C.text })
-    this.page.drawText('Corriente [m]', { x: x + 4, y: this.y - 23, size: 5.5, font: this.fontBold, color: C.text })
-    this.page.drawText('Electrodo de Potencial', { x: cx[1] + 15, y: this.y - 14, size: 6.5, font: this.fontBold, color: C.text })
-    this.page.drawText('Resistencia Medida', { x: cx[2] + 8, y: this.y - 9, size: 6, font: this.fontBold, color: C.text })
-    this.page.drawText('Rg [ Ohm ]', { x: cx[2] + 20, y: this.y - 18, size: 6, font: this.fontBold, color: C.text })
-    this.page.drawText('Observaciones y Fotos', { x: cx[3] + 10, y: this.y - 14, size: 6, font: this.fontBold, color: C.text })
+    this.page.drawText('Distancia de', { x: x + 4, y: this.y - 7, size: 5.5, font: this.fontBold, color: C.text })
+    this.page.drawText('Electrodo de', { x: x + 4, y: this.y - 13, size: 5.5, font: this.fontBold, color: C.text })
+    this.page.drawText('Corriente [m]', { x: x + 4, y: this.y - 19, size: 5.5, font: this.fontBold, color: C.text })
+    this.page.drawText('Electrodo de Potencial', { x: cx[1] + 15, y: this.y - 12, size: 6.5, font: this.fontBold, color: C.text })
+    this.page.drawText('Resistencia Medida', { x: cx[2] + 8, y: this.y - 7, size: 6, font: this.fontBold, color: C.text })
+    this.page.drawText('Rg [ Ohm ]', { x: cx[2] + 20, y: this.y - 15, size: 6, font: this.fontBold, color: C.text })
+    this.page.drawText('Observaciones y Fotos', { x: cx[3] + 10, y: this.y - 12, size: 6, font: this.fontBold, color: C.text })
     this.y -= thH
 
     // Rows with merged distance column
-    const totalRowsH = POINTS.length * 15
-    const rowH = 15
+    const totalRowsH = POINTS.length * 13
+    const rowH = 13
 
     // Distance value (merged vertically for all rows)  
     const dist = data.distanciaElectrodoCorriente || '50.0'
@@ -220,12 +220,12 @@ class GroundingPDF {
       ;[1, 2, 3].forEach(ci => this.page.drawLine({ start: { x: cx[ci], y: ry }, end: { x: cx[ci], y: ry - rowH }, thickness: 0.5, color: C.border }))
 
       // Distance (only first row text)
-      if (i === 0) this.page.drawText(String(dist), { x: x + 15, y: ry - rowH + 4, size: 7, font: this.font, color: C.text })
+      if (i === 0) this.page.drawText(String(dist), { x: x + 15, y: ry - rowH + 3, size: 6.5, font: this.font, color: C.text })
       // Electrode
-      this.page.drawText(pt.label, { x: cx[1] + 20, y: ry - rowH + 4, size: 7, font: this.font, color: C.text })
+      this.page.drawText(pt.label, { x: cx[1] + 20, y: ry - rowH + 3, size: 6.5, font: this.font, color: C.text })
       // Resistance
       const val = data[pt.id] || '0'
-      this.page.drawText(val + ' Ohm', { x: cx[2] + 20, y: ry - rowH + 4, size: 7, font: this.fontBold, color: C.text })
+      this.page.drawText(val + ' Ohm', { x: cx[2] + 20, y: ry - rowH + 3, size: 6.5, font: this.fontBold, color: C.text })
     })
 
     // Photo in observations column
@@ -247,31 +247,31 @@ class GroundingPDF {
     this.y -= totalRowsH
 
     // Summation row
-    const sumH = 15
+    const sumH = 13
     const values = POINTS.map(pt => parseFloat(data[pt.id]) || 0)
     const sum = values.reduce((a, b) => a + b, 0)
     const rg = values.filter(v => v > 0).length > 0 ? sum / values.filter(v => v > 0).length : sum / 7
 
     this.page.drawRectangle({ x, y: this.y - sumH, width: CW, height: sumH, color: C.gray, borderColor: C.border, borderWidth: 0.5 })
-    this.page.drawText('SUMATORIA DE RESISTENCIA OBTENIDA', { x: x + 6, y: this.y - sumH + 4, size: 6.5, font: this.fontBold, color: C.text })
-    this.page.drawText(`Rg =     ${rg.toFixed(4)}`, { x: cx[2] + 10, y: this.y - sumH + 4, size: 7, font: this.fontBold, color: C.text })
-    this.page.drawText('[Ohm]', { x: cx[3] - 10, y: this.y - sumH + 4, size: 6, font: this.font, color: C.text })
-    this.y -= sumH + 4
+    this.page.drawText('SUMATORIA DE RESISTENCIA OBTENIDA', { x: x + 6, y: this.y - sumH + 3, size: 6.5, font: this.fontBold, color: C.text })
+    this.page.drawText(`Rg =     ${rg.toFixed(4)}`, { x: cx[2] + 10, y: this.y - sumH + 3, size: 7, font: this.fontBold, color: C.text })
+    this.page.drawText('[Ohm]', { x: cx[3] - 10, y: this.y - sumH + 3, size: 6, font: this.font, color: C.text })
+    this.y -= sumH + 2
   }
 
   // ── Vertical Bar Chart ─────────────────────────────────────────
   drawBarChart(data) {
-    this.checkSpace(165)
+    this.checkSpace(130)
     const x = ML
 
     // Title
-    this.page.drawText('Resistencias medidas por electrodo de potencial', { x: x + CW / 2 - 100, y: this.y - 10, size: 7, font: this.fontBold, color: C.text })
-    this.y -= 18
+    this.page.drawText('Resistencias medidas por electrodo de potencial', { x: x + CW / 2 - 100, y: this.y - 9, size: 7, font: this.fontBold, color: C.text })
+    this.y -= 14
 
     // Chart dimensions
     const chartLeftMargin = 45
     const chartX = x + chartLeftMargin
-    const chartH = 110
+    const chartH = 90
     const chartW = CW - chartLeftMargin - 10
     const chartY = this.y - chartH
 
@@ -323,11 +323,11 @@ class GroundingPDF {
       }
     })
 
-    this.y = chartY - 14
+    this.y = chartY - 10
 
     // Caption
     this.page.drawText('En el grafico No 1 se observa la zona plana de potencial, equivalente a un valor constante de resistencia.', { x: x + 4, y: this.y, size: 5.5, font: this.font, color: C.textLight })
-    this.y -= 12
+    this.y -= 10
   }
 }
 
@@ -395,10 +395,10 @@ export async function generateGroundingPdf(submission, assets = []) {
   p.fieldRow2('ESTADO DEL TERRENO:', v('estadoTerreno'), 'TIPO DE TERRENO:', v('tipoTerreno'))
   p.fieldRow2('ULTIMO DIA DE LLUVIA:', v('ultimoDiaLluvia'), 'HORA:', v('hora'))
 
-  p.y -= 4
+  p.y -= 2
 
   // Measurement method diagrams (2 side by side like the Excel)
-  const diagH = 140
+  const diagH = 115
   p.checkSpace(diagH + 10)
   const halfW = (CW - 8) / 2
   if (p.diagramMain) {
@@ -418,14 +418,14 @@ export async function generateGroundingPdf(submission, assets = []) {
     p.page.drawText('Sistema para sitios con piso que impida clavar picas', { x: rx + 10, y: p.y - 12, size: 6.5, font: p.fontBold, color: C.text })
     p.page.drawImage(p.diagramAlt, { x: rx + (halfW - iw) / 2, y: p.y - diagH + (diagH - ih) / 2, width: iw, height: ih })
   }
-  p.y -= diagH + 4
+  p.y -= diagH + 2
 
   // Warning text
-  p.checkSpace(20)
-  p.page.drawRectangle({ x: ML, y: p.y - 16, width: CW, height: 16, borderColor: C.border, borderWidth: 0.5 })
-  p.page.drawText('SI EL VALOR DE LA RESISTENCIA A TIERRA ES MAYOR A 10 OHMIOS, SE DEBE TOMAR MEDIDA DE LA RESISTIVIDAD', { x: ML + 4, y: p.y - 8, size: 5.5, font: p.fontBold, color: C.text })
-  p.page.drawText('DEL TERRENO MEDIANTE METODO WENNER PARA REALIZAR DISENO DE MEJORA DEL SPT', { x: ML + 4 + CW / 2 - 140, y: p.y - 15, size: 5.5, font: p.fontBold, color: C.text })
-  p.y -= 20
+  p.checkSpace(18)
+  p.page.drawRectangle({ x: ML, y: p.y - 14, width: CW, height: 14, borderColor: C.border, borderWidth: 0.5 })
+  p.page.drawText('SI EL VALOR DE LA RESISTENCIA A TIERRA ES MAYOR A 10 OHMIOS, SE DEBE TOMAR MEDIDA DE LA RESISTIVIDAD', { x: ML + 4, y: p.y - 6, size: 5.5, font: p.fontBold, color: C.text })
+  p.page.drawText('DEL TERRENO MEDIANTE METODO WENNER PARA REALIZAR DISENO DE MEJORA DEL SPT', { x: ML + 4 + CW / 2 - 140, y: p.y - 12, size: 5.5, font: p.fontBold, color: C.text })
+  p.y -= 16
 
   // Measurement table with observation photo
   const firstPhotoUrl = photoMap['fotoPataTorre'] || Object.values(photoMap)[0]
