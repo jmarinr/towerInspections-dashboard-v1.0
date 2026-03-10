@@ -380,7 +380,7 @@ export async function generateGroundingPdf(submission, assets = []) {
 
   // Pre-fetch all photos for embedding
   const embeddedPhotos = {}
-  const photoIds = ['fotoPataTorre', 'fotoCerramiento', 'fotoPorton', 'fotoPararrayos', 'fotoBarraSPT', 'fotoEscalerilla1', 'fotoEscalerilla2']
+  const photoIds = ['fotoConexionTelurometro', 'fotoElectrodoCorriente', 'fotoObservaciones', 'fotoPataTorre', 'fotoCerramiento', 'fotoPorton', 'fotoPararrayos', 'fotoBarraSPT', 'fotoEscalerilla1', 'fotoEscalerilla2']
   for (const pid of photoIds) {
     const url = photoMap[pid]
     if (url) {
@@ -441,7 +441,7 @@ export async function generateGroundingPdf(submission, assets = []) {
   p.y -= 16
 
   // Measurement table with observation photo
-  const firstPhotoUrl = photoMap['fotoPataTorre'] || Object.values(photoMap)[0]
+  const firstPhotoUrl = photoMap['fotoConexionTelurometro'] || photoMap['fotoPataTorre'] || Object.values(photoMap)[0]
   let obsPhoto = null
   if (firstPhotoUrl) obsPhoto = await fetchAndEmbed(p.doc, firstPhotoUrl)
 
@@ -468,13 +468,18 @@ export async function generateGroundingPdf(submission, assets = []) {
   p._miniHdr()
 
   // Photo pairs: 2 per row, black header bar, matching the real PDF
+  // Row 1: telurómetro + electrodo de corriente (setup photos)
+  // Row 2+: measurement points (POINTS array, 7 entries → 4 rows)
+  // Last row: observaciones
   const photoPairs = [
-    { left: { title: 'FOTO CONEXION TELUROMETRO AL SISTEMA DE TIERRA EXISTENTE', id: 'fotoPataTorre' },
-      right: { title: 'FOTO CONEXION DEL ELECTRODO DE CORRIENTE', id: null } },
+    { left: { title: 'FOTO CONEXION TELUROMETRO AL SISTEMA DE TIERRA EXISTENTE', id: 'fotoConexionTelurometro' },
+      right: { title: 'FOTO CONEXION DEL ELECTRODO DE CORRIENTE', id: 'fotoElectrodoCorriente' } },
     ...POINTS.filter((_, i) => i % 2 === 0).map((pt, idx) => ({
       left: { title: pt.photoLabel, id: pt.photoId },
       right: POINTS[idx * 2 + 1] ? { title: POINTS[idx * 2 + 1].photoLabel, id: POINTS[idx * 2 + 1].photoId } : null,
     })),
+    { left: { title: 'FOTO OBSERVACIONES', id: 'fotoObservaciones' },
+      right: null },
   ]
 
   for (const pair of photoPairs) {

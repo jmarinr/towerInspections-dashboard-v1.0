@@ -117,6 +117,8 @@ export async function generateSafetyPdf(submission, assets=[]) {
 
   const imgEscalera      = await fetchImg(doc, photoMap['fotoEscalera']    || photoMap['escalera'])
   const imgCertificacion = await fetchImg(doc, photoMap['fotoCertificacion']|| photoMap['certificacion'])
+  const imgOtras1        = await fetchImg(doc, photoMap['fotoOtras1'])
+  const imgOtras2        = await fetchImg(doc, photoMap['fotoOtras2'])
 
   // ════════════════════════════════════════════════════════════
   // PAGE 1
@@ -438,21 +440,24 @@ export async function generateSafetyPdf(submission, assets=[]) {
   })
   y -= 20
 
-  // 3 fixed photo pairs (exact labels from reference PDF)
+  // Fixed photo pairs (labels from reference PDF) + fotoOtras at the end
   const pairs = [
     { left:'HERRAJE INFERIOR',             leftId:'fotoHerrajeInferior',
       right:'HERRAJE SUPERIOR',            rightId:'fotoHerrajeSuperior' },
     { left:'PRENSACABLE SUPERIOR',         leftId:'fotoPrensacableSuperior',
       right:'PRENSACABLE INFERIOR',        rightId:'fotoPrensacableInferior' },
-    { left:'TIPO DE CARRO',                leftId:'fotoCarro',
-      right:'OBSERVACIÓN UNIÓN (Tramos)',  rightId:'fotoUnion' },
+    { left:'TIPO DE CARRO',                leftId:'fotoTipoCarro',
+      right:'OBSERVACIÓN UNIÓN (Tramos)',  rightId:'fotoUnionTramos' },
+    { left:'OTRAS FOTOS 1',               leftId:'fotoOtras1',
+      right:'OTRAS FOTOS 2',              rightId:'fotoOtras2' },
   ]
 
   // Any extra photos
   const fixedIds = new Set(pairs.flatMap(p=>[p.leftId,p.rightId]))
   const extras = []
   for (const [key,url] of Object.entries(photoMap)) {
-    if (!fixedIds.has(key) && key!=='fotoCertificacion' && key!=='fotoEscalera') {
+    const EXCLUDED = new Set(['fotoCertificacion','fotoEscalera','fotoOtras1','fotoOtras2'])
+    if (!fixedIds.has(key) && !EXCLUDED.has(key)) {
       extras.push({ label:key.replace(/^foto/,'').replace(/([A-Z])/g,' $1').trim().toUpperCase(), id:key })
     }
   }

@@ -100,6 +100,9 @@ export const groundingSystemTestConfig = {
       title: 'Evidencia fotográfica',
       description: 'Tome fotos por punto de medición.',
       fields: [
+        { id: 'fotoConexionTelurometro', label: 'Foto - Conexión telurómetro al sistema de tierra', type: 'photo' },
+        { id: 'fotoElectrodoCorriente', label: 'Foto - Conexión del electrodo de corriente', type: 'photo' },
+        { id: 'fotoObservaciones', label: 'Foto - Observaciones', type: 'photo' },
         { id: 'fotoPataTorre', label: 'Foto - Pata de la torre', type: 'photo' },
         { id: 'fotoCerramiento', label: 'Foto - Cerramiento', type: 'photo' },
         { id: 'fotoPorton', label: 'Foto - Portón', type: 'photo' },

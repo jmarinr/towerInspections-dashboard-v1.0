@@ -9,19 +9,19 @@ export const safetyClimbingSections = [
     id: 'herrajes',
     title: 'Herrajes y cable',
     description: 'Estado de herrajes y condiciones del cable.',
-    items: 8,
+    items: 10,
   },
   {
     id: 'prensacables',
     title: 'Prensacables y carro',
     description: 'Verificación de prensacables, mordaza y carro.',
-    items: 10,
+    items: 13,
   },
   {
     id: 'tramos',
     title: 'Tramos (escaleras)',
     description: 'Estado de tramos, uniones y tornillería.',
-    items: 8,
+    items: 9,
   },
   {
     id: 'platinas',
@@ -33,7 +33,7 @@ export const safetyClimbingSections = [
     id: 'certificacion',
     title: 'Certificación',
     description: 'Evidencia fotográfica y notas.',
-    items: 2,
+    items: 4,
   },
 ]
 
@@ -60,9 +60,11 @@ export const safetySectionFields = {
   ],
   herrajes: [
     { id: 'herrajeInferior', label: 'Herraje inferior', type: 'status' },
+    { id: 'fotoHerrajeInferior', label: 'Foto - Herraje inferior', type: 'photo' },
     { id: 'diametroCable', label: 'Diámetro del cable', type: 'text', placeholder: 'Ej: 3/8"' },
     { id: 'comentarioHerrajeInferior', label: 'Observación herraje inferior', type: 'textarea', placeholder: 'Observaciones...' },
     { id: 'herrajeSuperior', label: 'Herraje superior', type: 'status' },
+    { id: 'fotoHerrajeSuperior', label: 'Foto - Herraje superior', type: 'photo' },
     { id: 'estadoCable', label: 'Estado del cable', type: 'status' },
     { id: 'comentarioCable', label: 'Observación cable', type: 'textarea', placeholder: 'Observaciones...' },
     { id: 'oxidacion', label: '¿Hay oxidación?', type: 'toggle', options: [
@@ -76,6 +78,7 @@ export const safetySectionFields = {
       { value: 'actual', label: 'Actual' },
       { value: 'na', label: 'No aplica' },
     ]},
+    { id: 'fotoPrensacableInferior', label: 'Foto - Prensacable inferior', type: 'photo' },
     { id: 'cantidadPrensacables', label: 'Cantidad de prensacables', type: 'number', placeholder: 'Ej: 3' },
     { id: 'distanciamiento', label: 'Distanciamiento', type: 'text', placeholder: 'Ej: 15 cm' },
     { id: 'estadoPrensacables', label: 'Estado prensacables', type: 'status' },
@@ -84,7 +87,9 @@ export const safetySectionFields = {
       { value: 'actual', label: 'Actual' },
       { value: 'na', label: 'No aplica' },
     ]},
+    { id: 'fotoPrensacableSuperior', label: 'Foto - Prensacable superior', type: 'photo' },
     { id: 'tipoCarro', label: 'Tipo de carro', type: 'text', placeholder: 'Ej: Tipo A' },
+    { id: 'fotoTipoCarro', label: 'Foto - Tipo de carro', type: 'photo' },
     { id: 'observacionMordaza', label: 'Observación mordaza', type: 'textarea', placeholder: 'Observaciones...' },
     { id: 'malaSujecion', label: '¿Mala sujeción?', type: 'toggle', options: [
       { value: 'no', label: 'No' },
@@ -99,6 +104,7 @@ export const safetySectionFields = {
     { id: 'estadoEscalera', label: 'Estado escalera', type: 'status' },
     { id: 'comentarioEscalera', label: 'Observación escalera', type: 'textarea', placeholder: 'Observaciones...' },
     { id: 'cantidadUniones', label: 'Cantidad de uniones', type: 'number', placeholder: 'Ej: 4' },
+    { id: 'fotoUnionTramos', label: 'Foto - Observación unión (tramos)', type: 'photo' },
     { id: 'tramosDañados', label: 'Tramos dañados', type: 'text', placeholder: 'Ej: Tramos 2 y 4' },
     { id: 'diametroTornillo', label: 'Diámetro tornillo', type: 'text', placeholder: 'Ej: 1/2"' },
     { id: 'comentarioTornillos', label: 'Observación tornillería', type: 'textarea', placeholder: 'Observaciones...' },
@@ -110,6 +116,8 @@ export const safetySectionFields = {
   certificacion: [
     { id: 'fotoCertificacion', label: 'Foto certificación', type: 'photo' },
     { id: 'observacionCertificacion', label: 'Observaciones finales', type: 'textarea', placeholder: 'Observaciones de cierre...' },
+    { id: 'fotoOtras1', label: 'Otras fotos 1', type: 'photo' },
+    { id: 'fotoOtras2', label: 'Otras fotos 2', type: 'photo' },
   ],
 }
 
