@@ -261,7 +261,7 @@ export default function SubmissionDetail() {
           if (!resp.ok) continue
           const blob = await resp.blob()
           const ext = (p.mime || p.public_url || '').includes('png') ? 'png' : 'jpg'
-          const name = `${String(p.asset_type || 'foto_' + i).replace(/[^a-zA-Z0-9_\-.:]/g, '_')}.${ext}`
+          const name = `${String(p.asset_type || 'foto_' + i).replace(/[^a-zA-Z0-9_\-]/g, '_')}.${ext}`
           zip.file(name, blob)
         } catch {}
       }
