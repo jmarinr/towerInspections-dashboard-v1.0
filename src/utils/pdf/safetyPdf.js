@@ -12,7 +12,7 @@
  */
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
-import { DIAGRAM_BIEN_MAL, DIAGRAM_WIRE_ROPE } from './safetyDiagrams'
+import { DIAGRAM_COMBINED } from './safetyDiagrams'
 
 const C = {
   black:  rgb(0.10, 0.10, 0.10),
@@ -67,10 +67,9 @@ export async function generateSafetyPdf(submission, assets=[]) {
   const font = await doc.embedFont(StandardFonts.Helvetica)
   const fontB= await doc.embedFont(StandardFonts.HelveticaBold)
 
-  let logo=null, diagBM=null, diagWR=null
-  try { logo   = await doc.embedPng(Uint8Array.from(atob(PTI_LOGO_BASE64),  c=>c.charCodeAt(0))) } catch {}
-  try { diagBM = await doc.embedJpg(Uint8Array.from(atob(DIAGRAM_BIEN_MAL), c=>c.charCodeAt(0))) } catch {}
-  try { diagWR = await doc.embedJpg(Uint8Array.from(atob(DIAGRAM_WIRE_ROPE),c=>c.charCodeAt(0))) } catch {}
+  let logo=null, diagCombined=null
+  try { logo         = await doc.embedPng(Uint8Array.from(atob(PTI_LOGO_BASE64),  c=>c.charCodeAt(0))) } catch {}
+  try { diagCombined = await doc.embedJpg(Uint8Array.from(atob(DIAGRAM_COMBINED), c=>c.charCodeAt(0))) } catch {}
 
   // ── Data extraction ──────────────────────────────────────────
   const payload       = submission?.payload || submission || {}
@@ -237,10 +236,11 @@ export async function generateSafetyPdf(submission, assets=[]) {
   }
 
   // Pre-calculated section heights (for imgBox pre-draw)
-  const H_HERRAJES     = 16 + 2*ROW_H + CMNT_H   // 110
-  const H_PRENSACABLES = 16 + 3*ROW_H + CMNT_H   // 132
-  const H_TRAMOS       = 16 + 3*ROW_H + CMNT_H   // 132
-  const H_CERT         = 16 + 34                   // 50
+  const H_HERRAJES     = 16 + 2*ROW_H + CMNT_H        // 110
+  const H_PRENSACABLES = 16 + 3*ROW_H + CMNT_H        // 132
+  const H_COMBINED     = H_HERRAJES + 12 + H_PRENSACABLES  // 254 (gap included)
+  const H_TRAMOS       = 16 + 3*ROW_H + CMNT_H        // 132
+  const H_CERT         = 16 + 34                        // 50
 
   // Section header: plain bold text, no border box
   const secHeader = (num, title, badge_text) => {
@@ -258,7 +258,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // SECTION 1 — HERRAJES
   // ══════════════════════════════════════════════════════════
   const topH = y
-  imgBox(diagBM, topH, H_HERRAJES)  // draw first so data rows render on top
+  imgBox(diagCombined, topH, H_COMBINED)  // single combined image spans Herrajes+Prensacables
   secHeader('1', 'HERRAJES')
 
   // Row 1: HERRAJE INFERIOR [badge] ........... DIAMETRO DEL CABLE [badge]
@@ -286,7 +286,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // SECTION 2 — PRENSACABLES
   // ══════════════════════════════════════════════════════════
   const topP = y
-  imgBox(diagWR, topP, H_PRENSACABLES)  // draw first
+  // combined image already drawn above (spans Herrajes+Prensacables)
   secHeader('2', 'PRENSACABLES', 'ACTUAL')
 
   // CANTIDAD, DISTANCIAMIENTO, ESTADO — badges all align at ML+BADGE_L
