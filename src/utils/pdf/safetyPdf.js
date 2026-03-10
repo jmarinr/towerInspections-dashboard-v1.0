@@ -2,12 +2,13 @@
  * PTI TeleInspect — Sistema de Ascenso PDF
  * Replica exacta del PDF de referencia PTI (ascenso_1_.pdf)
  *
- * Diferencias críticas vs versiones anteriores:
- *  - Section headers (1 HERRAJES, etc.) son texto plano SIN caja/borde
- *  - "Mal" en ESTADO DEL CABLE usa fuente más grande (~10pt)
- *  - Col derecha de imagen comienza desde el header de sección
- *  - Página 2: solo línea roja fina + "ESTADO FÍSICO" (SIN barra negra PTI)
- *  - Diagramas de referencia embebidos (BIEN/MAL y wire rope grips)
+ * Medidas derivadas de análisis pixel de la imagen de referencia:
+ *  - DATA_W = 332pts, IMG_W = 194pts, GAP = 14pts
+ *  - Badge col izq: ML+109, Badge col der: ML+274
+ *  - Row height: 22pts, Comentario: 50pts
+ *  - Sin divisor vertical en las filas — labels y badges libres
+ *  - Section headers: texto plano sin caja
+ *  - Página 2: solo línea roja + "ESTADO FÍSICO"
  */
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
@@ -24,6 +25,20 @@ const C = {
 }
 const PW = 612, PH = 792, ML = 36, MR = 36, MT = 36
 const CW = PW - ML - MR  // 540
+
+// ── Column layout (from pixel analysis of reference) ──────────
+const DATA_W = 332   // left data column width
+const IMG_W  = 194   // right image column width
+const IMG_X  = ML + DATA_W + (CW - DATA_W - IMG_W)  // = ML + 346
+
+// Badge positions within data column
+const BADGE_L  = 109   // left badge x offset from ML (HERRAJE INFERIOR badge, CANTIDAD badge)
+const BADGE_R  = 274   // right badge x offset from ML (DIAMETRO CABLE badge, ESTADO ESCALERA)
+const BADGE_W  = 70    // badge width (standard)
+const BADGE_H  = 20    // badge height
+const ROW_H    = 22    // data row height
+const CMNT_W   = 18    // rotated "Comentario" strip width
+const CMNT_H   = 50    // comentario box height
 
 async function fetchImg(doc, url) {
   if (!url) return null
@@ -83,7 +98,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
     }
   }
 
-  const imgEscalera      = await fetchImg(doc, photoMap['fotoEscalera']     || photoMap['escalera'])
+  const imgEscalera      = await fetchImg(doc, photoMap['fotoEscalera']    || photoMap['escalera'])
   const imgCertificacion = await fetchImg(doc, photoMap['fotoCertificacion']|| photoMap['certificacion'])
 
   // ════════════════════════════════════════════════════════════
@@ -92,7 +107,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   let page = doc.addPage([PW, PH])
   let y = PH - MT
 
-  // ── HEADER ───────────────────────────────────────────────────
+  // ── Full header ───────────────────────────────────────────────
   page.drawRectangle({ x:ML, y:y-20, width:CW, height:20, color:C.black })
   page.drawText('PHOENIX TOWER INTERNATIONAL', {
     x: ML + CW/2 - fontB.widthOfTextAtSize('PHOENIX TOWER INTERNATIONAL',10)/2,
@@ -112,10 +127,10 @@ export async function generateSafetyPdf(submission, assets=[]) {
   page.drawRectangle({ x:ML, y:y-LR_H, width:CW, height:LR_H, borderColor:C.border, borderWidth:0.5 })
   if (logo) {
     const ld = logo.scale(0.18)
-    const lw = Math.min(ld.width,108), lh = Math.min(ld.height,38)
+    const lw=Math.min(ld.width,108), lh=Math.min(ld.height,38)
     page.drawImage(logo, { x:ML+6, y:y-LR_H+(LR_H-lh)/2, width:lw, height:lh })
   }
-  const PX = ML + 118
+  const PX = ML+118
   page.drawText('Proveedor:', { x:PX, y:y-16, size:7.5, font:fontB, color:C.text })
   page.drawText(v('proveedor'), { x:PX+65, y:y-16, size:7.5, font, color:C.text })
   for (let dx=PX+65; dx<ML+CW-4; dx+=4)
@@ -127,7 +142,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   page.drawRectangle({ x:ML, y:y-LR_H-2, width:CW, height:2, color:C.red })
   y -= LR_H + 4
 
-  // ESTADO FÍSICO header
+  // ESTADO FÍSICO
   page.drawRectangle({ x:ML, y:y-16, width:CW, height:16, color:C.gray, borderColor:C.border, borderWidth:0.5 })
   page.drawText('ESTADO FÍSICO', {
     x: ML + CW/2 - fontB.widthOfTextAtSize('ESTADO FÍSICO',9)/2,
@@ -135,7 +150,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   })
   y -= 18
 
-  // 5 site info rows
+  // Site info rows (2-column, bordered)
   const siteRow = (l1,v1,l2,v2) => {
     const h = 13
     page.drawRectangle({ x:ML, y:y-h, width:CW, height:h, borderColor:C.border, borderWidth:0.5 })
@@ -149,344 +164,299 @@ export async function generateSafetyPdf(submission, assets=[]) {
   siteRow('ID Sitio:',      v('idSitio'),     'Altura (Mts):', v('altura'))
   siteRow('Nombre Sitio:',  v('nombreSitio'), 'Tipo Sitio:',   v('tipoSitio'))
   siteRow('Fecha Inicio:',  meta.startedAt||v('fechaInicio')||'', 'Tipo Estructura:', v('tipoEstructura'))
-  siteRow('Fecha Termino:', meta.endedAt||v('fechaTermino')||'',  'Latitud:',  meta.lat?String(meta.lat):'')
+  siteRow('Fecha Termino:', meta.endedAt||v('fechaTermino')||'',  'Latitud:', meta.lat?String(meta.lat):'')
   siteRow('Direccion:',     v('direccion'),   'Longitud:', meta.lng?String(meta.lng):'')
   y -= 12
 
-  // ── Column layout ─────────────────────────────────────────────
-  // Reference proportions: data ~60%, image ~37%, gap ~3%
-  const DATA_W = 326   // px  (left data column, including comentario strip)
-  const IMG_W  = 194   // px  (right image column)
-  const IMG_X  = ML + DATA_W + (CW - DATA_W - IMG_W)  // = ML+346 ≈ 382
+  // ── Draw helpers ──────────────────────────────────────────────
 
-  const CMNT_W = 18    // width of rotated "Comentario" strip
-
-  // ── Helpers ──────────────────────────────────────────────────
-
-  // Draw a small value badge: bordered rectangle with text inside
-  // size: 'normal' (7pt) or 'large' (10pt bold) for "Mal" style
-  const drawBadge = (x, y, val, w=48, h=13, large=false) => {
-    page.drawRectangle({ x, y:y-h+2, width:w, height:h-4, borderColor:C.border, borderWidth:0.7 })
+  // Badge: bordered box with value text. large=true → 10pt bold (for "Mal")
+  const badge = (x, rowY, val, w=BADGE_W, large=false) => {
+    if (!val && val !== 0) val = ''
+    const bx = x, by = rowY - (ROW_H-BADGE_H)/2 - BADGE_H
+    page.drawRectangle({ x:bx, y:by, width:w, height:BADGE_H, borderColor:C.border, borderWidth:0.7 })
     if (val) {
-      const sz = large ? 10 : 7
-      const fnt= large ? fontB : fontB
-      page.drawText(String(val), { x:x+4, y:y-h+4+(large?1:0), size:sz, font:fnt, color:C.text })
+      const sz = large ? 10 : 8
+      page.drawText(String(val), { x:bx+5, y:by+5, size:sz, font:fontB, color:C.text })
     }
   }
 
-  // Draw image in the right column spanning a given height
-  const drawRightImg = (img, topY, totalH) => {
+  // One data row in the left data column (plain row, no outer border — section has own border)
+  const dataRow = (drawFn) => {
+    drawFn(y)
+    y -= ROW_H
+  }
+
+  // Comentario block: rotated strip + text area
+  const comentario = (text) => {
+    page.drawRectangle({ x:ML, y:y-CMNT_H, width:CMNT_W, height:CMNT_H, borderColor:C.border, borderWidth:0.5 })
+    page.drawText('Comentario', {
+      x: ML+CMNT_W-4,
+      y: y - CMNT_H/2 - font.widthOfTextAtSize('Comentario',6)/2,
+      size:6, font, color:C.light, rotate:degrees(90)
+    })
+    const TX=ML+CMNT_W, TW=DATA_W-CMNT_W
+    page.drawRectangle({ x:TX, y:y-CMNT_H, width:TW, height:CMNT_H, borderColor:C.border, borderWidth:0.5 })
+    if (text) {
+      const maxW = TW-14
+      const words=String(text).split(' '), lines=[]
+      let cur=''
+      for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
+      if(cur)lines.push(cur)
+      lines.slice(0,3).forEach((ln,i)=>
+        page.drawText(ln, { x:TX+10, y:y-18-i*13, size:8, font, color:C.text })
+      )
+    }
+    y -= CMNT_H
+  }
+
+  // Right column: draw image filling topY→topY-totalH
+  const imgBox = (img, topY, totalH) => {
     page.drawRectangle({ x:IMG_X, y:topY-totalH, width:IMG_W, height:totalH, borderColor:C.border, borderWidth:0.5 })
     if (img) {
-      const d = img.scale(1)
-      const sc = Math.min((IMG_W-8)/d.width, (totalH-8)/d.height)
+      const d=img.scale(1), sc=Math.min((IMG_W-10)/d.width,(totalH-10)/d.height)
       page.drawImage(img, {
         x: IMG_X+(IMG_W-d.width*sc)/2,
         y: topY-totalH+(totalH-d.height*sc)/2,
-        width: d.width*sc, height: d.height*sc
+        width:d.width*sc, height:d.height*sc
       })
     }
   }
 
-  // Draw a data row (bordered rectangle in left data column)
-  const drawDataRow = (h, drawFn) => {
-    page.drawRectangle({ x:ML, y:y-h, width:DATA_W, height:h, borderColor:C.border, borderWidth:0.5 })
-    drawFn(y)
-    y -= h
+  // Section header: plain bold text, no border box
+  const secHeader = (num, title, badge_text) => {
+    page.drawText(num,   { x:ML+2,    y:y-12, size:8, font:fontB, color:C.text })
+    page.drawText(title, { x:ML+12,   y:y-12, size:8, font:fontB, color:C.text })
+    if (badge_text) page.drawText(badge_text, { x:ML+12+fontB.widthOfTextAtSize(title,8)+12, y:y-12, size:7, font, color:C.light })
+    y -= 16
   }
 
-  // Draw the "Comentario" row: rotated label strip + text area
-  const drawComentario = (text, h=44) => {
-    // Left strip (rotated label)
-    page.drawRectangle({ x:ML, y:y-h, width:CMNT_W, height:h, borderColor:C.border, borderWidth:0.5 })
-    page.drawText('Comentario', {
-      x: ML+CMNT_W-4,
-      y: y - h/2 - font.widthOfTextAtSize('Comentario',6)/2,
-      size:6, font, color:C.light,
-      rotate: degrees(90)
-    })
-    // Text area
-    const TX = ML+CMNT_W, TW = DATA_W-CMNT_W
-    page.drawRectangle({ x:TX, y:y-h, width:TW, height:h, borderColor:C.border, borderWidth:0.5 })
-    if (text) {
-      const maxW = TW - 14
-      const words = String(text).split(' ')
-      const lines = []
-      let cur = ''
-      for (const w of words) {
-        const t = cur ? cur+' '+w : w
-        if (font.widthOfTextAtSize(t,7.5) > maxW) { if(cur) lines.push(cur); cur=w } else cur=t
-      }
-      if (cur) lines.push(cur)
-      lines.slice(0,3).forEach((ln,i) =>
-        page.drawText(ln, { x:TX+8, y:y-15-i*12, size:7.5, font, color:C.text })
-      )
-    }
-    y -= h
-  }
+  // Label in a data row
+  const lbl = (x, rowY, text, sz=7) =>
+    page.drawText(text, { x, y:rowY-ROW_H/2-sz/2+1, size:sz, font, color:C.text })
 
   // ══════════════════════════════════════════════════════════
   // SECTION 1 — HERRAJES
   // ══════════════════════════════════════════════════════════
-  const topHerrajes = y
+  const topH = y
+  secHeader('1', 'HERRAJES')
 
-  // Section header — plain text, NO border box (matches reference)
-  page.drawText('1', { x:ML+4, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('HERRAJES', { x:ML+14, y:y-11, size:8, font:fontB, color:C.text })
-  y -= 14
-
-  // Row: HERRAJE INFERIOR [badge] | DIAMETRO DEL CABLE [badge]
-  drawDataRow(14, (ry) => {
-    const half = DATA_W/2
-    page.drawLine({ start:{x:ML+half,y:ry}, end:{x:ML+half,y:ry-14}, thickness:0.4, color:C.border })
-    page.drawText('HERRAJE INFERIOR', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+96, ry, stLabel(herrajes.herrajeInferior), 48, 14)
-    page.drawText('DIAMETRO DEL CABLE', { x:ML+half+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+half+102, ry, herrajes.diametroCable, 36, 14)
+  // Row 1: HERRAJE INFERIOR [badge] ........... DIAMETRO DEL CABLE [badge]
+  dataRow(ry => {
+    lbl(ML+2, ry, 'HERRAJE INFERIOR')
+    badge(ML+BADGE_L, ry, stLabel(herrajes.herrajeInferior))
+    lbl(ML+BADGE_L+BADGE_W+30, ry, 'DIAMETRO DEL CABLE')
+    badge(ML+BADGE_R, ry, herrajes.diametroCable)
   })
 
-  // Row: HERRAJE SUPERIOR [badge] | ESTADO DEL CABLE [badge — LARGE for "Mal"]
-  drawDataRow(14, (ry) => {
-    const half = DATA_W/2
-    page.drawLine({ start:{x:ML+half,y:ry}, end:{x:ML+half,y:ry-14}, thickness:0.4, color:C.border })
-    page.drawText('HERRAJE SUPERIOR', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+96, ry, stLabel(herrajes.herrajeSuperior), 48, 14)
-    page.drawText('ESTADO DEL CABLE', { x:ML+half+4, y:ry-10, size:6.5, font, color:C.text })
-    // "Mal" is displayed larger in the reference
+  // Row 2: HERRAJE SUPERIOR [badge] ........... ESTADO DEL CABLE [badge — Mal=large]
+  dataRow(ry => {
+    lbl(ML+2, ry, 'HERRAJE SUPERIOR')
+    badge(ML+BADGE_L, ry, stLabel(herrajes.herrajeSuperior))
+    lbl(ML+BADGE_L+BADGE_W+30, ry, 'ESTADO DEL CABLE')
     const ecVal = stLabel(herrajes.estadoCable)
-    const isLarge = ecVal === 'Mal'
-    drawBadge(ML+half+94, ry, ecVal, isLarge?44:48, 14, isLarge)
+    badge(ML+BADGE_R, ry, ecVal, BADGE_W, ecVal==='Mal')
   })
 
-  drawComentario(herrajes.comentarioHerrajeInferior||herrajes.comentarioCable||herrajes.comentarioOxidacion||'')
-
-  // Right col: BIEN/MAL reference diagram
-  drawRightImg(diagBM, topHerrajes, topHerrajes - y)
-  y -= 10
+  comentario(herrajes.comentarioHerrajeInferior||herrajes.comentarioCable||herrajes.comentarioOxidacion||'')
+  imgBox(diagBM, topH, topH - y)
+  y -= 12
 
   // ══════════════════════════════════════════════════════════
   // SECTION 2 — PRENSACABLES
   // ══════════════════════════════════════════════════════════
-  const topPresa = y
+  const topP = y
+  secHeader('2', 'PRENSACABLES', 'ACTUAL')
 
-  page.drawText('2', { x:ML+4, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('PRENSACABLES', { x:ML+14, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('ACTUAL', { x:ML+DATA_W-44, y:y-11, size:7, font, color:C.light })
-  y -= 14
-
-  // CANTIDAD row
-  drawDataRow(14, (ry) => {
-    page.drawText('CANTIDAD', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+58, ry, prensacables.cantidadPrensacables, 46, 14)
+  // CANTIDAD, DISTANCIAMIENTO, ESTADO — badges all align at ML+BADGE_L
+  dataRow(ry => {
+    lbl(ML+2, ry, 'CANTIDAD')
+    badge(ML+BADGE_L, ry, prensacables.cantidadPrensacables)
+  })
+  dataRow(ry => {
+    lbl(ML+2, ry, 'DISTANCIAMIENTO')
+    badge(ML+BADGE_L, ry, prensacables.distanciamiento)
+  })
+  dataRow(ry => {
+    lbl(ML+2, ry, 'ESTADO')
+    badge(ML+BADGE_L, ry, stLabel(prensacables.estadoPrensacables), 80)
   })
 
-  // DISTANCIAMIENTO row
-  drawDataRow(14, (ry) => {
-    page.drawText('DISTANCIAMIENTO', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+88, ry, prensacables.distanciamiento, 46, 14)
-  })
-
-  // ESTADO row
-  drawDataRow(14, (ry) => {
-    page.drawText('ESTADO', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+42, ry, stLabel(prensacables.estadoPrensacables), 48, 14)
-  })
-
-  drawComentario(prensacables.comentarioPrensacables||'')
-
-  // Right col: wire rope grips reference diagram
-  drawRightImg(diagWR, topPresa, topPresa - y)
-  y -= 10
+  comentario(prensacables.comentarioPrensacables||'')
+  imgBox(diagWR, topP, topP - y)
+  y -= 12
 
   // ══════════════════════════════════════════════════════════
   // SECTION 3 — TRAMOS
   // ══════════════════════════════════════════════════════════
-  const topTramos = y
+  const topT = y
+  secHeader('3', 'TRAMOS (escaleras)', 'ACTUAL')
 
-  page.drawText('3', { x:ML+4, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('TRAMOS (escaleras)', { x:ML+14, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('ACTUAL', { x:ML+DATA_W-44, y:y-11, size:7, font, color:C.light })
-  y -= 14
-
-  // CANTIDAD (tramos) | ESTADO ESCALERA
-  drawDataRow(14, (ry) => {
-    const half = DATA_W/2
-    page.drawLine({ start:{x:ML+half,y:ry}, end:{x:ML+half,y:ry-14}, thickness:0.4, color:C.border })
-    page.drawText('CANTIDAD (tramos)', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+94, ry, tramos.cantidadTramos, 32, 14)
-    page.drawText('ESTADO ESCALERA', { x:ML+half+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+half+88, ry, stLabel(tramos.estadoEscalera), 48, 14)
+  // CANTIDAD (tramos) [9] ..... ESTADO ESCALERA [Bueno]
+  dataRow(ry => {
+    lbl(ML+2, ry, 'CANTIDAD (tramos)')
+    badge(ML+BADGE_L, ry, tramos.cantidadTramos, 50)
+    lbl(ML+BADGE_L+70, ry, 'ESTADO ESCALERA')
+    badge(ML+BADGE_R, ry, stLabel(tramos.estadoEscalera), 80)
   })
 
-  // CANTIDAD (uniones) | TRAMOS DAÑADOS
-  drawDataRow(14, (ry) => {
-    const half = DATA_W/2
-    page.drawLine({ start:{x:ML+half,y:ry}, end:{x:ML+half,y:ry-14}, thickness:0.4, color:C.border })
-    page.drawText('CANTIDAD (uniones)', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+96, ry, tramos.cantidadUniones, 32, 14)
-    page.drawText('TRAMOS DAÑADOS', { x:ML+half+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+half+84, ry, tramos.tramosDañados||tramos.tramosDanados||'No', 32, 14)
+  // CANTIDAD (uniones) [10] ... TRAMOS DAÑADOS [No]
+  dataRow(ry => {
+    lbl(ML+2, ry, 'CANTIDAD (uniones)')
+    badge(ML+BADGE_L, ry, tramos.cantidadUniones, 50)
+    lbl(ML+BADGE_L+70, ry, 'TRAMOS DAÑADOS')
+    badge(ML+BADGE_R, ry, tramos.tramosDañados||tramos.tramosDanados||'No', 50)
   })
 
-  // DIAMETRO TORNILLO
-  drawDataRow(14, (ry) => {
-    page.drawText('DIAMETRO TORNILLO', { x:ML+4, y:ry-10, size:6.5, font, color:C.text })
-    drawBadge(ML+96, ry, tramos.diametroTornillo, 32, 14)
+  // DIAMETRO TORNILLO [16]
+  dataRow(ry => {
+    lbl(ML+2, ry, 'DIAMETRO TORNILLO')
+    badge(ML+BADGE_L, ry, tramos.diametroTornillo, 50)
   })
 
-  drawComentario(tramos.comentarioEscalera||tramos.comentarioTornillos||'')
-
-  // Right col: inspector photo (empty box until uploaded)
-  drawRightImg(imgEscalera, topTramos, topTramos - y)
-  y -= 10
+  comentario(tramos.comentarioEscalera||tramos.comentarioTornillos||'')
+  imgBox(imgEscalera, topT, topT - y)
+  y -= 12
 
   // ══════════════════════════════════════════════════════════
   // CERTIFICACIÓN
   // ══════════════════════════════════════════════════════════
-  const topCert = y
+  const topC = y
+  secHeader('2', 'CERTIFICACIÓN', 'ACTUAL')
 
-  page.drawText('2', { x:ML+4, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('CERTIFICACIÓN', { x:ML+14, y:y-11, size:8, font:fontB, color:C.text })
-  page.drawText('ACTUAL', { x:ML+DATA_W-44, y:y-11, size:7, font, color:C.light })
-  y -= 14
+  // SI / NO checkboxes row
+  {
+    const h = 34
+    page.drawRectangle({ x:ML, y:y-h, width:DATA_W, height:h, borderColor:C.border, borderWidth:0.5 })
+    const cv=(certificacion.tieneCertificacion||'').toLowerCase()
+    const isSi=cv==='si'||cv==='sí'||cv==='yes'
+    page.drawText('SI', { x:ML+14, y:y-h+14, size:8, font, color:C.text })
+    page.drawRectangle({ x:ML+28, y:y-h+6, width:18, height:14, borderColor:C.border, borderWidth:0.8 })
+    if(isSi) page.drawText('X',{x:ML+33,y:y-h+8,size:9,font:fontB,color:C.text})
+    page.drawText('NO', { x:ML+78, y:y-h+14, size:8, font, color:C.text })
+    page.drawRectangle({ x:ML+96, y:y-h+6, width:18, height:14, borderColor:C.border, borderWidth:0.8 })
+    if(!isSi) page.drawText('X',{x:ML+101,y:y-h+8,size:9,font:fontB,color:C.text})
+    y -= h
+  }
 
-  // SI / NO checkboxes
-  drawDataRow(34, (ry) => {
-    const cv = (certificacion.tieneCertificacion||'').toLowerCase()
-    const isSi = cv==='si'||cv==='sí'||cv==='yes'
-    // SI
-    page.drawText('SI', { x:ML+14, y:ry-20, size:8, font, color:C.text })
-    page.drawRectangle({ x:ML+28, y:ry-30, width:18, height:14, borderColor:C.border, borderWidth:0.8 })
-    if (isSi) page.drawText('X', { x:ML+33, y:ry-27, size:9, font:fontB, color:C.text })
-    // NO
-    page.drawText('NO', { x:ML+78, y:ry-20, size:8, font, color:C.text })
-    page.drawRectangle({ x:ML+96, y:ry-30, width:18, height:14, borderColor:C.border, borderWidth:0.8 })
-    if (!isSi) page.drawText('X', { x:ML+101, y:ry-27, size:9, font:fontB, color:C.text })
-  })
-
-  // Right col: inspector photo (empty until uploaded)
-  drawRightImg(imgCertificacion, topCert, topCert - y)
+  imgBox(imgCertificacion, topC, topC - y)
 
   // Footer p1
   page.drawText('Phoenix Tower International — Reporte de Sistema de Ascenso',
-    { x:ML, y:16, size:5.5, font, color:C.light })
+    {x:ML,y:16,size:5.5,font,color:C.light})
   page.drawText('Página 1',
-    { x:PW-MR-font.widthOfTextAtSize('Página 1',5.5), y:16, size:5.5, font, color:C.light })
+    {x:PW-MR-font.widthOfTextAtSize('Página 1',5.5),y:16,size:5.5,font,color:C.light})
 
   // ════════════════════════════════════════════════════════════
   // PAGE 2 — Photo evidence
-  // Exact match to reference: ONLY red line + "ESTADO FÍSICO" header, no black PTI bar
+  // Header: ONLY thin red line + "ESTADO FÍSICO" (no black PTI bar)
   // ════════════════════════════════════════════════════════════
-  page = doc.addPage([PW, PH])
+  page = doc.addPage([PW,PH])
   y = PH - MT
 
-  // Thin red top line (matches reference page 2 exactly)
+  // Thin red top line
   page.drawRectangle({ x:ML, y:y-3, width:CW, height:3, color:C.red })
   y -= 5
 
-  // "ESTADO FÍSICO" gray bar centered
+  // "ESTADO FÍSICO" centered gray bar
   page.drawRectangle({ x:ML, y:y-16, width:CW, height:16, color:C.gray, borderColor:C.border, borderWidth:0.5 })
   page.drawText('ESTADO FÍSICO', {
-    x: ML+CW/2 - fontB.widthOfTextAtSize('ESTADO FÍSICO',9)/2,
+    x: ML+CW/2-fontB.widthOfTextAtSize('ESTADO FÍSICO',9)/2,
     y: y-12, size:9, font:fontB, color:C.text
   })
   y -= 20
 
-  // 3 fixed photo pairs (exact labels from reference)
+  // 3 fixed photo pairs (exact labels from reference PDF)
   const pairs = [
-    { left:'HERRAJE INFERIOR',          leftId:'fotoHerrajeInferior',
-      right:'HERRAJE SUPERIOR',         rightId:'fotoHerrajeSuperior' },
-    { left:'PRENSACABLE SUPERIOR',      leftId:'fotoPrensacableSuperior',
-      right:'PRENSACABLE INFERIOR',     rightId:'fotoPrensacableInferior' },
-    { left:'TIPO DE CARRO',             leftId:'fotoCarro',
-      right:'OBSERVACIÓN UNIÓN (Tramos)', rightId:'fotoUnion' },
+    { left:'HERRAJE INFERIOR',             leftId:'fotoHerrajeInferior',
+      right:'HERRAJE SUPERIOR',            rightId:'fotoHerrajeSuperior' },
+    { left:'PRENSACABLE SUPERIOR',         leftId:'fotoPrensacableSuperior',
+      right:'PRENSACABLE INFERIOR',        rightId:'fotoPrensacableInferior' },
+    { left:'TIPO DE CARRO',                leftId:'fotoCarro',
+      right:'OBSERVACIÓN UNIÓN (Tramos)',  rightId:'fotoUnion' },
   ]
 
-  // Collect extra photos not in defined pairs
+  // Any extra photos
   const fixedIds = new Set(pairs.flatMap(p=>[p.leftId,p.rightId]))
   const extras = []
-  for (const [key, url] of Object.entries(photoMap)) {
+  for (const [key,url] of Object.entries(photoMap)) {
     if (!fixedIds.has(key) && key!=='fotoCertificacion' && key!=='fotoEscalera') {
-      extras.push({ label: key.replace(/^foto/,'').replace(/([A-Z])/g,' $1').trim().toUpperCase(), id: key })
+      extras.push({ label:key.replace(/^foto/,'').replace(/([A-Z])/g,' $1').trim().toUpperCase(), id:key })
     }
   }
-  for (let i=0; i<extras.length; i+=2)
-    pairs.push({ left:extras[i].label, leftId:extras[i].id, right:extras[i+1]?.label||null, rightId:extras[i+1]?.id||null })
+  for (let i=0;i<extras.length;i+=2)
+    pairs.push({left:extras[i].label,leftId:extras[i].id,right:extras[i+1]?.label||null,rightId:extras[i+1]?.id||null})
 
-  const HW   = (CW - 6) / 2  // half-width for each photo box
-  const HDRH = 18             // label header height
-  const PHOH = 188            // photo box height
+  const HW   = (CW-6)/2
+  const HDRH = 18
+  const PHOH = 188
 
   for (const pair of pairs) {
-    if (y - HDRH - PHOH < 60) {
+    if (y-HDRH-PHOH < 60) {
       page.drawText('Phoenix Tower International — Reporte de Sistema de Ascenso',
-        { x:ML, y:16, size:5.5, font, color:C.light })
-      page = doc.addPage([PW,PH]); y = PH - MT
+        {x:ML,y:16,size:5.5,font,color:C.light})
+      page=doc.addPage([PW,PH]); y=PH-MT
     }
-
-    // Left
-    page.drawRectangle({ x:ML, y:y-HDRH, width:HW, height:HDRH, color:C.black })
-    page.drawText(pair.left||'', { x:ML+6, y:y-HDRH+6, size:7, font:fontB, color:C.white })
-    page.drawRectangle({ x:ML, y:y-HDRH-PHOH, width:HW, height:PHOH, borderColor:C.border, borderWidth:0.5 })
+    // Left photo
+    page.drawRectangle({x:ML,y:y-HDRH,width:HW,height:HDRH,color:C.black})
+    page.drawText(pair.left||'',{x:ML+6,y:y-HDRH+6,size:7,font:fontB,color:C.white})
+    page.drawRectangle({x:ML,y:y-HDRH-PHOH,width:HW,height:PHOH,borderColor:C.border,borderWidth:0.5})
     if (pair.leftId) {
-      const img = await fetchImg(doc, photoMap[pair.leftId])
+      const img=await fetchImg(doc,photoMap[pair.leftId])
       if (img) {
-        const d=img.scale(1), sc=Math.min((HW-8)/d.width,(PHOH-8)/d.height)
+        const d=img.scale(1),sc=Math.min((HW-8)/d.width,(PHOH-8)/d.height)
         page.drawImage(img,{x:ML+(HW-d.width*sc)/2,y:y-HDRH-PHOH+(PHOH-d.height*sc)/2,width:d.width*sc,height:d.height*sc})
       }
     }
-
-    // Right
+    // Right photo
     if (pair.right) {
-      const RX = ML+HW+6
-      page.drawRectangle({ x:RX, y:y-HDRH, width:HW, height:HDRH, color:C.black })
-      page.drawText(pair.right||'', { x:RX+6, y:y-HDRH+6, size:7, font:fontB, color:C.white })
-      page.drawRectangle({ x:RX, y:y-HDRH-PHOH, width:HW, height:PHOH, borderColor:C.border, borderWidth:0.5 })
+      const RX=ML+HW+6
+      page.drawRectangle({x:RX,y:y-HDRH,width:HW,height:HDRH,color:C.black})
+      page.drawText(pair.right||'',{x:RX+6,y:y-HDRH+6,size:7,font:fontB,color:C.white})
+      page.drawRectangle({x:RX,y:y-HDRH-PHOH,width:HW,height:PHOH,borderColor:C.border,borderWidth:0.5})
       if (pair.rightId) {
-        const img = await fetchImg(doc, photoMap[pair.rightId])
+        const img=await fetchImg(doc,photoMap[pair.rightId])
         if (img) {
-          const d=img.scale(1), sc=Math.min((HW-8)/d.width,(PHOH-8)/d.height)
+          const d=img.scale(1),sc=Math.min((HW-8)/d.width,(PHOH-8)/d.height)
           page.drawImage(img,{x:RX+(HW-d.width*sc)/2,y:y-HDRH-PHOH+(PHOH-d.height*sc)/2,width:d.width*sc,height:d.height*sc})
         }
       }
     }
-    y -= HDRH + PHOH + 8
+    y -= HDRH+PHOH+8
   }
 
-  // Observation text + empty box at bottom (matches reference)
+  // Observation text + empty box at bottom
   if (y > 55) {
-    const OBS_H = 44
-    const obs = certificacion.observacionCertificacion||herrajes.comentarioCable||''
-    page.drawRectangle({ x:ML, y:y-OBS_H, width:HW, height:OBS_H, borderColor:C.border, borderWidth:0.5 })
+    const OBS_H=44
+    const obs=certificacion.observacionCertificacion||herrajes.comentarioCable||''
+    page.drawRectangle({x:ML,y:y-OBS_H,width:HW,height:OBS_H,borderColor:C.border,borderWidth:0.5})
     if (obs) {
-      const maxW = HW - 14
-      const words = String(obs).split(' ')
-      const lines = []
-      let cur = ''
-      for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,7.5)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
+      const maxW=HW-14,words=String(obs).split(' '),lines=[]
+      let cur=''
+      for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
       if(cur)lines.push(cur)
-      lines.slice(0,3).forEach((ln,i)=>page.drawText(ln,{x:ML+8,y:y-15-i*12,size:7.5,font,color:C.text}))
+      lines.slice(0,3).forEach((ln,i)=>page.drawText(ln,{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
     }
-    page.drawRectangle({ x:ML+HW+6, y:y-OBS_H, width:HW, height:OBS_H, borderColor:C.border, borderWidth:0.5 })
+    page.drawRectangle({x:ML+HW+6,y:y-OBS_H,width:HW,height:OBS_H,borderColor:C.border,borderWidth:0.5})
   }
 
   page.drawText('Phoenix Tower International — Reporte de Sistema de Ascenso',
-    { x:ML, y:16, size:5.5, font, color:C.light })
+    {x:ML,y:16,size:5.5,font,color:C.light})
   page.drawText('Página 2',
-    { x:PW-MR-font.widthOfTextAtSize('Página 2',5.5), y:16, size:5.5, font, color:C.light })
+    {x:PW-MR-font.widthOfTextAtSize('Página 2',5.5),y:16,size:5.5,font,color:C.light})
 
   return await doc.save()
 }
 
 export async function downloadSafetyPdf(submission, assets=[]) {
-  const bytes = await generateSafetyPdf(submission, assets)
-  const blob  = new Blob([bytes], { type:'application/pdf' })
-  const url   = URL.createObjectURL(blob)
-  const a     = document.createElement('a')
-  a.href = url
-  const d = submission?.payload?.payload?.data || submission?.payload?.data || {}
-  const datos = d.datos||d.formData||d
-  a.download = `ascenso_${datos.idSitio||submission?.id?.slice(0,8)||'report'}.pdf`
-  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  const bytes=await generateSafetyPdf(submission,assets)
+  const blob=new Blob([bytes],{type:'application/pdf'})
+  const url=URL.createObjectURL(blob)
+  const a=document.createElement('a')
+  a.href=url
+  const d=submission?.payload?.payload?.data||submission?.payload?.data||{}
+  const datos=d.datos||d.formData||d
+  a.download=`ascenso_${datos.idSitio||submission?.id?.slice(0,8)||'report'}.pdf`
+  document.body.appendChild(a);a.click();document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
