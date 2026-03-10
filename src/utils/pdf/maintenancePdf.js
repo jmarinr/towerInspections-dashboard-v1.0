@@ -542,50 +542,230 @@ export async function generateMaintenancePdf(submission, assets = []) {
   p.sectionTitle('Informacion de la Estructura Principal')
 
   const towerType = (v('tipoTorre') || '').toLowerCase()
-  const structures = [
-    { key: 'autosoportada', label: 'Torre Autosoportada' },
-    { key: 'monopolo', label: 'Monopolo' },
-    { key: 'arriostrada', label: 'Torre Arriostrada' },
-    { key: 'mastil', label: 'Mastiles' },
-  ]
-  for (const st of structures) {
-    p.y -= 4
-    p.checkSpace(60)
-    p.page.drawRectangle({ x: ML, y: p.y - 14, width: CW, height: 14, borderColor: C.border, borderWidth: 0.5 })
-    p.page.drawText(st.label, { x: ML + 4, y: p.y - 11, size: 7, font: p.fontBold, color: C.text })
+  const altura     = v('alturaTorre') ? v('alturaTorre') + ' m' : ''
+  const hasCam     = (v('tieneCamuflaje') || '').toLowerCase()
+  const isActive   = (key) => towerType.includes(key)
 
-    // If this is the active tower type, show data
-    if (towerType.includes(st.key)) {
-      // Mark with X
-      p.page.drawText('[X]', { x: ML + CW - 30, y: p.y - 11, size: 7, font: p.fontBold, color: C.text })
-    }
-    p.y -= 14
-
-    if (towerType.includes(st.key)) {
-      if (v('tipoSeccion')) p.fieldRow('Seccion:', v('tipoSeccion'))
-      if (v('tipoPierna')) p.fieldRow('Tipo Pierna:', v('tipoPierna'))
-      p.fieldRow('Numero de Secciones:', v('numSecciones'))
-      p.fieldRow('Separacion de Piernas (m):', v('separacionPiernas'))
-      p.fieldRow('Medida Por Seccion (m):', v('medidaPorSeccion'))
-      p.fieldRow('Ancho de Celosia (m):', v('anchoCelosia'))
-      // Camuflaje
-      p.checkSpace(14)
-      p.page.drawRectangle({ x: ML, y: p.y - 13, width: CW, height: 13, borderColor: C.border, borderWidth: 0.5 })
-      const hasCam = (v('tieneCamuflaje') || '').toLowerCase()
-      p.page.drawRectangle({ x: ML + 4, y: p.y - 11, width: 14, height: 9, borderColor: C.border, borderWidth: 0.5 })
-      if (hasCam === 'si' || hasCam === 'yes') p.page.drawText('X', { x: ML + 7, y: p.y - 10, size: 7, font: p.fontBold, color: C.text })
-      if (hasCam === 'no') p.page.drawText('No', { x: ML + 7, y: p.y - 10, size: 6, font: p.fontBold, color: C.text })
-      p.page.drawText('Tiene Camuflaje?', { x: ML + 22, y: p.y - 10, size: 6, font: p.font, color: C.text })
-      p.page.drawText('Tipo de Camuflaje:', { x: ML + 100, y: p.y - 10, size: 6, font: p.font, color: C.text })
-      p.page.drawText(v('tipoCamuflaje') || '', { x: ML + 175, y: p.y - 10, size: 6.5, font: p.font, color: C.text })
-      // Altura a la derecha
-      p.page.drawText('Altura', { x: ML + CW - 50, y: p.y, size: 6, font: p.font, color: C.text })
-      p.page.drawText(v('alturaTorre') ? v('alturaTorre') + ' m' : '', { x: ML + CW - 50, y: p.y - 10, size: 8, font: p.fontBold, color: C.text })
-      p.y -= 15
-    }
+  // Helper: draw a checkbox with optional X mark
+  const drawCheck = (x, y, checked, label, labelSize = 6) => {
+    p.page.drawRectangle({ x, y: y - 9, width: 11, height: 9, borderColor: C.border, borderWidth: 0.5 })
+    if (checked) p.page.drawText('X', { x: x + 2, y: y - 8, size: 7, font: p.fontBold, color: C.text })
+    if (label) p.page.drawText(label, { x: x + 14, y: y - 7, size: labelSize, font: p.font, color: C.text })
   }
 
-  p.y -= 8
+  // Helper: draw a labeled field inline (label + underline value)
+  const drawInlineField = (x, y, label, value, valueX) => {
+    p.page.drawText(label, { x, y: y - 7, size: 6, font: p.font, color: C.text })
+    const vx = valueX || x + p.font.widthOfTextAtSize(label, 6) + 4
+    p.page.drawText(value || '', { x: vx, y: y - 7, size: 6.5, font: p.fontBold, color: C.text })
+    // Underline
+    const lineEnd = Math.min(vx + Math.max(p.font.widthOfTextAtSize(value || '', 6.5) + 4, 60), ML + CW - 4)
+    p.page.drawLine({ start: { x: vx, y: y - 9 }, end: { x: lineEnd, y: y - 9 }, thickness: 0.4, color: C.border })
+  }
+
+  // Helper: draw structure block header row
+  const drawStructHeader = (label) => {
+    p.checkSpace(16)
+    p.page.drawRectangle({ x: ML, y: p.y - 14, width: CW, height: 14, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawText(label, { x: ML + 4, y: p.y - 11, size: 7, font: p.fontBold, color: C.text })
+    p.y -= 14
+  }
+
+  // Helper: draw a grid row inside a structure block
+  const drawStructRow = (rowH, drawFn) => {
+    p.checkSpace(rowH + 2)
+    p.page.drawRectangle({ x: ML, y: p.y - rowH, width: CW, height: rowH, borderColor: C.border, borderWidth: 0.5 })
+    drawFn(p.y)
+    p.y -= rowH
+  }
+
+  // ── Torre Autosoportada ──────────────────────────────────────
+  {
+    drawStructHeader('Torre Autosoportada')
+    const active = isActive('autosoportada')
+    const rh = 14
+    const tipoSec = (v('tipoSeccion') || '').toLowerCase()
+    const tipoPier = (v('tipoPierna') || '').toLowerCase()
+
+    // Row 1: Seccion Triangular | Seccion Cuadrada | Altura
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6,  y, active && tipoSec === 'triangular', 'Seccion Triangular')
+      drawCheck(ML + 160, y, active && tipoSec === 'cuadrada',   'Seccion Cuadrada')
+      if (active) {
+        p.page.drawText('Altura', { x: ML + CW - 80, y: y - 5, size: 6, font: p.font, color: C.text })
+        p.page.drawText(altura, { x: ML + CW - 45, y: y - 7, size: 8, font: p.fontBold, color: C.text })
+        p.page.drawLine({ start: { x: ML + CW - 45, y: y - 10 }, end: { x: ML + CW - 4, y: y - 10 }, thickness: 0.4, color: C.border })
+      }
+    })
+
+    // Row 2: Pierna Tubular | Pierna Angular | Pierna Solida
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6,   y, active && tipoPier === 'tubular', 'Pierna Tubular')
+      drawCheck(ML + 130, y, active && tipoPier === 'angular', 'Pierna Angular')
+      drawCheck(ML + 260, y, active && tipoPier === 'solida',  'Pierna Solida')
+    })
+
+    // Row 3: Numero de Secciones | Medida Por Seccion
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Numero de Secciones', active ? v('numSecciones') : '', ML + 110)
+      drawInlineField(ML + CW/2, y, 'Medida Por Seccion (m)', active ? v('medidaPorSeccion') : '', ML + CW/2 + 110)
+    })
+
+    // Row 4: Separacion de Piernas | Ancho de Celosia
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Separacion de Piernas (m)', active ? v('separacionPiernas') : '', ML + 130)
+      drawInlineField(ML + CW/2, y, 'Ancho de Celosia (m)', active ? v('anchoCelosia') : '', ML + CW/2 + 100)
+    })
+
+    // Row 5: ¿Tiene camuflaje? | Tipo de Camuflaje
+    drawStructRow(rh, (y) => {
+      const camVal = active ? (hasCam === 'si' ? 'Sí' : hasCam === 'no' ? 'No' : '') : ''
+      drawCheck(ML + 6, y, active && hasCam === 'si')
+      p.page.drawText(camVal, { x: ML + 20, y: y - 7, size: 6.5, font: p.fontBold, color: C.text })
+      p.page.drawText('¿Tiene camuflaje?', { x: ML + 36, y: y - 7, size: 6, font: p.font, color: C.text })
+      drawInlineField(ML + 140, y, 'Tpo de Camuflaje', active && hasCam === 'si' ? v('tipoCamuflaje') : '', ML + 225)
+    })
+
+    p.y -= 6
+  }
+
+  // ── Monopolo ─────────────────────────────────────────────────
+  {
+    drawStructHeader('Monopolo')
+    const active = isActive('monopolo')
+    const rh = 14
+
+    // Row 1: Circular | Poligonal | Num de caras | Altura
+    drawStructRow(rh, (y) => {
+      const formaVal = (v('formaMonopolo') || '').toLowerCase()
+      drawCheck(ML + 6,  y, active && formaVal === 'circular',  'Circular')
+      drawCheck(ML + 100, y, active && formaVal === 'poligonal', 'Poligonal')
+      drawInlineField(ML + 210, y, 'Numero de caras', active ? v('numCaras') : '', ML + 295)
+      drawInlineField(ML + CW - 80, y, 'Altura', active ? v('alturaTorre') : '', ML + CW - 50)
+    })
+
+    // Row 2: Diametro Base | Diametro Cuspide
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Diametro Base (m)', active ? v('diametroBase') : '', ML + 90)
+      drawInlineField(ML + CW/2, y, 'Diametro Cuspide (m)', active ? v('diametroCuspide') : '', ML + CW/2 + 100)
+    })
+
+    // Row 3: Numero de Secciones | Medida Por Seccion
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Numero de Secciones', active ? v('numSecciones') : '', ML + 110)
+      drawInlineField(ML + CW/2, y, 'Medida Por Seccion (m)', active ? v('medidaPorSeccion') : '', ML + CW/2 + 110)
+    })
+
+    // Row 4: Altura Escotilla Inferior | Altura Escotilla Superior
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Altura Escotilla Inferior (m)', active ? v('alturaEscotillaInf') : '', ML + 140)
+      drawInlineField(ML + CW/2, y, 'Altura Escotilla Superior (m)', active ? v('alturaEscotillaSup') : '', ML + CW/2 + 140)
+    })
+
+    // Row 5: Camuflaje
+    drawStructRow(rh, (y) => {
+      const camVal = active ? (hasCam === 'si' ? 'Sí' : hasCam === 'no' ? 'No' : '') : ''
+      drawCheck(ML + 6, y, active && hasCam === 'si')
+      p.page.drawText(camVal, { x: ML + 20, y: y - 7, size: 6.5, font: p.fontBold, color: C.text })
+      p.page.drawText('¿Tiene camuflaje?', { x: ML + 36, y: y - 7, size: 6, font: p.font, color: C.text })
+      drawInlineField(ML + 140, y, 'Tpo de Camuflaje', active && hasCam === 'si' ? v('tipoCamuflaje') : '', ML + 225)
+    })
+
+    p.y -= 6
+  }
+
+  // ── Torre Arriostrada ────────────────────────────────────────
+  {
+    drawStructHeader('Torre Arriostrada')
+    const active = isActive('arriostrada')
+    const rh = 14
+    const tipoSec = (v('tipoSeccion') || '').toLowerCase()
+    const tipoPier = (v('tipoPierna') || '').toLowerCase()
+
+    // Row 1: Seccion Triangular | Seccion Cuadrada | Altura
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6,  y, active && tipoSec === 'triangular', 'Seccion Triangular')
+      drawCheck(ML + 160, y, active && tipoSec === 'cuadrada',   'Seccion Cuadrada')
+      if (active) {
+        p.page.drawText('Altura', { x: ML + CW - 80, y: y - 5, size: 6, font: p.font, color: C.text })
+        p.page.drawText(altura, { x: ML + CW - 45, y: y - 7, size: 8, font: p.fontBold, color: C.text })
+        p.page.drawLine({ start: { x: ML + CW - 45, y: y - 10 }, end: { x: ML + CW - 4, y: y - 10 }, thickness: 0.4, color: C.border })
+      }
+    })
+
+    // Row 2: TZ | TX | Diametro (30|45|60|90|Otra)
+    const tipRet = (v('tipoRetenida') || '').toLowerCase()
+    const diamRet = String(v('diametroRetenida') || '')
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6,  y, active && tipRet === 'tz', 'TZ')
+      drawCheck(ML + 55, y, active && tipRet === 'tx', 'TX')
+      p.page.drawText('Diametro', { x: ML + 110, y: y - 7, size: 6, font: p.font, color: C.text })
+      for (const [i, d] of ['30','45','60','90','Otra'].entries()) {
+        drawCheck(ML + 158 + i * 52, y, active && diamRet === d, d, 5.5)
+      }
+    })
+
+    // Row 3: Pierna Tubular | Pierna Angular | Pierna Solida
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6,   y, active && tipoPier === 'tubular', 'Pierna Tubular')
+      drawCheck(ML + 130, y, active && tipoPier === 'angular', 'Pierna Angular')
+      drawCheck(ML + 260, y, active && tipoPier === 'solida',  'Pierna Solida')
+    })
+
+    // Row 4: Numero de Secciones | Medida Por Seccion
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Numero de Secciones', active ? v('numSecciones') : '', ML + 110)
+      drawInlineField(ML + CW/2, y, 'Medida Por Seccion (m)', active ? v('medidaPorSeccion') : '', ML + CW/2 + 110)
+    })
+
+    // Row 5: Separacion de Piernas | Ancho de Celosia
+    drawStructRow(rh, (y) => {
+      drawInlineField(ML + 6, y, 'Separacion de Piernas (m)', active ? v('separacionPiernas') : '', ML + 130)
+      drawInlineField(ML + CW/2, y, 'Ancho de Celosia (m)', active ? v('anchoCelosia') : '', ML + CW/2 + 100)
+    })
+
+    // Row 6: Camuflaje
+    drawStructRow(rh, (y) => {
+      const camVal = active ? (hasCam === 'si' ? 'Sí' : hasCam === 'no' ? 'No' : '') : ''
+      drawCheck(ML + 6, y, active && hasCam === 'si')
+      p.page.drawText(camVal, { x: ML + 20, y: y - 7, size: 6.5, font: p.fontBold, color: C.text })
+      p.page.drawText('¿Tiene camuflaje?', { x: ML + 36, y: y - 7, size: 6, font: p.font, color: C.text })
+      drawInlineField(ML + 140, y, 'Tpo de Camuflaje', active && hasCam === 'si' ? v('tipoCamuflaje') : '', ML + 225)
+    })
+
+    p.y -= 6
+  }
+
+  // ── Mastiles ─────────────────────────────────────────────────
+  {
+    drawStructHeader('Mastiles')
+    const active = isActive('mastil')
+    const rh = 14
+    const tipoSec = (v('tipoSeccion') || '').toLowerCase()
+
+    // Row 1: Seccion Triangular | Seccion Cuadrada | Altura
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6,  y, active && tipoSec === 'triangular', 'Seccion Triangular')
+      drawCheck(ML + 160, y, active && tipoSec === 'cuadrada',   'Seccion Cuadrada')
+      if (active) {
+        p.page.drawText('Altura', { x: ML + CW - 80, y: y - 5, size: 6, font: p.font, color: C.text })
+        p.page.drawText(altura, { x: ML + CW - 45, y: y - 7, size: 8, font: p.fontBold, color: C.text })
+        p.page.drawLine({ start: { x: ML + CW - 45, y: y - 10 }, end: { x: ML + CW - 4, y: y - 10 }, thickness: 0.4, color: C.border })
+      }
+    })
+
+    // Row 2: Mastil Arriostrado | Diametro | Cantidad | Altura
+    drawStructRow(rh, (y) => {
+      drawCheck(ML + 6, y, active, 'Mastil Arriostrado')
+      drawInlineField(ML + 130, y, 'Diam', active ? v('diametroMastil') : '', ML + 155)
+      drawInlineField(ML + 230, y, 'Cant', active ? v('cantidadMastiles') : '', ML + 255)
+      drawInlineField(ML + 330, y, 'Altura', active ? v('alturaMastil') : '', ML + 360)
+    })
+
+    p.y -= 6
+  }
+
+  p.y -= 4
   p.page.drawText('*Cuando un problema es observado debe enviar un reporte fotografico y explicacion del problema.', { x: ML + 4, y: p.y, size: 5.5, font: p.fontBold, color: C.red })
   p._drawFooter()
 
