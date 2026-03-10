@@ -98,9 +98,9 @@ export async function generateSafetyPdf(submission, assets=[]) {
   const certificacion = data.certificacion|| {}
 
   const v = (key) => {
-    for (const s of [datos,herrajes,prensacables,tramos,certificacion,data]) {
-      const val = s?.[key]
-      if (val && !String(val).startsWith('data:') && val!=='__photo__' && val!=='__photo_uploaded__') return String(val)
+    for (const src of [datos,herrajes,prensacables,tramos,certificacion,data]) {
+      const val = src?.[key]
+      if (val && !String(val).startsWith('data:') && val!=='__photo__' && val!=='__photo_uploaded__') return s(String(val))
     }
     return ''
   }

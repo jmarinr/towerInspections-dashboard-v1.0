@@ -432,7 +432,7 @@ export async function generateMaintenancePdf(submission, assets = []) {
   const checklist = data?.checklistData || {}
   const meta = inner?.meta || {}
 
-  const v = (key) => formData[key] || data[key] || ''
+  const v = (key) => s(String(formData[key] || data[key] || ''))
 
   // Helper to get checklist status
   const getStatus = (id) => {

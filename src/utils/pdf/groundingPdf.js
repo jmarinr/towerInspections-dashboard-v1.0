@@ -365,7 +365,7 @@ export async function generateGroundingPdf(submission, assets = []) {
 
   const v = (key) => {
     for (const src of [datos, condiciones, equipo, medicion, evidencia, data]) {
-      if (src && typeof src === 'object' && src[key] && !String(src[key]).startsWith('data:') && src[key] !== '__photo__' && src[key] !== '__photo_uploaded__') return String(src[key])
+      if (src && typeof src === 'object' && src[key] && !String(src[key]).startsWith('data:') && src[key] !== '__photo__' && src[key] !== '__photo_uploaded__') return s(String(src[key]))
     }
     return ''
   }
