@@ -738,30 +738,67 @@ export async function generateMaintenancePdf(submission, assets = []) {
 
   // ── Mastiles ─────────────────────────────────────────────────
   {
-    drawStructHeader('Mastiles')
     const active = isActive('mastil')
-    const rh = 14
-    const tipoSec = (v('tipoSeccion') || '').toLowerCase()
+    const rh = 18   // row height (taller to match Excel spacing)
+    const BLOCK_H = rh * 4 + 2   // 3 mástil rows + 1 camuflaje row
 
-    // Row 1: Seccion Triangular | Seccion Cuadrada | Altura
-    drawStructRow(rh, (y) => {
-      drawCheck(ML + 6,  y, active && tipoSec === 'triangular', 'Seccion Triangular')
-      drawCheck(ML + 160, y, active && tipoSec === 'cuadrada',   'Seccion Cuadrada')
-      if (active) {
-        p.page.drawText('Altura', { x: ML + CW - 80, y: y - 5, size: 6, font: p.font, color: C.text })
-        p.page.drawText(altura, { x: ML + CW - 45, y: y - 7, size: 8, font: p.fontBold, color: C.text })
-        p.page.drawLine({ start: { x: ML + CW - 45, y: y - 10 }, end: { x: ML + CW - 4, y: y - 10 }, thickness: 0.4, color: C.border })
-      }
+    // Outer container (no header row — "Mastiles" is a left-side label)
+    p.checkSpace(BLOCK_H + 4)
+    p.page.drawRectangle({ x: ML, y: p.y - BLOCK_H, width: CW, height: BLOCK_H, borderColor: C.border, borderWidth: 0.5 })
+
+    // Left label "Mastiles" — vertical text in the left margin strip
+    const LABEL_W = 54
+    p.page.drawText('Mastiles', { x: ML + 4, y: p.y - BLOCK_H / 2 - 12, size: 7, font: p.fontBold, color: C.text })
+
+    // Content area starts after left label
+    const CX = ML + LABEL_W   // content x start
+    const CW2 = CW - LABEL_W  // content width
+
+    // Vertical divider between label strip and content
+    p.page.drawLine({
+      start: { x: CX, y: p.y }, end: { x: CX, y: p.y - BLOCK_H },
+      thickness: 0.4, color: C.border
     })
 
-    // Row 2: Mastil Arriostrado | Diametro | Cantidad | Altura
-    drawStructRow(rh, (y) => {
-      drawCheck(ML + 6, y, active, 'Mastil Arriostrado')
-      drawInlineField(ML + 130, y, 'Diam', active ? v('diametroMastil') : '', ML + 155)
-      drawInlineField(ML + 230, y, 'Cant', active ? v('cantidadMastiles') : '', ML + 255)
-      drawInlineField(ML + 330, y, 'Altura', active ? v('alturaMastil') : '', ML + 360)
-    })
+    // Helper to draw one mástil row
+    const mastilRow = (rowY, checkLabel, diamKey, cantKey, alturaKey) => {
+      // checkbox + type label
+      drawCheck(CX + 4, rowY, active && !!v(diamKey || cantKey || alturaKey), checkLabel)
+      // Diam
+      const dX = CX + 100
+      drawInlineField(dX, rowY, 'Diam', active ? v(diamKey) : '', dX + 30)
+      // Cant
+      const cX = dX + 110
+      drawInlineField(cX, rowY, 'Cant', active ? v(cantKey) : '', cX + 30)
+      // Altura
+      const aX = cX + 110
+      drawInlineField(aX, rowY, 'Altura', active ? v(alturaKey) : '', aX + 38)
+    }
 
+    let ry = p.y
+
+    // Row 1: Mastil Arriostrado
+    p.page.drawLine({ start: { x: CX, y: ry - rh }, end: { x: ML + CW, y: ry - rh }, thickness: 0.4, color: C.border })
+    mastilRow(ry, 'Mastil Arriostrado', 'diametroMastilArriostrado', 'cantidadMastilArriostrado', 'alturaMastilArriostrado')
+    ry -= rh
+
+    // Row 2: Mastil Contraventedo
+    p.page.drawLine({ start: { x: CX, y: ry - rh }, end: { x: ML + CW, y: ry - rh }, thickness: 0.4, color: C.border })
+    mastilRow(ry, 'Mastil Contraventedo', 'diametroMastilContraventedo', 'cantidadMastilContraventedo', 'alturaMastilContraventedo')
+    ry -= rh
+
+    // Row 3: Mastil (simple)
+    p.page.drawLine({ start: { x: CX, y: ry - rh }, end: { x: ML + CW, y: ry - rh }, thickness: 0.4, color: C.border })
+    mastilRow(ry, 'Mastil', 'diametroMastil', 'cantidadMastiles', 'alturaMastil')
+    ry -= rh
+
+    // Row 4: Camuflaje
+    const hasCam = (v('camuflajeMastil') || v('camuflaje') || '').toLowerCase()
+    drawCheck(CX + 4, ry, active && hasCam === 'si')
+    p.page.drawText('¿Tiene camuflaje)', { x: CX + 18, y: ry - 7, size: 6, font: p.font, color: C.text })
+    drawInlineField(CX + 100, ry, 'Tpo de Camuflaje', active && hasCam === 'si' ? v('tipoCamuflajeMastil') || v('tipoCamuflaje') : '', CX + 180)
+
+    p.y -= BLOCK_H + 2
     p.y -= 6
   }
 
