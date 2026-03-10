@@ -152,6 +152,18 @@ class MaintenancePDF {
     // "Logo Proveedor" text on far right
     this.page.drawText('Logo Proveedor', { x: x + CW - 60, y: this.y - 14, size: 6, font: this.font, color: C.textLight })
 
+    // ID Sitio and Nombre Sitio (only shown on pages 2+)
+    if (data.idSitio || data.nombreSitio) {
+      const rightX = x + CW * 0.65
+      this.page.drawText('ID Sitio', { x: rightX, y: this.y - 14, size: 6.5, font: this.fontBold, color: C.text })
+      this.page.drawText(data.idSitio || '', { x: rightX + 38, y: this.y - 14, size: 7, font: this.fontBold, color: C.text })
+      // Underline
+      this.page.drawLine({ start: { x: rightX + 38, y: this.y - 17 }, end: { x: x + CW - 65, y: this.y - 17 }, thickness: 0.4, color: C.border })
+      this.page.drawText('Nombre Sitio', { x: rightX, y: this.y - 30, size: 6.5, font: this.fontBold, color: C.text })
+      this.page.drawText(data.nombreSitio || '', { x: rightX + 55, y: this.y - 30, size: 7, font: this.fontBold, color: C.text })
+      this.page.drawLine({ start: { x: rightX + 55, y: this.y - 32 }, end: { x: x + CW - 65, y: this.y - 32 }, thickness: 0.4, color: C.border })
+    }
+
     // Red line under the row
     this.page.drawRectangle({ x, y: this.y - logoRowH - 1.5, width: CW, height: 1.5, color: C.red })
 
@@ -431,7 +443,7 @@ export async function generateMaintenancePdf(submission, assets = []) {
 
   // ── PAGE 1: Informacion General ─────────────────────────────
   p.newPage()
-  p.drawHeader({ proveedor: v('proveedor'), tipoVisita: v('tipoVisita'), idSitio: v('idSitio'), nombreSitio: v('nombreSitio') })
+  p.drawHeader({ proveedor: v('proveedor'), tipoVisita: v('tipoVisita') })  // Page 1: no ID/Nombre in header
   p.sectionTitle('Informacion General del Sitio')
 
   p.darkSubheader('Informacion del Sitio')
@@ -439,7 +451,33 @@ export async function generateMaintenancePdf(submission, assets = []) {
   p.fieldRow('Numero del Sitio:', v('idSitio'))
   const lat = meta.lat || v('lat') || ''
   const lng = meta.lng || v('lng') || ''
-  p.fieldRow('Coordenadas (centro de la torre):', lat && lng ? `Latitud: ${lat}  Longitud: ${lng}` : '')
+
+  // Capture y BEFORE drawing coordenadas block — used to anchor fotoGPS
+  const yBeforeCoordenadas = p.y
+
+  // Coordenadas — 2 rows matching reference PDF exactly
+  // Row 1: "Coordenadas (centro de la torre) DDD.ddddd" | "Latitud:" | value
+  // Row 2: "NAD 84" continues label | "Longitud:" | value
+  {
+    const LABEL_W = CW * 0.4
+    const h = 13
+    // Row 1: Latitud
+    p.checkSpace(h)
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LABEL_W, y: p.y }, end: { x: ML + LABEL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    p.page.drawText('Coordenadas (centro de la torre) DDD.ddddd', { x: ML + 4, y: p.y - h + 4, size: 5.5, font: p.fontBold, color: C.text })
+    p.page.drawText('Latitud:', { x: ML + LABEL_W + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText(String(lat), { x: ML + LABEL_W + 44, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+    p.y -= h
+    // Row 2: Longitud
+    p.checkSpace(h)
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LABEL_W, y: p.y }, end: { x: ML + LABEL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    p.page.drawText('NAD 84', { x: ML + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText('Longitud:', { x: ML + LABEL_W + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText(String(lng), { x: ML + LABEL_W + 46, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+    p.y -= h
+  }
   
   // Tipo de Sitio with checkboxes
   const tipoSitio = (v('tipoSitio') || '').toLowerCase()
@@ -457,21 +495,29 @@ export async function generateMaintenancePdf(submission, assets = []) {
   }
   p.y -= rowH
 
-  // ── fotoGPS: a la derecha de la sección coordenadas/tipo sitio ──────────
-  // Referencia PTI: foto GPS con "Dejar el GPS por lo menos 30 min"
-  if (fotoGPSImg) {
-    const IMG_SLOT_W = 130, IMG_SLOT_H = 90
-    const dims = fotoGPSImg.scale(1)
-    const sc = Math.min(IMG_SLOT_W / dims.width, IMG_SLOT_H / dims.height)
-    const iw = dims.width * sc, ih = dims.height * sc
-    const ix = ML + CW - IMG_SLOT_W - 4
-    // Calculate approximate top y: go back up to where coordenadas row started
-    // fieldRow height ≈ 13, tipoSitio row = 13, so ~3 rows up = 39pts
-    const TOP_OF_GPS_BLOCK = p.y + 13 + 13  // tipoSitio + coordenadas rows
-    const iy = TOP_OF_GPS_BLOCK - ih - 2
-    p.page.drawImage(fotoGPSImg, { x: ix + (IMG_SLOT_W - iw) / 2, y: iy, width: iw, height: ih })
-    p.page.drawRectangle({ x: ix, y: iy - 2, width: IMG_SLOT_W, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
-    p.page.drawText('Dejar el GPS por lo menos 30 min', { x: ix + 2, y: iy - 9, size: 5, font: p.font, color: C.textLight })
+  // ── fotoGPS: a la derecha de Coordenadas + Tipo de Sitio (igual al original PTI) ──
+  // topY = yBeforeCoordenadas, bottomY = p.y → foto centrada en ese bloque
+  {
+    const GPS_W = 130, GPS_LBL_H = 10
+    const blockH = yBeforeCoordenadas - p.y          // altura real del bloque (coordenadas + tipo sitio)
+    const ix = ML + CW - GPS_W - 4
+    const topY = yBeforeCoordenadas
+    const botY = p.y - GPS_LBL_H                     // deja espacio para el label debajo
+
+    if (fotoGPSImg) {
+      const dims = fotoGPSImg.scale(1)
+      const sc = Math.min(GPS_W / dims.width, blockH / dims.height)
+      const iw = dims.width * sc, ih = dims.height * sc
+      const iy = botY + GPS_LBL_H + (blockH - ih) / 2   // vertically centered in block
+      p.page.drawImage(fotoGPSImg, { x: ix + (GPS_W - iw) / 2, y: iy, width: iw, height: ih })
+    }
+    // Border spanning the full block
+    p.page.drawRectangle({ x: ix, y: botY, width: GPS_W, height: blockH, borderColor: C.border, borderWidth: 0.5 })
+    // Label below the box
+    p.page.drawText('Dejar el GPS por lo menos 30 min', {
+      x: ix + GPS_W / 2 - p.font.widthOfTextAtSize('Dejar el GPS por lo menos 30 min', 5) / 2,
+      y: botY - 7, size: 5, font: p.font, color: p.textLight || C.textLight
+    })
   }
 
   p.fieldRow('Fecha de Inicio:', meta.startedAt || v('startedAt') || (submission?.created_at ? new Date(submission.created_at).toLocaleDateString('es') : ''))
@@ -514,15 +560,32 @@ export async function generateMaintenancePdf(submission, assets = []) {
 
   p.y -= 4
   p.darkSubheader('Acceso al Sitio')
-  p.fieldRow('Descripcion del Sitio:', v('descripcionSitio'))
-  p.fieldRow('Descripcion de Acceso:', v('descripcionAcceso'))
-  p.fieldRow('Restriccion de Horario:', v('restriccionHorario'))
-  p.fieldRow('Propietario localizable:', v('propietarioLocalizable'))
-  p.fieldRow('Clave:', v('claveCombinacion'))
-  p.fieldRow('Llave:', v('tipoLlave'))
-  p.fieldRow('Memorandum:', v('memorandumRequerido'))
-  p.fieldRow('Problemas de acceso:', v('problemasAcceso'))
-  p.fieldRow('Notificaciones en los Sitios:', v('notificaciones') || v('notificacionesSitio'))
+  // 2-column layout: left=Descripción, right=Restricción/Propietario
+  {
+    const h = 13, HALF = CW / 2
+    const twoColRow = (lbl1, val1, lbl2, val2) => {
+      p.checkSpace(h)
+      p.page.drawRectangle({ x: ML, y: p.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
+      p.page.drawLine({ start: { x: ML + HALF, y: p.y }, end: { x: ML + HALF, y: p.y - h }, thickness: 0.5, color: C.border })
+      // Left
+      p.page.drawText(lbl1, { x: ML + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+      p.page.drawText(String(val1 || ''), { x: ML + 4 + p.fontBold.widthOfTextAtSize(lbl1, 6.5) + 4, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+      // Right
+      p.page.drawText(lbl2, { x: ML + HALF + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+      // Value badge for right side (small box)
+      const valX = ML + HALF + 4 + p.fontBold.widthOfTextAtSize(lbl2, 6.5) + 4
+      p.page.drawRectangle({ x: valX, y: p.y - h + 2, width: 28, height: h - 4, borderColor: C.border, borderWidth: 0.5 })
+      p.page.drawText(String(val2 || ''), { x: valX + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+      p.y -= h
+    }
+    twoColRow('Descripción del Sitio', v('descripcionSitio'), 'Restriccion de Horario', v('restriccionHorario'))
+    twoColRow('Descripcion de Acceso', v('descripcionAcceso'), 'Propietario localizable en sitio', v('propietarioLocalizable'))
+  }
+  p.fieldRow('Clave:', v('claveCombinacion') || '-')
+  p.fieldRow('Llave  (elige una opción)', v('tipoLlave'))
+  p.fieldRow('Memorándum  (elige una opción)', v('memorandumRequerido'))
+  p.fieldRow('Problemas de acceso', v('problemasAcceso'))
+  p.fieldRow('Notificaciones en los Sitios', v('notificaciones') || v('notificacionesSitio'))
 
   // Embed fotoCandado to the right
   if (fotoCandadoImg) {
@@ -818,7 +881,7 @@ export async function generateMaintenancePdf(submission, assets = []) {
   // ── PAGE 2: Inspección Del Sitio ────────────────────────────
   p.newPage()
   p.drawHeader({ proveedor: v('proveedor'), tipoVisita: v('tipoVisita'), idSitio: v('idSitio'), nombreSitio: v('nombreSitio') })
-  p.sectionTitle('Inspección del Sitio')
+  p.sectionTitle('Inspección del Sitio')  // = INSPECCIÓN DEL SITIO
 
   for (const sec of SITE_SECTIONS) {
     p.subsectionHeader(sec.num, sec.title)
@@ -828,15 +891,37 @@ export async function generateMaintenancePdf(submission, assets = []) {
     }
   }
 
-  // Vandalismo
+  // Vandalismo — matches reference layout exactly
   p.y -= 6
-  p.sectionTitle('Vandalismo y Observaciones')
-  const vand = v('vandalismo')
-  const vandDesc = v('descripcionVandalismo')
-  p.textBlock('Observación de vandalismo:', vand ? `${vand}${vandDesc ? ' — ' + vandDesc : ''}` : '')
-  p.textBlock('Equipos de sistema faltantes:', v('equiposFaltantes'))
-  p.textBlock('Defectos que puedan detener la operación:', v('defectosOperacion'))
-  p.textBlock('Observaciones generales:', v('observacionesGenerales'))
+  // Two side-by-side text blocks: label left, value right
+  {
+    const twoTextRow = (label, value, h=34) => {
+      p.checkSpace(h)
+      const LBCOL = CW * 0.38
+      p.page.drawRectangle({ x: ML, y: p.y - h, width: LBCOL, height: h, borderColor: C.border, borderWidth: 0.5 })
+      p.page.drawText(label, { x: ML + 4, y: p.y - 10, size: 6, font: p.font, color: C.text })
+      p.page.drawRectangle({ x: ML + LBCOL, y: p.y - h, width: CW - LBCOL, height: h, borderColor: C.border, borderWidth: 0.5 })
+      const txt = String(value || '')
+      if (txt) p.page.drawText(txt.slice(0, 120), { x: ML + LBCOL + 6, y: p.y - 12, size: 7, font: p.font, color: C.text })
+      p.y -= h
+    }
+    twoTextRow('Observacion de vandalismo en sitio.', v('vandalismo') || v('descripcionVandalismo'))
+    twoTextRow('Reporte de equipos de sistemas faltantes', v('equiposFaltantes'))
+  }
+  // Dark centered bar: "Reporte de cualquier defecto..."
+  p.checkSpace(14)
+  p.page.drawRectangle({ x: ML, y: p.y - 14, width: CW, height: 14, color: C.dark })
+  p.page.drawText('Reporte de cualquier defecto que pueda detener la operacion del sitio', {
+    x: ML + CW / 2 - p.fontBold.widthOfTextAtSize('Reporte de cualquier defecto que pueda detener la operacion del sitio', 7) / 2,
+    y: p.y - 10, size: 7, font: p.fontBold, color: C.white
+  })
+  p.y -= 14
+  // Full-width text box
+  p.checkSpace(36)
+  p.page.drawRectangle({ x: ML, y: p.y - 36, width: CW, height: 36, borderColor: C.border, borderWidth: 0.5 })
+  const defTxt = v('defectosOperacion') || v('observacionesGenerales') || ''
+  if (defTxt) p.page.drawText(defTxt.slice(0, 200), { x: ML + 6, y: p.y - 14, size: 7, font: p.font, color: C.text })
+  p.y -= 36
   p._drawFooter()
 
   // ── PAGE 3: Inspección de la Torre ──────────────────────────
