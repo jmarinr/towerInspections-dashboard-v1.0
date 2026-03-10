@@ -457,6 +457,23 @@ export async function generateMaintenancePdf(submission, assets = []) {
   }
   p.y -= rowH
 
+  // ── fotoGPS: a la derecha de la sección coordenadas/tipo sitio ──────────
+  // Referencia PTI: foto GPS con "Dejar el GPS por lo menos 30 min"
+  if (fotoGPSImg) {
+    const IMG_SLOT_W = 130, IMG_SLOT_H = 90
+    const dims = fotoGPSImg.scale(1)
+    const sc = Math.min(IMG_SLOT_W / dims.width, IMG_SLOT_H / dims.height)
+    const iw = dims.width * sc, ih = dims.height * sc
+    const ix = ML + CW - IMG_SLOT_W - 4
+    // Calculate approximate top y: go back up to where coordenadas row started
+    // fieldRow height ≈ 13, tipoSitio row = 13, so ~3 rows up = 39pts
+    const TOP_OF_GPS_BLOCK = p.y + 13 + 13  // tipoSitio + coordenadas rows
+    const iy = TOP_OF_GPS_BLOCK - ih - 2
+    p.page.drawImage(fotoGPSImg, { x: ix + (IMG_SLOT_W - iw) / 2, y: iy, width: iw, height: ih })
+    p.page.drawRectangle({ x: ix, y: iy - 2, width: IMG_SLOT_W, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawText('Dejar el GPS por lo menos 30 min', { x: ix + 2, y: iy - 9, size: 5, font: p.font, color: C.textLight })
+  }
+
   p.fieldRow('Fecha de Inicio:', meta.startedAt || v('startedAt') || (submission?.created_at ? new Date(submission.created_at).toLocaleDateString('es') : ''))
   const fechaTermino = meta.endedAt || v('endedAt') || v('fechaTermino') || (submission?.updated_at ? new Date(submission.updated_at).toLocaleDateString('es') : '')
   p.fieldRow('Fecha de Termino:', fechaTermino)
@@ -472,25 +489,17 @@ export async function generateMaintenancePdf(submission, assets = []) {
   p.fieldRow('Altura total:', altTotal)
   p.fieldRow('Condicion de la Torre:', v('condicionTorre'))
 
-  // Embed fotoTorre and fotoGPS side by side to the right of the tower info section
-  {
-    const imgs = []
-    if (fotoTorreImg) imgs.push({ img: fotoTorreImg, lbl: 'Foto de la Torre' })
-    if (fotoGPSImg)   imgs.push({ img: fotoGPSImg,   lbl: 'Foto GPS' })
-    if (imgs.length) {
-      const slotW = imgs.length === 2 ? 80 : 130
-      const maxH = 100
-      let ox = ML + CW - (slotW * imgs.length) - 10
-      for (const { img, lbl } of imgs) {
-        const dims = img.scale(1)
-        const sc = Math.min(slotW / dims.width, maxH / dims.height)
-        const iw = dims.width * sc, ih = dims.height * sc
-        p.page.drawImage(img, { x: ox, y: p.y + 10, width: iw, height: ih })
-        p.page.drawRectangle({ x: ox - 2, y: p.y + 8, width: iw + 4, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
-        p.page.drawText(lbl, { x: ox, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
-        ox += slotW + 4
-      }
-    }
+  // Embed fotoTorre to the right of the tower info section
+  // (fotoGPS is now shown in the coordenadas section above, matching PTI reference)
+  if (fotoTorreImg) {
+    const slotW = 130, maxH = 100
+    const dims = fotoTorreImg.scale(1)
+    const sc = Math.min(slotW / dims.width, maxH / dims.height)
+    const iw = dims.width * sc, ih = dims.height * sc
+    const ox = ML + CW - slotW - 4
+    p.page.drawImage(fotoTorreImg, { x: ox + (slotW - iw) / 2, y: p.y + 10, width: iw, height: ih })
+    p.page.drawRectangle({ x: ox, y: p.y + 8, width: slotW, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawText('Foto de altura de Torre hasta la base de la torre', { x: ox, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
   }
 
   p.y -= 4
