@@ -258,7 +258,19 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // SECTION 1 — HERRAJES
   // ══════════════════════════════════════════════════════════
   const topH = y
-  imgBox(diagCombined, topH, H_COMBINED)  // single combined image spans Herrajes+Prensacables
+  // Draw combined diagram directly — no border box, image fills right column naturally
+  if (diagCombined) {
+    const dc = diagCombined.scale(1)
+    // Scale to fit IMG_W exactly (width-constrained), let height be natural
+    const sc = (IMG_W - 4) / dc.width
+    const dh = dc.height * sc
+    page.drawImage(diagCombined, {
+      x: IMG_X + 2,
+      y: topH - dh,
+      width: dc.width * sc,
+      height: dh
+    })
+  }
   secHeader('1', 'HERRAJES')
 
   // Row 1: HERRAJE INFERIOR [badge] ........... DIAMETRO DEL CABLE [badge]
