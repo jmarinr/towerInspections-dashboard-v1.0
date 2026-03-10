@@ -447,105 +447,160 @@ export async function generateMaintenancePdf(submission, assets = []) {
   p.sectionTitle('Informacion General del Sitio')
 
   p.darkSubheader('Informacion del Sitio')
-  p.fieldRow('Nombre del Sitio:', v('nombreSitio'))
-  p.fieldRow('Numero del Sitio:', v('idSitio'))
+
+  // ════════════════════════════════════════════════════════════════
+  // LAYOUT: columna derecha GPS_W pts ancha para foto GPS
+  // Las filas de datos se dibujan solo en DATA_W (columna izquierda)
+  // La foto GPS abarca Nombre+Numero+Coordenadas+TipoSitio (6 filas)
+  // ════════════════════════════════════════════════════════════════
+  const GPS_W = 130
+  const GPS_COL_X = ML + CW - GPS_W
+  const DATA_W = CW - GPS_W               // left column width (sin gap)
+  const LBL_W = DATA_W * 0.48            // label sub-column
+
+  // Helper: draw a row only in the left DATA_W column
+  const dataRow = (labelTxt, valueTxt, h = 13) => {
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: DATA_W, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LBL_W, y: p.y }, end: { x: ML + LBL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    if (labelTxt) p.page.drawText(labelTxt, { x: ML + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    if (valueTxt) p.page.drawText(String(valueTxt), { x: ML + LBL_W + 4, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+    p.y -= h
+  }
+
+  const yTopGPSBlock = p.y  // anchor: GPS foto starts here
+
+  // ── Nombre del Sitio ────────────────────────────────────────────
+  dataRow('Nombre del Sitio:', v('nombreSitio'))
+
+  // ── Numero del Sitio ────────────────────────────────────────────
+  dataRow('Numero del Sitio:', v('idSitio'))
+
+  // ── Coordenadas (2 filas: Latitud / Longitud) ───────────────────
   const lat = meta.lat || v('lat') || ''
   const lng = meta.lng || v('lng') || ''
-
-  // Capture y BEFORE drawing coordenadas block — used to anchor fotoGPS
-  const yBeforeCoordenadas = p.y
-
-  // Coordenadas — 2 rows matching reference PDF exactly
-  // Row 1: "Coordenadas (centro de la torre) DDD.ddddd" | "Latitud:" | value
-  // Row 2: "NAD 84" continues label | "Longitud:" | value
   {
-    const LABEL_W = CW * 0.4
     const h = 13
-    // Row 1: Latitud
-    p.checkSpace(h)
-    p.page.drawRectangle({ x: ML, y: p.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
-    p.page.drawLine({ start: { x: ML + LABEL_W, y: p.y }, end: { x: ML + LABEL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    // Row Latitud
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: DATA_W, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LBL_W, y: p.y }, end: { x: ML + LBL_W, y: p.y - h }, thickness: 0.5, color: C.border })
     p.page.drawText('Coordenadas (centro de la torre) DDD.ddddd', { x: ML + 4, y: p.y - h + 4, size: 5.5, font: p.fontBold, color: C.text })
-    p.page.drawText('Latitud:', { x: ML + LABEL_W + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
-    p.page.drawText(String(lat), { x: ML + LABEL_W + 44, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+    p.page.drawText('Latitud:', { x: ML + LBL_W + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText(String(lat), { x: ML + LBL_W + 44, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
     p.y -= h
-    // Row 2: Longitud
-    p.checkSpace(h)
-    p.page.drawRectangle({ x: ML, y: p.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
-    p.page.drawLine({ start: { x: ML + LABEL_W, y: p.y }, end: { x: ML + LABEL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    // Row Longitud
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: DATA_W, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LBL_W, y: p.y }, end: { x: ML + LBL_W, y: p.y - h }, thickness: 0.5, color: C.border })
     p.page.drawText('NAD 84', { x: ML + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
-    p.page.drawText('Longitud:', { x: ML + LABEL_W + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
-    p.page.drawText(String(lng), { x: ML + LABEL_W + 46, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+    p.page.drawText('Longitud:', { x: ML + LBL_W + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText(String(lng), { x: ML + LBL_W + 48, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
     p.y -= h
   }
-  
-  // Tipo de Sitio with checkboxes
+
+  // ── Tipo de Sitio (2 filas: Urbano/Rawland, Rural/Rooftop) ─────
   const tipoSitio = (v('tipoSitio') || '').toLowerCase()
-  p.checkSpace(14)
-  const rowH = 13
-  p.page.drawRectangle({ x: ML, y: p.y - rowH, width: CW, height: rowH, borderColor: C.border, borderWidth: 0.5 })
-  p.page.drawText('Tipo de Sitio:', { x: ML + 4, y: p.y - rowH + 4, size: 6.5, font: p.fontBold, color: C.text })
-  const checks = [['Urbano','urbano'], ['Rawland','rawland'], ['Rural','rural'], ['Rooftop','rooftop']]
-  let cx = ML + 80
-  for (const [label, val] of checks) {
-    p.page.drawRectangle({ x: cx, y: p.y - rowH + 2, width: 10, height: 9, borderColor: C.border, borderWidth: 0.5 })
-    if (tipoSitio.includes(val)) p.page.drawText('X', { x: cx + 2.5, y: p.y - rowH + 3, size: 7, font: p.fontBold, color: C.text })
-    p.page.drawText(label + ':', { x: cx + 13, y: p.y - rowH + 4, size: 6, font: p.font, color: C.text })
-    cx += 65
-  }
-  p.y -= rowH
-
-  // ── fotoGPS: a la derecha de Coordenadas + Tipo de Sitio (igual al original PTI) ──
-  // topY = yBeforeCoordenadas, bottomY = p.y → foto centrada en ese bloque
   {
-    const GPS_W = 130, GPS_LBL_H = 10
-    const blockH = yBeforeCoordenadas - p.y          // altura real del bloque (coordenadas + tipo sitio)
-    const ix = ML + CW - GPS_W - 4
-    const topY = yBeforeCoordenadas
-    const botY = p.y - GPS_LBL_H                     // deja espacio para el label debajo
+    const h = 13
+    const chk = (bx, by, checked, lbl) => {
+      p.page.drawRectangle({ x: bx, y: by - h + 2, width: 10, height: 9, borderColor: C.border, borderWidth: 0.5 })
+      if (checked) p.page.drawText('X', { x: bx + 2.5, y: by - h + 3, size: 7, font: p.fontBold, color: C.text })
+      p.page.drawText(lbl + ':', { x: bx + 13, y: by - h + 4, size: 6.5, font: p.font, color: C.text })
+    }
+    // Row 1: label + Urbano + Rawland
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: DATA_W, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LBL_W, y: p.y }, end: { x: ML + LBL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    p.page.drawText('Tipo de Sitio:', { x: ML + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText('(elige una opción)', { x: ML + 4 + p.fontBold.widthOfTextAtSize('Tipo de Sitio:', 6.5) + 3, y: p.y - h + 4, size: 6, font: p.font, color: C.red })
+    chk(ML + LBL_W + 4,      p.y, tipoSitio.includes('urbano'),  'Urbano')
+    chk(ML + LBL_W + 4 + 75, p.y, tipoSitio.includes('rawland'), 'Rawland')
+    p.y -= h
+    // Row 2: Rural + Rooftop (no left label)
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: DATA_W, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + LBL_W, y: p.y }, end: { x: ML + LBL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    chk(ML + LBL_W + 4,      p.y, tipoSitio.includes('rural'),   'Rural')
+    chk(ML + LBL_W + 4 + 75, p.y, tipoSitio.includes('rooftop'), 'Rooftop')
+    p.y -= h
+  }
 
+  // ── fotoGPS: columna derecha desde yTopGPSBlock hasta aquí ─────
+  // Imagen + borde arriba, label de texto pequeño debajo (igual a referencia)
+  {
+    const blockH = yTopGPSBlock - p.y
+    const IMG_LBL_H = 10
+    const imgBoxH = blockH - IMG_LBL_H
+
+    // Borde + imagen
+    p.page.drawRectangle({ x: GPS_COL_X, y: p.y + IMG_LBL_H, width: GPS_W, height: imgBoxH, borderColor: C.border, borderWidth: 0.5 })
     if (fotoGPSImg) {
       const dims = fotoGPSImg.scale(1)
-      const sc = Math.min(GPS_W / dims.width, blockH / dims.height)
+      const sc = Math.min((GPS_W - 6) / dims.width, (imgBoxH - 6) / dims.height)
       const iw = dims.width * sc, ih = dims.height * sc
-      const iy = botY + GPS_LBL_H + (blockH - ih) / 2   // vertically centered in block
-      p.page.drawImage(fotoGPSImg, { x: ix + (GPS_W - iw) / 2, y: iy, width: iw, height: ih })
+      p.page.drawImage(fotoGPSImg, {
+        x: GPS_COL_X + (GPS_W - iw) / 2,
+        y: p.y + IMG_LBL_H + (imgBoxH - ih) / 2,
+        width: iw, height: ih
+      })
     }
-    // Border spanning the full block
-    p.page.drawRectangle({ x: ix, y: botY, width: GPS_W, height: blockH, borderColor: C.border, borderWidth: 0.5 })
-    // Label below the box
+    // Label texto debajo del recuadro (igual al PDF original)
     p.page.drawText('Dejar el GPS por lo menos 30 min', {
-      x: ix + GPS_W / 2 - p.font.widthOfTextAtSize('Dejar el GPS por lo menos 30 min', 5) / 2,
-      y: botY - 7, size: 5, font: p.font, color: p.textLight || C.textLight
+      x: GPS_COL_X + GPS_W / 2 - p.font.widthOfTextAtSize('Dejar el GPS por lo menos 30 min', 6) / 2,
+      y: p.y + 2, size: 6, font: p.fontBold, color: C.text
     })
   }
 
+  // ── Fechas y horas (full CW — sin foto al lado, igual a referencia) ─
+  p.y -= 2
   p.fieldRow('Fecha de Inicio:', meta.startedAt || v('startedAt') || (submission?.created_at ? new Date(submission.created_at).toLocaleDateString('es') : ''))
   const fechaTermino = meta.endedAt || v('endedAt') || v('fechaTermino') || (submission?.updated_at ? new Date(submission.updated_at).toLocaleDateString('es') : '')
   p.fieldRow('Fecha de Termino:', fechaTermino)
   p.fieldRow('Hora de Entrada:', meta.startTime || v('horaEntrada') || '')
   p.fieldRow('Hora de Salida:', meta.endTime || v('horaSalida') || '')
 
+  // ── Torre info con fotoTorre en columna derecha ─────────────────
   p.y -= 2
-  p.fieldRow('Tipo de Torre:', v('tipoTorre'))
-  p.fieldRow('Altura de la Torre:', v('alturaTorre') ? `${v('alturaTorre')}` : '')
-  p.fieldRow('Altura del Edificio hasta la base de la torre:', v('alturaEdificio') || 'N/A')
+  const yTopTorreBlock = p.y
+  const TORRE_W = 130
+  const TORRE_COL_X = ML + CW - TORRE_W
+  const TORRE_DATA_W = CW - TORRE_W
+  const TORRE_LBL_W = TORRE_DATA_W * 0.6
+
+  const torreRow = (labelTxt, valueTxt, h = 13) => {
+    p.page.drawRectangle({ x: ML, y: p.y - h, width: TORRE_DATA_W, height: h, borderColor: C.border, borderWidth: 0.5 })
+    p.page.drawLine({ start: { x: ML + TORRE_LBL_W, y: p.y }, end: { x: ML + TORRE_LBL_W, y: p.y - h }, thickness: 0.5, color: C.border })
+    p.page.drawText(labelTxt, { x: ML + 4, y: p.y - h + 4, size: 6.5, font: p.fontBold, color: C.text })
+    p.page.drawText(String(valueTxt || ''), { x: ML + TORRE_LBL_W + 4, y: p.y - h + 4, size: 6.5, font: p.font, color: C.text })
+    p.y -= h
+  }
+
+  torreRow('Tipo de Torre:', v('tipoTorre'))
+  torreRow('Altura de la Torre:', v('alturaTorre') ? `${v('alturaTorre')}` : '')
+  torreRow('Altura del Edificio hasta la base de la torre:', v('alturaEdificio') || 'N/A')
   let altTotal = ''
   try { const at = (parseFloat(v('alturaTorre')||0)) + (parseFloat(v('alturaEdificio')||0)); if (at > 0) altTotal = `${at}` } catch(_){}
-  p.fieldRow('Altura total:', altTotal)
-  p.fieldRow('Condicion de la Torre:', v('condicionTorre'))
+  torreRow('Altura total:', altTotal)
+  torreRow('Condicion de la Torre:', v('condicionTorre'))
 
-  // Embed fotoTorre to the right of the tower info section
-  // (fotoGPS is now shown in the coordenadas section above, matching PTI reference)
-  if (fotoTorreImg) {
-    const slotW = 130, maxH = 100
-    const dims = fotoTorreImg.scale(1)
-    const sc = Math.min(slotW / dims.width, maxH / dims.height)
-    const iw = dims.width * sc, ih = dims.height * sc
-    const ox = ML + CW - slotW - 4
-    p.page.drawImage(fotoTorreImg, { x: ox + (slotW - iw) / 2, y: p.y + 10, width: iw, height: ih })
-    p.page.drawRectangle({ x: ox, y: p.y + 8, width: slotW, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
-    p.page.drawText('Foto de altura de Torre hasta la base de la torre', { x: ox, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
+  // fotoTorre — columna derecha, spanning el bloque torre
+  // Label de texto pequeño debajo (igual a referencia)
+  {
+    const torreBlockH = yTopTorreBlock - p.y
+    const TLBL_H = 10
+    const tImgH = torreBlockH - TLBL_H
+
+    p.page.drawRectangle({ x: TORRE_COL_X, y: p.y + TLBL_H, width: TORRE_W, height: tImgH, borderColor: C.border, borderWidth: 0.5 })
+    if (fotoTorreImg) {
+      const dims = fotoTorreImg.scale(1)
+      const sc = Math.min((TORRE_W - 6) / dims.width, (tImgH - 6) / dims.height)
+      const iw = dims.width * sc, ih = dims.height * sc
+      p.page.drawImage(fotoTorreImg, {
+        x: TORRE_COL_X + (TORRE_W - iw) / 2,
+        y: p.y + TLBL_H + (tImgH - ih) / 2,
+        width: iw, height: ih
+      })
+    }
+    p.page.drawText('Foto de altura de Torre hasta la base de la torre', {
+      x: TORRE_COL_X + TORRE_W / 2 - p.font.widthOfTextAtSize('Foto de altura de Torre hasta la base de la torre', 5.5) / 2,
+      y: p.y + 2, size: 5.5, font: p.font, color: C.textLight
+    })
   }
 
   p.y -= 4
