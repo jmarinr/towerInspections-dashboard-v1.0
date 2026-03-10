@@ -215,13 +215,14 @@ export async function generateSafetyPdf(submission, assets=[]) {
     const TX=ML+CMNT_W, TW=DATA_W-CMNT_W
     page.drawRectangle({ x:TX, y:y-CMNT_H, width:TW, height:CMNT_H, borderColor:C.border, borderWidth:0.5 })
     if (text) {
+      const clean = s(String(text))  // sanitize: removes \n \r and bad chars
       const maxW = TW-14
-      const words=String(text).split(' '), lines=[]
+      const words=clean.split(' ').filter(w=>w.length>0), lines=[]
       let cur=''
       for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
       if(cur)lines.push(cur)
       lines.slice(0,3).forEach((ln,i)=>
-        page.drawText(s(ln), { x:TX+10, y:y-18-i*13, size:8, font, color:C.text })
+        page.drawText(ln, { x:TX+10, y:y-18-i*13, size:8, font, color:C.text })
       )
     }
     y -= CMNT_H
@@ -400,11 +401,12 @@ export async function generateSafetyPdf(submission, assets=[]) {
     // Left: texto observación
     page.drawRectangle({x:ML, y:y-OBS_H, width:HW2, height:OBS_H, borderColor:C.border, borderWidth:0.5})
     if (obs) {
-      const maxW=HW2-14, words=String(obs).split(' '), lines=[]
+      const obsClean=s(String(obs))
+      const maxW=HW2-14, words=obsClean.split(' ').filter(w=>w.length>0), lines=[]
       let cur=''
       for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
       if(cur)lines.push(cur)
-      lines.slice(0,3).forEach((ln,i)=>page.drawText(s(ln),{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
+      lines.slice(0,3).forEach((ln,i)=>page.drawText(ln,{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
     }
     // Right: caja vacía
     page.drawRectangle({x:ML+HW2+6, y:y-OBS_H, width:HW2, height:OBS_H, borderColor:C.border, borderWidth:0.5})
