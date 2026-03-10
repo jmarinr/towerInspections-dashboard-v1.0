@@ -214,8 +214,18 @@ export async function generateSafetyPdf(submission, assets=[]) {
   }
 
   // Right column: draw image filling topY→topY-totalH
+  // Draws full border box and centers image inside
   const imgBox = (img, topY, totalH) => {
-    page.drawRectangle({ x:IMG_X, y:topY-totalH, width:IMG_W, height:totalH, borderColor:C.border, borderWidth:0.5 })
+    // Draw 4 sides individually so we have full control
+    const bx=IMG_X, by=topY-totalH, bw=IMG_W, bh=totalH
+    // Bottom
+    page.drawLine({start:{x:bx,y:by},     end:{x:bx+bw,y:by},     thickness:0.5,color:C.border})
+    // Left
+    page.drawLine({start:{x:bx,y:by},     end:{x:bx,y:by+bh},     thickness:0.5,color:C.border})
+    // Right  
+    page.drawLine({start:{x:bx+bw,y:by},  end:{x:bx+bw,y:by+bh},  thickness:0.5,color:C.border})
+    // Top
+    page.drawLine({start:{x:bx,y:by+bh},  end:{x:bx+bw,y:by+bh},  thickness:0.5,color:C.border})
     if (img) {
       const d=img.scale(1), sc=Math.min((IMG_W-10)/d.width,(totalH-10)/d.height)
       page.drawImage(img, {
@@ -225,6 +235,12 @@ export async function generateSafetyPdf(submission, assets=[]) {
       })
     }
   }
+
+  // Pre-calculated section heights (for imgBox pre-draw)
+  const H_HERRAJES     = 16 + 2*ROW_H + CMNT_H   // 110
+  const H_PRENSACABLES = 16 + 3*ROW_H + CMNT_H   // 132
+  const H_TRAMOS       = 16 + 3*ROW_H + CMNT_H   // 132
+  const H_CERT         = 16 + 34                   // 50
 
   // Section header: plain bold text, no border box
   const secHeader = (num, title, badge_text) => {
@@ -242,6 +258,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // SECTION 1 — HERRAJES
   // ══════════════════════════════════════════════════════════
   const topH = y
+  imgBox(diagBM, topH, H_HERRAJES)  // draw first so data rows render on top
   secHeader('1', 'HERRAJES')
 
   // Row 1: HERRAJE INFERIOR [badge] ........... DIAMETRO DEL CABLE [badge]
@@ -262,13 +279,14 @@ export async function generateSafetyPdf(submission, assets=[]) {
   })
 
   comentario(herrajes.comentarioHerrajeInferior||herrajes.comentarioCable||herrajes.comentarioOxidacion||'')
-  imgBox(diagBM, topH, topH - y)
+  // imgBox already drawn above
   y -= 12
 
   // ══════════════════════════════════════════════════════════
   // SECTION 2 — PRENSACABLES
   // ══════════════════════════════════════════════════════════
   const topP = y
+  imgBox(diagWR, topP, H_PRENSACABLES)  // draw first
   secHeader('2', 'PRENSACABLES', 'ACTUAL')
 
   // CANTIDAD, DISTANCIAMIENTO, ESTADO — badges all align at ML+BADGE_L
@@ -286,13 +304,14 @@ export async function generateSafetyPdf(submission, assets=[]) {
   })
 
   comentario(prensacables.comentarioPrensacables||'')
-  imgBox(diagWR, topP, topP - y)
+  // imgBox already drawn above
   y -= 12
 
   // ══════════════════════════════════════════════════════════
   // SECTION 3 — TRAMOS
   // ══════════════════════════════════════════════════════════
   const topT = y
+  imgBox(imgEscalera, topT, H_TRAMOS)  // draw first
   secHeader('3', 'TRAMOS (escaleras)', 'ACTUAL')
 
   // CANTIDAD (tramos) [9] ..... ESTADO ESCALERA [Bueno]
@@ -318,13 +337,14 @@ export async function generateSafetyPdf(submission, assets=[]) {
   })
 
   comentario(tramos.comentarioEscalera||tramos.comentarioTornillos||'')
-  imgBox(imgEscalera, topT, topT - y)
+  // imgBox already drawn above
   y -= 12
 
   // ══════════════════════════════════════════════════════════
   // CERTIFICACIÓN
   // ══════════════════════════════════════════════════════════
   const topC = y
+  imgBox(imgCertificacion, topC, H_CERT)  // draw first
   secHeader('2', 'CERTIFICACIÓN', 'ACTUAL')
 
   // SI / NO checkboxes row
@@ -342,7 +362,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
     y -= h
   }
 
-  imgBox(imgCertificacion, topC, topC - y)
+  // imgBox already drawn above
 
   // Footer p1
   page.drawText('Phoenix Tower International — Reporte de Sistema de Ascenso',
