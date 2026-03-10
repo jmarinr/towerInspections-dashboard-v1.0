@@ -364,6 +364,26 @@ export async function generateSafetyPdf(submission, assets=[]) {
 
   // imgBox already drawn above
 
+  // ── Observación general — al pie de p1, full-width ───────────
+  y -= 10
+  {
+    const OBS_H = 44
+    const HW2 = (CW - 6) / 2
+    const obs = certificacion.observacionCertificacion||certificacion.observaciones||''
+    // Left: texto observación
+    page.drawRectangle({x:ML, y:y-OBS_H, width:HW2, height:OBS_H, borderColor:C.border, borderWidth:0.5})
+    if (obs) {
+      const maxW=HW2-14, words=String(obs).split(' '), lines=[]
+      let cur=''
+      for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
+      if(cur)lines.push(cur)
+      lines.slice(0,3).forEach((ln,i)=>page.drawText(ln,{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
+    }
+    // Right: caja vacía
+    page.drawRectangle({x:ML+HW2+6, y:y-OBS_H, width:HW2, height:OBS_H, borderColor:C.border, borderWidth:0.5})
+    y -= OBS_H
+  }
+
   // Footer p1
   page.drawText('Phoenix Tower International — Reporte de Sistema de Ascenso',
     {x:ML,y:16,size:5.5,font,color:C.light})
@@ -448,20 +468,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
     y -= HDRH+PHOH+8
   }
 
-  // Observation text + empty box at bottom
-  if (y > 55) {
-    const OBS_H=44
-    const obs=certificacion.observacionCertificacion||herrajes.comentarioCable||''
-    page.drawRectangle({x:ML,y:y-OBS_H,width:HW,height:OBS_H,borderColor:C.border,borderWidth:0.5})
-    if (obs) {
-      const maxW=HW-14,words=String(obs).split(' '),lines=[]
-      let cur=''
-      for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
-      if(cur)lines.push(cur)
-      lines.slice(0,3).forEach((ln,i)=>page.drawText(ln,{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
-    }
-    page.drawRectangle({x:ML+HW+6,y:y-OBS_H,width:HW,height:OBS_H,borderColor:C.border,borderWidth:0.5})
-  }
+  // (Observation boxes moved to end of page 1)
 
   page.drawText('Phoenix Tower International — Reporte de Sistema de Ascenso',
     {x:ML,y:16,size:5.5,font,color:C.light})
