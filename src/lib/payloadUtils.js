@@ -547,6 +547,8 @@ export function groupAssetsBySection(assets, formCode) {
 
       if (itemId === 'fotoTorre') {
         sectionTitle = '🗼 Información de la Torre'; label = 'Foto de la Torre'
+      } else if (itemId === 'fotoGPS') {
+        sectionTitle = '🗼 Información de la Torre'; label = 'Foto GPS'
       } else if (itemId === 'fotoCandado') {
         sectionTitle = '🔑 Acceso al Sitio'; label = 'Foto del Candado'
       } else if (itemId === 'firmaProveedor') {

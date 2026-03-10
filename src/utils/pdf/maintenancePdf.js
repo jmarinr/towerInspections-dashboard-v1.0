@@ -426,6 +426,7 @@ export async function generateMaintenancePdf(submission, assets = []) {
   }
 
   const fotoTorreImg = await embedPhoto(photoMap['fotoTorre'] || photoMap['maintenance:fotoTorre'])
+  const fotoGPSImg   = await embedPhoto(photoMap['fotoGPS']   || photoMap['maintenance:fotoGPS'])
   const fotoCandadoImg = await embedPhoto(photoMap['fotoCandado'] || photoMap['maintenance:fotoCandado'])
 
   // ── PAGE 1: Informacion General ─────────────────────────────
@@ -471,15 +472,25 @@ export async function generateMaintenancePdf(submission, assets = []) {
   p.fieldRow('Altura total:', altTotal)
   p.fieldRow('Condicion de la Torre:', v('condicionTorre'))
 
-  // Embed fotoTorre to the right of the tower info section
-  if (fotoTorreImg) {
-    const dims = fotoTorreImg.scale(1)
-    const maxW = 130, maxH = 100
-    const sc = Math.min(maxW / dims.width, maxH / dims.height)
-    const iw = dims.width * sc, ih = dims.height * sc
-    p.page.drawImage(fotoTorreImg, { x: ML + CW - iw - 5, y: p.y + 10, width: iw, height: ih })
-    p.page.drawRectangle({ x: ML + CW - iw - 7, y: p.y + 8, width: iw + 4, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
-    p.page.drawText('Foto de la Torre', { x: ML + CW - iw + 5, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
+  // Embed fotoTorre and fotoGPS side by side to the right of the tower info section
+  {
+    const imgs = []
+    if (fotoTorreImg) imgs.push({ img: fotoTorreImg, lbl: 'Foto de la Torre' })
+    if (fotoGPSImg)   imgs.push({ img: fotoGPSImg,   lbl: 'Foto GPS' })
+    if (imgs.length) {
+      const slotW = imgs.length === 2 ? 80 : 130
+      const maxH = 100
+      let ox = ML + CW - (slotW * imgs.length) - 10
+      for (const { img, lbl } of imgs) {
+        const dims = img.scale(1)
+        const sc = Math.min(slotW / dims.width, maxH / dims.height)
+        const iw = dims.width * sc, ih = dims.height * sc
+        p.page.drawImage(img, { x: ox, y: p.y + 10, width: iw, height: ih })
+        p.page.drawRectangle({ x: ox - 2, y: p.y + 8, width: iw + 4, height: ih + 4, borderColor: C.border, borderWidth: 0.5 })
+        p.page.drawText(lbl, { x: ox, y: p.y + 2, size: 5, font: p.font, color: C.textLight })
+        ox += slotW + 4
+      }
+    }
   }
 
   p.y -= 4
@@ -625,6 +636,7 @@ export async function generateMaintenancePdf(submission, assets = []) {
   // Form photos (fotoTorre, fotoCandado)
   const formPhotoFields = [
     { id: 'fotoTorre', label: 'Foto de la Torre' },
+    { id: 'fotoGPS', label: 'Foto GPS' },
     { id: 'fotoCandado', label: 'Foto de Candado/Llave' },
   ]
   for (const fp of formPhotoFields) {
