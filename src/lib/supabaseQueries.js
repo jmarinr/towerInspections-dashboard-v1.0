@@ -285,11 +285,13 @@ function normalizeSubmission(raw) {
   // or already flat after a prior normalization { finalized, data }
   const inner = p.payload || p
 
-  // Check finalized at every possible nesting level
+  // Check finalized at every possible nesting level.
+  // Also treat submitted_at as finalized (inspector app may not set finalized:true explicitly)
   const finalized =
     raw.finalized === true ||
     p.finalized === true ||
-    (p.payload != null && p.payload.finalized === true)
+    (p.payload != null && p.payload.finalized === true) ||
+    !!(inner.submitted_at)
 
   return {
     ...raw,

@@ -61,11 +61,12 @@ export function extractSubmittedBy(submission) {
 }
 
 export function isFinalized(submission) {
-  // Check top-level (set by normalizeSubmission) first
+  // Check top-level flag (set by normalizeSubmission)
   if (submission?.finalized === true) return true
-  // Fallback: dig into payload nesting
+  // Dig into payload nesting
   const { inner } = resolveInner(submission)
-  return inner.finalized === true
+  // A submission is finalized if: finalized===true OR submitted_at is present
+  return inner.finalized === true || !!inner.submitted_at
 }
 
 // ═══════════════════════════════════════════
