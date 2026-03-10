@@ -26,6 +26,21 @@ const C = {
 const PW = 612, PH = 792, ML = 36, MR = 36, MT = 36
 const CW = PW - ML - MR  // 540
 
+// ── Text sanitizer — removes chars WinAnsi/pdf-lib can't encode ──────────────
+// Strips: control chars (\n \r \t 0x00-0x1F), chars outside latin-1 range
+const s = (val) => {
+  if (val == null) return ''
+  return String(val)
+    .replace(/[\x00-\x1F\x7F]/g, ' ')   // control chars → space
+    .replace(/[\u0100-\uFFFF]/g, (c) => { // non-latin1: try common replacements
+      const map = { 'á':'a','é':'e','í':'i','ó':'o','ú':'u','ü':'u','ñ':'n','ä':'a','ö':'o',
+                    'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U','Ü':'U','Ñ':'N',
+                    '\u2019':"'",'–':'-','—':'-','\u201C':'"','\u201D':'"','\u2026':'...' }
+      return map[c] || ''
+    })
+    .trim()
+}
+
 // ── Column layout (pixel-exact from reference PDF) ───────────
 const DATA_W  = 313   // left data column width
 const IMG_W   = 194   // right image column width
@@ -134,11 +149,11 @@ export async function generateSafetyPdf(submission, assets=[]) {
   }
   const PX = ML+118
   page.drawText('Proveedor:', { x:PX, y:y-16, size:7.5, font:fontB, color:C.text })
-  page.drawText(v('proveedor'), { x:PX+65, y:y-16, size:7.5, font, color:C.text })
+  page.drawText(s(v('proveedor')), { x:PX+65, y:y-16, size:7.5, font, color:C.text })
   for (let dx=PX+65; dx<ML+CW-4; dx+=4)
     page.drawLine({ start:{x:dx,y:y-18}, end:{x:dx+2,y:y-18}, thickness:0.5, color:C.border })
   page.drawText('Tipo de Visita', { x:PX, y:y-34, size:7.5, font:fontB, color:C.text })
-  page.drawText(v('tipoVisita'), { x:PX+76, y:y-34, size:7.5, font, color:C.text })
+  page.drawText(s(v('tipoVisita')), { x:PX+76, y:y-34, size:7.5, font, color:C.text })
   for (let dx=PX+76; dx<ML+CW-4; dx+=4)
     page.drawLine({ start:{x:dx,y:y-36}, end:{x:dx+2,y:y-36}, thickness:0.5, color:C.border })
   page.drawRectangle({ x:ML, y:y-LR_H-2, width:CW, height:2, color:C.red })
@@ -158,9 +173,9 @@ export async function generateSafetyPdf(submission, assets=[]) {
     page.drawRectangle({ x:ML, y:y-h, width:CW, height:h, borderColor:C.border, borderWidth:0.5 })
     page.drawLine({ start:{x:ML+CW/2,y}, end:{x:ML+CW/2,y:y-h}, thickness:0.4, color:C.border })
     page.drawText(l1, { x:ML+4, y:y-h+4, size:7, font:fontB, color:C.text })
-    page.drawText(String(v1||''), { x:ML+4+fontB.widthOfTextAtSize(l1,7)+3, y:y-h+4, size:7, font, color:C.text })
+    page.drawText(s(String(v1||'')), { x:ML+4+fontB.widthOfTextAtSize(l1,7)+3, y:y-h+4, size:7, font, color:C.text })
     page.drawText(l2, { x:ML+CW/2+4, y:y-h+4, size:7, font:fontB, color:C.text })
-    page.drawText(String(v2||''), { x:ML+CW/2+4+fontB.widthOfTextAtSize(l2,7)+3, y:y-h+4, size:7, font, color:C.text })
+    page.drawText(s(String(v2||'')), { x:ML+CW/2+4+fontB.widthOfTextAtSize(l2,7)+3, y:y-h+4, size:7, font, color:C.text })
     y -= h
   }
   siteRow('ID Sitio:',      v('idSitio'),     'Altura (Mts):', v('altura'))
@@ -179,7 +194,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
     page.drawRectangle({ x:bx, y:by, width:w, height:BADGE_H, borderColor:C.border, borderWidth:0.7 })
     if (val) {
       const sz = large ? 10 : 8
-      page.drawText(String(val), { x:bx+5, y:by+5, size:sz, font:fontB, color:C.text })
+      page.drawText(s(String(val)), { x:bx+5, y:by+5, size:sz, font:fontB, color:C.text })
     }
   }
 
@@ -206,7 +221,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
       for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
       if(cur)lines.push(cur)
       lines.slice(0,3).forEach((ln,i)=>
-        page.drawText(ln, { x:TX+10, y:y-18-i*13, size:8, font, color:C.text })
+        page.drawText(s(ln), { x:TX+10, y:y-18-i*13, size:8, font, color:C.text })
       )
     }
     y -= CMNT_H
@@ -246,7 +261,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   const secHeader = (num, title, badge_text) => {
     page.drawText(num,   { x:ML+2,    y:y-12, size:8, font:fontB, color:C.text })
     page.drawText(title, { x:ML+12,   y:y-12, size:8, font:fontB, color:C.text })
-    if (badge_text) page.drawText(badge_text, { x:ML+12+fontB.widthOfTextAtSize(title,8)+12, y:y-12, size:7, font, color:C.light })
+    if (badge_text) page.drawText(s(badge_text), { x:ML+12+fontB.widthOfTextAtSize(title,8)+12, y:y-12, size:7, font, color:C.light })
     y -= 16
   }
 
@@ -389,7 +404,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
       let cur=''
       for(const w of words){const t=cur?cur+' '+w:w;if(font.widthOfTextAtSize(t,8)>maxW){if(cur)lines.push(cur);cur=w}else cur=t}
       if(cur)lines.push(cur)
-      lines.slice(0,3).forEach((ln,i)=>page.drawText(ln,{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
+      lines.slice(0,3).forEach((ln,i)=>page.drawText(s(ln),{x:ML+8,y:y-15-i*12,size:8,font,color:C.text}))
     }
     // Right: caja vacía
     page.drawRectangle({x:ML+HW2+6, y:y-OBS_H, width:HW2, height:OBS_H, borderColor:C.border, borderWidth:0.5})

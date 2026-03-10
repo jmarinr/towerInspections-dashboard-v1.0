@@ -24,6 +24,19 @@ const C = {
 const PW = 612, PH = 792, ML = 36, MR = 36, MT = 36, MB = 36
 const CW = PW - ML - MR
 
+// ── Text sanitizer ─────────────────────────────────────────────────────────
+const s = (val) => {
+  if (val == null) return ''
+  return String(val)
+    .replace(/[\x00-\x1F\x7F]/g, ' ')
+    .replace(/[\u0100-\uFFFF]/g, (c) => {
+      const map = {'á':'a','é':'e','í':'i','ó':'o','ú':'u','ü':'u','ñ':'n',
+                   'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U','Ü':'U','Ñ':'N',
+                   "\u2019":"'",'\u2013':'-','\u2014':'-','\u201c':'"','\u201d':'"','\u2026':'...'}
+      return map[c] || ""
+    }).trim()
+}
+
 const POINTS = [
   { id: 'rPataTorre', label: 'Pata de la torre', photoId: 'fotoPataTorre', photoLabel: 'MEDICION 1 CONEXION ELECTRODO POTENCIAL  (Pata de la torre)' },
   { id: 'rCerramiento', label: 'Cerramiento', photoId: 'fotoCerramiento', photoLabel: 'MEDICION 2 CONEXION ELECTRODO POTENCIAL  (Cerramiento)' },

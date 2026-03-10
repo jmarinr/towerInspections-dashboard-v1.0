@@ -37,6 +37,19 @@ const MT = 36
 const MB = 36
 const CW = PW - ML - MR  // content width
 
+// ── Text sanitizer ─────────────────────────────────────────────────────────
+const s = (val) => {
+  if (val == null) return ''
+  return String(val)
+    .replace(/[\x00-\x1F\x7F]/g, ' ')
+    .replace(/[\u0100-\uFFFF]/g, (c) => {
+      const map = {'á':'a','é':'e','í':'i','ó':'o','ú':'u','ü':'u','ñ':'n',
+                   'Á':'A','É':'E','Í':'I','Ó':'O','Ú':'U','Ü':'U','Ñ':'N',
+                   "\u2019":"'",'\u2013':'-','\u2014':'-','\u201c':'"','\u201d':'"','\u2026':'...'}
+      return map[c] || ""
+    }).trim()
+}
+
 class MaintenancePDF {
   constructor() {
     this.doc = null
@@ -142,26 +155,33 @@ class MaintenancePDF {
       this.page.drawText('.', { x: dx, y: dotY2, size: 5, font: this.font, color: C.border })
     }
 
-    // ID Sitio and Nombre on the right side
-    const rightX = x + CW * 0.65
-    this.page.drawText('ID Sitio:', { x: rightX, y: this.y - 14, size: 7, font: this.fontBold, color: C.text })
-    this.page.drawText(data.idSitio || '', { x: rightX + 40, y: this.y - 14, size: 7, font: this.font, color: C.text })
-    this.page.drawText('Nombre Sitio:', { x: rightX, y: this.y - 30, size: 7, font: this.fontBold, color: C.text })
-    this.page.drawText(data.nombreSitio || '', { x: rightX + 60, y: this.y - 30, size: 7, font: this.font, color: C.text })
+    // "Logo Proveedor" placeholder — top right corner
+    this.page.drawText('Logo Proveedor', { x: x + CW - 62, y: this.y - 14, size: 6, font: this.font, color: C.textLight })
 
-    // "Logo Proveedor" text on far right
-    this.page.drawText('Logo Proveedor', { x: x + CW - 60, y: this.y - 14, size: 6, font: this.font, color: C.textLight })
-
-    // ID Sitio and Nombre Sitio (only shown on pages 2+)
+    // ID Sitio + Nombre Sitio — right section (only when provided, i.e. pages 2+)
+    // Layout: label | value | underline, all within [CW*0.63 .. CW-65] zone
     if (data.idSitio || data.nombreSitio) {
-      const rightX = x + CW * 0.65
-      this.page.drawText('ID Sitio', { x: rightX, y: this.y - 14, size: 6.5, font: this.fontBold, color: C.text })
-      this.page.drawText(data.idSitio || '', { x: rightX + 38, y: this.y - 14, size: 7, font: this.fontBold, color: C.text })
-      // Underline
-      this.page.drawLine({ start: { x: rightX + 38, y: this.y - 17 }, end: { x: x + CW - 65, y: this.y - 17 }, thickness: 0.4, color: C.border })
-      this.page.drawText('Nombre Sitio', { x: rightX, y: this.y - 30, size: 6.5, font: this.fontBold, color: C.text })
-      this.page.drawText(data.nombreSitio || '', { x: rightX + 55, y: this.y - 30, size: 7, font: this.fontBold, color: C.text })
-      this.page.drawLine({ start: { x: rightX + 55, y: this.y - 32 }, end: { x: x + CW - 65, y: this.y - 32 }, thickness: 0.4, color: C.border })
+      const rLblX = x + CW * 0.63          // label start
+      const rValX = rLblX + 50             // value start (after label)
+      const rEnd  = x + CW - 66            // value ends before "Logo Proveedor"
+
+      // Helper: truncate value to fit in zone
+      const fitVal = (str, maxW) => {
+        let s = String(str || '')
+        while (s.length > 1 && this.font.widthOfTextAtSize(s, 7) > maxW) s = s.slice(0, -1)
+        return s
+      }
+      const maxValW = rEnd - rValX - 2
+
+      // Row 1: ID Sitio
+      this.page.drawText('ID Sitio:', { x: rLblX, y: this.y - 14, size: 6.5, font: this.fontBold, color: C.text })
+      this.page.drawText(fitVal(data.idSitio, maxValW), { x: rValX, y: this.y - 14, size: 7, font: this.font, color: C.text })
+      this.page.drawLine({ start: { x: rValX, y: this.y - 17 }, end: { x: rEnd, y: this.y - 17 }, thickness: 0.4, color: C.border })
+
+      // Row 2: Nombre Sitio
+      this.page.drawText('Nombre Sitio:', { x: rLblX, y: this.y - 30, size: 6.5, font: this.fontBold, color: C.text })
+      this.page.drawText(fitVal(data.nombreSitio, maxValW), { x: rValX, y: this.y - 30, size: 7, font: this.font, color: C.text })
+      this.page.drawLine({ start: { x: rValX, y: this.y - 33 }, end: { x: rEnd, y: this.y - 33 }, thickness: 0.4, color: C.border })
     }
 
     // Red line under the row
@@ -293,8 +313,8 @@ class MaintenancePDF {
     const x = ML, h = 13, labelW = CW * 0.4
     this.page.drawRectangle({ x, y: this.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
     this.page.drawLine({ start: { x: x + labelW, y: this.y }, end: { x: x + labelW, y: this.y - h }, thickness: 0.5, color: C.border })
-    this.page.drawText(String(label), { x: x + 4, y: this.y - h + 4, size: 6.5, font: this.fontBold, color: C.text })
-    this.page.drawText(String(value || ''), { x: x + labelW + 4, y: this.y - h + 4, size: 6.5, font: this.font, color: C.text })
+    this.page.drawText(s(String(label)), { x: x + 4, y: this.y - h + 4, size: 6.5, font: this.fontBold, color: C.text })
+    this.page.drawText(s(String(value || '')), { x: x + labelW + 4, y: this.y - h + 4, size: 6.5, font: this.font, color: C.text })
     this.y -= h
   }
 
