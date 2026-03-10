@@ -26,19 +26,22 @@ const C = {
 const PW = 612, PH = 792, ML = 36, MR = 36, MT = 36
 const CW = PW - ML - MR  // 540
 
-// ── Column layout (from pixel analysis of reference) ──────────
-const DATA_W = 332   // left data column width
-const IMG_W  = 194   // right image column width
-const IMG_X  = ML + DATA_W + (CW - DATA_W - IMG_W)  // = ML + 346
+// ── Column layout (pixel-exact from reference PDF) ───────────
+const DATA_W  = 313   // left data column width
+const IMG_W   = 194   // right image column width
+const IMG_GAP = CW - DATA_W - IMG_W   // gap between cols
+const IMG_X   = ML + DATA_W + IMG_GAP
 
-// Badge positions within data column
-const BADGE_L  = 109   // left badge x offset from ML (HERRAJE INFERIOR badge, CANTIDAD badge)
-const BADGE_R  = 274   // right badge x offset from ML (DIAMETRO CABLE badge, ESTADO ESCALERA)
-const BADGE_W  = 70    // badge width (standard)
+// Badge positions within data column (measured from reference)
+const BADGE_L  = 93    // left badge x offset from ML
+const BADGE_LW = 50    // left badge width
+const BADGE_R  = 242   // right badge x offset from ML (DIAMETRO CABLE, ESTADO ESCALERA)
+const BADGE_RW = 48    // right badge width
 const BADGE_H  = 20    // badge height
 const ROW_H    = 22    // data row height
 const CMNT_W   = 18    // rotated "Comentario" strip width
 const CMNT_H   = 50    // comentario box height
+const RLBL_X   = 158   // right-side label x offset from ML (DIAMETRO DEL CABLE, ESTADO ESCALERA, etc.)
 
 async function fetchImg(doc, url) {
   if (!url) return null
@@ -171,7 +174,7 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // ── Draw helpers ──────────────────────────────────────────────
 
   // Badge: bordered box with value text. large=true → 10pt bold (for "Mal")
-  const badge = (x, rowY, val, w=BADGE_W, large=false) => {
+  const badge = (x, rowY, val, w=BADGE_LW, large=false) => {
     if (!val && val !== 0) val = ''
     const bx = x, by = rowY - (ROW_H-BADGE_H)/2 - BADGE_H
     page.drawRectangle({ x:bx, y:by, width:w, height:BADGE_H, borderColor:C.border, borderWidth:0.7 })
@@ -244,18 +247,18 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // Row 1: HERRAJE INFERIOR [badge] ........... DIAMETRO DEL CABLE [badge]
   dataRow(ry => {
     lbl(ML+2, ry, 'HERRAJE INFERIOR')
-    badge(ML+BADGE_L, ry, stLabel(herrajes.herrajeInferior))
-    lbl(ML+BADGE_L+BADGE_W+30, ry, 'DIAMETRO DEL CABLE')
-    badge(ML+BADGE_R, ry, herrajes.diametroCable)
+    badge(ML+BADGE_L, ry, stLabel(herrajes.herrajeInferior), BADGE_LW)
+    lbl(ML+RLBL_X, ry, 'DIAMETRO DEL CABLE')
+    badge(ML+BADGE_R, ry, herrajes.diametroCable, BADGE_RW)
   })
 
   // Row 2: HERRAJE SUPERIOR [badge] ........... ESTADO DEL CABLE [badge — Mal=large]
   dataRow(ry => {
     lbl(ML+2, ry, 'HERRAJE SUPERIOR')
-    badge(ML+BADGE_L, ry, stLabel(herrajes.herrajeSuperior))
-    lbl(ML+BADGE_L+BADGE_W+30, ry, 'ESTADO DEL CABLE')
+    badge(ML+BADGE_L, ry, stLabel(herrajes.herrajeSuperior), BADGE_LW)
+    lbl(ML+RLBL_X, ry, 'ESTADO DEL CABLE')
     const ecVal = stLabel(herrajes.estadoCable)
-    badge(ML+BADGE_R, ry, ecVal, BADGE_W, ecVal==='Mal')
+    badge(ML+BADGE_R, ry, ecVal, BADGE_RW, ecVal==='Mal')
   })
 
   comentario(herrajes.comentarioHerrajeInferior||herrajes.comentarioCable||herrajes.comentarioOxidacion||'')
@@ -271,15 +274,15 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // CANTIDAD, DISTANCIAMIENTO, ESTADO — badges all align at ML+BADGE_L
   dataRow(ry => {
     lbl(ML+2, ry, 'CANTIDAD')
-    badge(ML+BADGE_L, ry, prensacables.cantidadPrensacables)
+    badge(ML+BADGE_L, ry, prensacables.cantidadPrensacables, BADGE_LW)
   })
   dataRow(ry => {
     lbl(ML+2, ry, 'DISTANCIAMIENTO')
-    badge(ML+BADGE_L, ry, prensacables.distanciamiento)
+    badge(ML+BADGE_L, ry, prensacables.distanciamiento, BADGE_LW)
   })
   dataRow(ry => {
     lbl(ML+2, ry, 'ESTADO')
-    badge(ML+BADGE_L, ry, stLabel(prensacables.estadoPrensacables), 80)
+    badge(ML+BADGE_L, ry, stLabel(prensacables.estadoPrensacables), BADGE_LW+30)
   })
 
   comentario(prensacables.comentarioPrensacables||'')
@@ -295,23 +298,23 @@ export async function generateSafetyPdf(submission, assets=[]) {
   // CANTIDAD (tramos) [9] ..... ESTADO ESCALERA [Bueno]
   dataRow(ry => {
     lbl(ML+2, ry, 'CANTIDAD (tramos)')
-    badge(ML+BADGE_L, ry, tramos.cantidadTramos, 50)
-    lbl(ML+BADGE_L+70, ry, 'ESTADO ESCALERA')
-    badge(ML+BADGE_R, ry, stLabel(tramos.estadoEscalera), 80)
+    badge(ML+BADGE_L, ry, tramos.cantidadTramos, BADGE_LW)
+    lbl(ML+RLBL_X, ry, 'ESTADO ESCALERA')
+    badge(ML+BADGE_R, ry, stLabel(tramos.estadoEscalera), BADGE_RW)
   })
 
   // CANTIDAD (uniones) [10] ... TRAMOS DAÑADOS [No]
   dataRow(ry => {
     lbl(ML+2, ry, 'CANTIDAD (uniones)')
-    badge(ML+BADGE_L, ry, tramos.cantidadUniones, 50)
-    lbl(ML+BADGE_L+70, ry, 'TRAMOS DAÑADOS')
-    badge(ML+BADGE_R, ry, tramos.tramosDañados||tramos.tramosDanados||'No', 50)
+    badge(ML+BADGE_L, ry, tramos.cantidadUniones, BADGE_LW)
+    lbl(ML+RLBL_X, ry, 'TRAMOS DAÑADOS')
+    badge(ML+BADGE_R, ry, tramos.tramosDañados||tramos.tramosDanados||'No', BADGE_RW)
   })
 
   // DIAMETRO TORNILLO [16]
   dataRow(ry => {
     lbl(ML+2, ry, 'DIAMETRO TORNILLO')
-    badge(ML+BADGE_L, ry, tramos.diametroTornillo, 50)
+    badge(ML+BADGE_L, ry, tramos.diametroTornillo, BADGE_LW)
   })
 
   comentario(tramos.comentarioEscalera||tramos.comentarioTornillos||'')
