@@ -1,36 +1,51 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Download, ExternalLink, X, ChevronDown, ChevronRight, Camera, MapPin, Calendar, User2, CheckCircle2, AlertTriangle, XCircle, Minus, Clock, Eye } from 'lucide-react'
+import {
+  ArrowLeft, Download, ExternalLink, X, ChevronDown, ChevronRight,
+  Camera, MapPin, Calendar, User2, CheckCircle2, AlertTriangle, XCircle,
+  Minus, Clock, Eye, Pencil, Save, RotateCcw, History, ShieldCheck, Upload,
+} from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { getFormMeta, normalizeFormCode } from '../data/formTypes'
-import { extractSiteInfo, extractMeta, getCleanPayload, groupAssetsBySection, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
+import {
+  extractSiteInfo, extractMeta, getCleanPayload,
+  groupAssetsBySection, isFinalized, extractSubmittedBy,
+} from '../lib/payloadUtils'
 import { downloadSubmissionPdf } from '../utils/pdf/generateReport'
 import { downloadMaintenancePdf } from '../utils/pdf/maintenancePdf'
 import { downloadGroundingPdf } from '../utils/pdf/groundingPdf'
 import { downloadPMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
 import { downloadSafetyPdf } from '../utils/pdf/safetyPdf'
+import {
+  updateSubmissionPayload,
+  insertSubmissionEdit,
+  fetchSubmissionEdits,
+} from '../lib/supabaseQueries'
+import { supabase } from '../lib/supabaseClient'
 
-// ── Score Ring SVG ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// SCORE RING
+// ─────────────────────────────────────────────────────────────
 function ScoreRing({ good, regular, bad, total, size = 56 }) {
   if (!total) return null
   const r = (size - 6) / 2, c = 2 * Math.PI * r
-  const pGood = good / total, pReg = regular / total, pBad = bad / total
+  const pG = good / total, pR = regular / total, pB = bad / total
   const score = Math.round((good / total) * 100)
   const color = score >= 80 ? '#22C55E' : score >= 50 ? '#F59E0B' : '#EF4444'
-
   return (
-    <div className="relative animate-score-pop" style={{ width: size, height: size }}>
+    <div className="relative" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f1f5f9" strokeWidth={5} />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#22C55E" strokeWidth={5}
-          strokeDasharray={c} strokeDashoffset={c * (1 - pGood)} strokeLinecap="round" className="score-ring" />
+          strokeDasharray={c} strokeDashoffset={c * (1 - pG)} strokeLinecap="round" />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F59E0B" strokeWidth={5}
-          strokeDasharray={c} strokeDashoffset={c * (1 - pReg)} strokeLinecap="round" className="score-ring"
-          style={{ transform: `rotate(${pGood * 360}deg)`, transformOrigin: '50% 50%' }} />
+          strokeDasharray={c} strokeDashoffset={c * (1 - pR)} strokeLinecap="round"
+          style={{ transform: `rotate(${pG*360}deg)`, transformOrigin:'50% 50%' }} />
         <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#EF4444" strokeWidth={5}
-          strokeDasharray={c} strokeDashoffset={c * (1 - pBad)} strokeLinecap="round" className="score-ring"
-          style={{ transform: `rotate(${(pGood + pReg) * 360}deg)`, transformOrigin: '50% 50%' }} />
+          strokeDasharray={c} strokeDashoffset={c * (1 - pB)} strokeLinecap="round"
+          style={{ transform: `rotate(${(pG+pR)*360}deg)`, transformOrigin:'50% 50%' }} />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
         <span className="text-base font-bold" style={{ color }}>{score}%</span>
@@ -39,48 +54,71 @@ function ScoreRing({ good, regular, bad, total, size = 56 }) {
   )
 }
 
-// ── Mini status dot ────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// STATUS ATOMS
+// ─────────────────────────────────────────────────────────────
 function StatusDot({ value }) {
   const v = String(value || '').toLowerCase()
-  if (v.includes('bueno') || v.includes('ejecutada')) return <span className="w-2.5 h-2.5 rounded-full bg-good shadow-ring-good" title="Bueno" />
-  if (v.includes('regular')) return <span className="w-2.5 h-2.5 rounded-full bg-warn shadow-ring-warn" title="Regular" />
-  if (v.includes('malo')) return <span className="w-2.5 h-2.5 rounded-full bg-bad shadow-ring-bad" title="Malo" />
-  if (v.includes('n/a')) return <span className="w-2.5 h-2.5 rounded-full bg-na" title="N/A" />
-  if (v.includes('pendiente')) return <span className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-pulse" title="Pendiente" />
+  if (v.includes('bueno') || v.includes('ejecutada')) return <span className="w-2.5 h-2.5 rounded-full bg-good" title="Bueno" />
+  if (v.includes('regular'))  return <span className="w-2.5 h-2.5 rounded-full bg-warn" title="Regular" />
+  if (v.includes('malo'))     return <span className="w-2.5 h-2.5 rounded-full bg-bad"  title="Malo" />
+  if (v.includes('n/a'))      return <span className="w-2.5 h-2.5 rounded-full bg-slate-300" title="N/A" />
+  if (v.includes('pendiente'))return <span className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-pulse" title="Pendiente" />
   return <span className="w-2 h-2 rounded-full bg-slate-200" />
 }
 
 function StatusBadge({ value }) {
   const v = String(value || '').toLowerCase()
-  const label = String(value || '').replace(/^[^\s]+\s/, '')
-  if (v.includes('bueno') || v.includes('ejecutada')) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-good/10 text-good"><CheckCircle2 size={10}/>{label}</span>
-  if (v.includes('regular')) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warn/10 text-warn"><AlertTriangle size={10}/>{label}</span>
-  if (v.includes('malo')) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-bad/10 text-bad"><XCircle size={10}/>{label}</span>
-  if (v.includes('n/a')) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400"><Minus size={10}/>N/A</span>
-  if (v.includes('pendiente')) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400"><Clock size={10}/>Pendiente</span>
+  if (v.includes('bueno') || v.includes('ejecutada'))
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-good/10 text-good"><CheckCircle2 size={10}/>{value}</span>
+  if (v.includes('regular'))
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-warn/10 text-warn"><AlertTriangle size={10}/>{value}</span>
+  if (v.includes('malo'))
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-bad/10 text-bad"><XCircle size={10}/>{value}</span>
+  if (v.includes('n/a'))
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400"><Minus size={10}/>N/A</span>
+  if (v.includes('pendiente'))
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400"><Clock size={10}/>Pendiente</span>
   return <span className="text-[11px] text-slate-500">{value || '—'}</span>
 }
 
-// ── Photo gallery ──────────────────────────────────────────────
-function PhotoGallery({ photos }) {
+// ─────────────────────────────────────────────────────────────
+// PHOTO GALLERY  (with optional upload button)
+// ─────────────────────────────────────────────────────────────
+function PhotoGallery({ photos, editMode = false, onUpload }) {
   const [zoom, setZoom] = useState(null)
-  if (!photos?.length) return null
+  if (!photos?.length && !editMode) return null
   return (
     <>
       <div className="flex gap-1.5 flex-wrap mt-2">
-        {photos.map(p => (
-          <button key={p.id} onClick={() => setZoom(p)} className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all bg-slate-100">
+        {(photos || []).map(p => (
+          <button key={p.id} onClick={() => setZoom(p)}
+            className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all bg-slate-100">
             <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
           </button>
         ))}
+        {editMode && (
+          <label className="w-14 h-14 rounded-lg border-2 border-dashed border-accent/40 hover:border-accent bg-accent/5 flex flex-col items-center justify-center cursor-pointer transition-all group" title="Subir foto">
+            <Upload size={13} className="text-accent/50 group-hover:text-accent transition-colors" />
+            <span className="text-[9px] text-accent/50 group-hover:text-accent mt-0.5 transition-colors">Subir</span>
+            <input type="file" accept="image/*" capture="environment" className="hidden"
+              onChange={e => e.target.files[0] && onUpload?.(e.target.files[0])} />
+          </label>
+        )}
       </div>
+
       {zoom && (
-        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-4 animate-fade-in" onClick={() => setZoom(null)}>
+        <div className="fixed inset-0 z-[70] bg-black/85 flex items-center justify-center p-4" onClick={() => setZoom(null)}>
           <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setZoom(null)} className="absolute -top-10 right-0 text-white/60 hover:text-white"><X size={22}/></button>
+            <button onClick={() => setZoom(null)} className="absolute -top-10 right-0 text-white/60 hover:text-white transition-colors">
+              <X size={22}/>
+            </button>
             <img src={zoom.public_url} alt={zoom.label} className="w-full rounded-xl shadow-elevated" />
             {zoom.label && <div className="text-center mt-2 text-white/80 text-[13px]">{zoom.label}</div>}
-            <a href={zoom.public_url} target="_blank" rel="noopener noreferrer" className="mt-1 flex items-center justify-center gap-1 text-white/40 hover:text-white text-xs"><ExternalLink size={11}/>Original</a>
+            <a href={zoom.public_url} target="_blank" rel="noopener noreferrer"
+              className="mt-1 flex items-center justify-center gap-1 text-white/40 hover:text-white text-xs transition-colors">
+              <ExternalLink size={11}/>Original
+            </a>
           </div>
         </div>
       )}
@@ -88,282 +126,711 @@ function PhotoGallery({ photos }) {
   )
 }
 
-// ── Section Card (expandable) ─────────────────────────────────
-function SectionCard({ title, data, photos, index }) {
+// ─────────────────────────────────────────────────────────────
+// INLINE EDITABLE FIELD
+// ─────────────────────────────────────────────────────────────
+function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
+  const current = fieldKey in pendingEdits ? pendingEdits[fieldKey] : (value ?? '')
+  const changed  = fieldKey in pendingEdits && String(pendingEdits[fieldKey]) !== String(value ?? '')
+  const isLong   = String(current).length > 80
+
+  return (
+    <div className={`flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0 transition-colors
+      ${changed ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}>
+      <span className="text-[11px] text-slate-400 w-36 flex-shrink-0 pt-1.5">{label}</span>
+      <div className="flex-1 relative">
+        {isLong
+          ? <textarea rows={3}
+              className={`w-full text-[12px] border rounded px-2 py-1 outline-none resize-none transition-all
+                ${changed
+                  ? 'border-accent bg-white shadow-sm ring-1 ring-accent/20'
+                  : 'border-slate-200 bg-slate-50 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20'}`}
+              value={current}
+              onChange={e => onChange(fieldKey, e.target.value)}
+            />
+          : <input
+              className={`w-full text-[12px] border rounded px-2 py-1 outline-none transition-all
+                ${changed
+                  ? 'border-accent bg-white shadow-sm ring-1 ring-accent/20'
+                  : 'border-slate-200 bg-slate-50 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20'}`}
+              value={current}
+              onChange={e => onChange(fieldKey, e.target.value)}
+            />
+        }
+        {changed && (
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent" title="Modificado" />
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// SECTION CARD  (read + edit modes)
+// ─────────────────────────────────────────────────────────────
+function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload }) {
   const [open, setOpen] = useState(true)
-  const isCL = Array.isArray(data) && data.some(d => d?.['Estado'])
-  const isTbl = Array.isArray(data) && data.length > 0 && typeof data[0] === 'object' && !isCL
+
+  const isCL  = Array.isArray(data) && data.some(d => d?.['Estado'])
   const isFld = data && typeof data === 'object' && !Array.isArray(data)
 
-  // Stats for this section
-  let sGood = 0, sReg = 0, sBad = 0, sTotal = 0
-  if (isCL) {
-    data.forEach(it => {
-      if (!it['Estado']) return; sTotal++
-      const st = String(it['Estado']).toLowerCase()
-      if (st.includes('bueno') || st.includes('ejecutada')) sGood++
-      else if (st.includes('regular')) sReg++
-      else if (st.includes('malo')) sBad++
-    })
-  }
+  // Non-editable GPS/datetime keys
+  const READONLY_KEYS = new Set(['lat','lng','startedAt','finishedAt','date','time','created_at','updated_at','_meta'])
+
+  let sGood=0, sReg=0, sBad=0, sTotal=0
+  if (isCL) data.forEach(it => {
+    if (!it['Estado']) return; sTotal++
+    const st = String(it['Estado']).toLowerCase()
+    if (st.includes('bueno') || st.includes('ejecutada')) sGood++
+    else if (st.includes('regular')) sReg++
+    else if (st.includes('malo')) sBad++
+  })
 
   const hv = isCL && data.some(i => i['Valor'])
   const ho = isCL && data.some(i => i['Observación'])
   const photoCount = photos?.length || 0
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card animate-slide-up" style={{ animationDelay: `${index * 40}ms` }}>
-      {/* Header — always visible */}
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors text-left">
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card"
+      style={{ animationDelay: `${index * 40}ms` }}>
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors text-left">
         <div className="flex-1 min-w-0">
           <div className="text-[13px] font-semibold text-slate-800">{title}</div>
           {isCL && sTotal > 0 && (
-            <div className="flex items-center gap-2 mt-1">
-              <div className="flex gap-0.5">{data.slice(0, 20).map((it, i) => <StatusDot key={i} value={it['Estado']} />)}{data.length > 20 && <span className="text-[9px] text-slate-400 ml-1">+{data.length-20}</span>}</div>
+            <div className="flex gap-0.5 mt-1 flex-wrap">
+              {data.slice(0,20).map((it,i) => <StatusDot key={i} value={it['Estado']} />)}
+              {data.length > 20 && <span className="text-[9px] text-slate-400 ml-1">+{data.length-20}</span>}
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {isCL && sTotal > 0 && <ScoreRing good={sGood} regular={sReg} bad={sBad} total={sTotal} size={40} />}
-          {photoCount > 0 && <span className="flex items-center gap-1 text-[10px] text-accent font-medium"><Camera size={11}/>{photoCount}</span>}
-          <ChevronDown size={16} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <div className="flex items-center gap-2">
+          {photoCount > 0 && (
+            <span className="flex items-center gap-1 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+              <Camera size={9}/>{photoCount}
+            </span>
+          )}
+          {open ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
         </div>
       </button>
 
-      {/* Content — collapsible */}
       {open && (
-        <div className="border-t border-slate-100 px-4 py-3">
+        <div className="px-4 pb-4 border-t border-slate-100">
+          {/* Field map */}
+          {isFld && (
+            <div className="mt-3 space-y-0">
+              {Object.entries(data).map(([k, v]) => {
+                const isReadonly = READONLY_KEYS.has(k) || k.startsWith('foto') || k.startsWith('__')
+                if (editMode && !isReadonly) {
+                  return (
+                    <EditableField key={k} label={k} value={v} fieldKey={k}
+                      pendingEdits={pendingEdits} onChange={onFieldChange} />
+                  )
+                }
+                // Read-only row
+                const display = (v === null || v === undefined || v === '') ? '—' : String(v)
+                const isPhoto = k.startsWith('foto') && typeof v === 'string' && v.startsWith('http')
+                return (
+                  <div key={k} className="flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0">
+                    <span className="text-[11px] text-slate-400 w-36 flex-shrink-0 pt-0.5">{k}</span>
+                    {isPhoto
+                      ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-[11px] text-accent hover:underline">Ver foto</a>
+                      : <span className="text-[12px] text-slate-700 flex-1">{display}</span>
+                    }
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Checklist */}
           {isCL && (
-            <div className="space-y-1">
+            <div className="mt-3 divide-y divide-slate-50">
               {data.map((it, i) => (
-                <div key={i} className="flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0">
+                <div key={i} className="py-2 flex items-start gap-2">
                   <StatusDot value={it['Estado']} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] text-slate-700">{it['Ítem'] || it['Pregunta'] || it['Actividad'] || '—'}</div>
-                    {it['Observación'] && <div className="text-[11px] text-slate-500 mt-1 bg-amber-50 border border-amber-200 rounded px-2 py-1 whitespace-pre-wrap">{it['Observación']}</div>}
-                    {it['Valor'] && <div className="text-[11px] text-accent font-mono mt-0.5 bg-accent/5 rounded px-2 py-0.5 inline-block">{it['Valor']}</div>}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[11px] font-medium text-slate-700">
+                        {it['Item'] || it['Ítem'] || it['nombre'] || `Ítem ${i+1}`}
+                      </span>
+                      <StatusBadge value={it['Estado']} />
+                      {hv && it['Valor'] && (
+                        <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{it['Valor']}</span>
+                      )}
+                    </div>
+                    {ho && it['Observación'] && (
+                      <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{it['Observación']}</p>
+                    )}
                   </div>
-                  <StatusBadge value={it['Estado']} />
                 </div>
               ))}
             </div>
           )}
 
-          {isTbl && (
-            <div className="overflow-x-auto rounded-lg border border-slate-200">
-              <table className="w-full text-[12px]">
-                <thead><tr className="bg-slate-50 border-b border-slate-200">{Object.keys(data[0]).map(k => <th key={k} className="text-left px-3 py-1.5 text-[10px] font-semibold text-slate-500 uppercase">{k}</th>)}</tr></thead>
-                <tbody>{data.map((r, i) => <tr key={i} className="border-b border-slate-50 last:border-0">{Object.values(r).map((v, j) => <td key={j} className="px-3 py-1.5 text-slate-600">{v != null ? String(v) : '—'}</td>)}</tr>)}</tbody>
-              </table>
-            </div>
+          {/* Photos */}
+          {(photoCount > 0 || editMode) && (
+            <PhotoGallery photos={photos} editMode={editMode} onUpload={onPhotoUpload} />
           )}
-
-          {isFld && (
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {Object.entries(data).filter(([,v]) => v != null && v !== '' && v !== '—').map(([l,v]) => (
-                <div key={l} className="bg-slate-50 rounded-lg px-3 py-2">
-                  <dt className="text-[10px] text-slate-400 font-medium">{l}</dt>
-                  <dd className="text-[13px] text-slate-800 font-medium mt-0.5 break-words">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</dd>
-                </div>
-              ))}
-            </dl>
-          )}
-
-          <PhotoGallery photos={photos} />
         </div>
       )}
     </div>
   )
 }
 
+// ─────────────────────────────────────────────────────────────
+// SAVE CONFIRM MODAL  (shows diff + requires note)
+// ─────────────────────────────────────────────────────────────
+function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
+  const [note, setNote] = useState('')
+  const entries = Object.entries(changes)
 
-// ══════════════════════════════════════════════════════════════
-// MAIN COMPONENT
-// ══════════════════════════════════════════════════════════════
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+      onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-elevated w-full max-w-md" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+            <ShieldCheck size={15} className="text-accent" />
+          </div>
+          <div>
+            <h2 className="text-[15px] font-bold text-slate-900">Confirmar cambios</h2>
+            <p className="text-[12px] text-slate-500 mt-0.5">Quedarán registrados en el historial de auditoría.</p>
+          </div>
+        </div>
+
+        {/* Diff list */}
+        <div className="px-5 py-3 max-h-48 overflow-y-auto space-y-2">
+          {entries.map(([key, { from, to, label }]) => (
+            <div key={key} className="text-[12px] bg-slate-50 rounded-lg px-3 py-2">
+              <div className="font-medium text-slate-600 mb-1">{label || key}</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-bad/90 line-through">{String(from ?? '—')}</span>
+                <ChevronRight size={10} className="text-slate-400 flex-shrink-0"/>
+                <span className="text-good font-medium">{String(to ?? '—')}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Note input */}
+        <div className="px-5 pb-5 border-t border-slate-100 pt-4 space-y-3">
+          <div>
+            <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">
+              Razón del cambio <span className="text-bad">*</span>
+            </label>
+            <textarea
+              autoFocus
+              rows={3}
+              className="w-full text-[13px] border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 resize-none transition-all"
+              placeholder="Ej: Corrección de tipo de torre según revisión de campo…"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onCancel}
+              className="flex-1 h-9 text-[13px] font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+              Cancelar
+            </button>
+            <button onClick={() => onConfirm(note)}
+              disabled={!note.trim() || saving}
+              className="flex-1 h-9 text-[13px] font-semibold text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+              {saving
+                ? <><Clock size={13} className="animate-spin"/>Guardando…</>
+                : <><Save size={13}/>Guardar</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// EDIT HISTORY PANEL
+// ─────────────────────────────────────────────────────────────
+function EditHistory({ submissionId }) {
+  const [open,    setOpen]    = useState(false)
+  const [edits,   setEdits]   = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open || !submissionId) return
+    setLoading(true)
+    fetchSubmissionEdits(submissionId)
+      .then(setEdits).catch(console.error).finally(() => setLoading(false))
+  }, [open, submissionId])
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
+      <button onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors text-left">
+        <History size={14} className="text-slate-400" />
+        <span className="text-[13px] font-semibold text-slate-700 flex-1">Historial de ediciones</span>
+        {open ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 px-4 pb-4">
+          {loading && <div className="py-6 flex justify-center"><Spinner size={14} /></div>}
+
+          {!loading && edits.length === 0 && (
+            <p className="text-[12px] text-slate-400 py-5 text-center">Sin ediciones registradas</p>
+          )}
+
+          {!loading && edits.map(edit => (
+            <div key={edit.id} className="py-3 border-b border-slate-50 last:border-0">
+              {/* Who + when */}
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-[11px] font-semibold text-slate-800">{edit.edited_by}</span>
+                <span className="text-[10px] text-slate-400">
+                  {new Date(edit.edited_at).toLocaleString('es', { dateStyle:'medium', timeStyle:'short' })}
+                </span>
+              </div>
+              {/* Diff */}
+              <div className="space-y-1 mb-2">
+                {Object.entries(edit.changes || {}).map(([key, ch]) => (
+                  <div key={key} className="text-[11px] flex items-center gap-1.5 flex-wrap">
+                    <span className="text-slate-500 font-medium">{ch.label || key}:</span>
+                    <span className="text-bad/80 line-through">{String(ch.from ?? '—')}</span>
+                    <ChevronRight size={9} className="text-slate-300"/>
+                    <span className="text-good font-medium">{String(ch.to ?? '—')}</span>
+                  </div>
+                ))}
+              </div>
+              {/* Note */}
+              {edit.note && (
+                <p className="text-[11px] text-slate-400 italic bg-slate-50 rounded px-2 py-1 mt-1">
+                  "{edit.note}"
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
+// MAIN
+// ─────────────────────────────────────────────────────────────
 export default function SubmissionDetail() {
-  const { submissionId } = useParams()
-  const navigate = useNavigate()
-  const loadDetail = useSubmissionsStore((s) => s.loadDetail)
-  const clearDetail = useSubmissionsStore((s) => s.clearDetail)
-  const submission = useSubmissionsStore((s) => s.activeSubmission)
-  const assets = useSubmissionsStore((s) => s.activeAssets)
-  const isLoading = useSubmissionsStore((s) => s.isLoadingDetail)
-  const [pdfLoading, setPdfLoading] = useState(false)
+  const { submissionId }                        = useParams()
+  const navigate                                = useNavigate()
+  const { submission, assets, loadDetail, clearDetail } = useSubmissionsStore()
+  const isLoading                               = useSubmissionsStore(s => s.isLoadingDetail)
+  const user                                    = useAuthStore(s => s.user)
+
+  const [pdfLoading,    setPdfLoading]    = useState(false)
   const [photosLoading, setPhotosLoading] = useState(false)
 
-  useEffect(() => { if (submissionId) loadDetail(submissionId); return () => clearDetail() }, [submissionId])
+  // Edit state
+  const [editMode,      setEditMode]      = useState(false)
+  const [pendingEdits,  setPendingEdits]  = useState({})   // { key: newVal }
+  const [showModal,     setShowModal]     = useState(false)
+  const [saving,        setSaving]        = useState(false)
+  const [saveError,     setSaveError]     = useState(null)
+  const [saveSuccess,   setSaveSuccess]   = useState(false)
 
+  useEffect(() => {
+    if (submissionId) loadDetail(submissionId)
+    return () => clearDetail()
+  }, [submissionId])
+
+  // ── PDF ─────────────────────────────────────────────────────
   const handlePdf = async () => {
-    if (!submission) return; setPdfLoading(true)
+    if (!submission) return
+    setPdfLoading(true)
     try {
       const fc = normalizeFormCode(submission.form_code)
-      if (fc === 'preventive-maintenance') await downloadMaintenancePdf(submission, assets)
-      else if (fc === 'grounding-system-test') await downloadGroundingPdf(submission, assets)
-      else if (fc === 'executed-maintenance') await downloadPMExecutedPdf(submission, assets)
-      else if (fc === 'safety-system') await downloadSafetyPdf(submission, assets)
-      else await downloadSubmissionPdf(submission, assets)
+      if      (fc === 'preventive-maintenance') await downloadMaintenancePdf(submission, assets)
+      else if (fc === 'grounding-system-test')  await downloadGroundingPdf(submission, assets)
+      else if (fc === 'executed-maintenance')   await downloadPMExecutedPdf(submission, assets)
+      else if (fc === 'safety-system')          await downloadSafetyPdf(submission, assets)
+      else                                       await downloadSubmissionPdf(submission, assets)
     } catch (e) { console.error('PDF error:', e) }
     setPdfLoading(false)
   }
 
-  const photosBySection = useMemo(() => (!assets?.length || !submission) ? {} : groupAssetsBySection(assets, submission.form_code), [assets, submission])
-
-  if (isLoading) return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>
-  if (!submission) return <div className="text-center py-20 text-[13px] text-slate-400">No encontrado. <button onClick={() => navigate('/submissions')} className="text-accent hover:underline">Volver</button></div>
-
-  const meta = getFormMeta(submission.form_code)
-  const site = extractSiteInfo(submission)
-  const inspMeta = extractMeta(submission)
-  const cleanPayload = getCleanPayload(submission)
-  const totalPhotos = assets.filter(a => a.public_url).length
-  const fin = submission.finalized || isFinalized(submission)
-  const who = extractSubmittedBy(submission)
-  const visitId = submission.site_visit_id
-  const hasOrder = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
-
-  // Global stats
-  let totalItems = 0, bueno = 0, regular = 0, malo = 0, pendiente = 0
-  for (const sec of Object.values(cleanPayload)) {
-    if (!Array.isArray(sec)) continue
-    for (const it of sec) { if (!it['Estado']) continue; totalItems++; const st = String(it['Estado']).toLowerCase(); if (st.includes('bueno') || st.includes('ejecutada')) bueno++; else if (st.includes('regular')) regular++; else if (st.includes('malo')) malo++; else if (st.includes('pendiente')) pendiente++ }
-  }
-
-  // Photo matching
-  const findPhotos = (title) => {
-    if (photosBySection[title]) return photosBySection[title]
-    const c = title.replace(/^[^\w]*/, '').trim().toLowerCase()
-    for (const [k, p] of Object.entries(photosBySection)) { const kc = k.replace(/^[^\w]*/, '').trim().toLowerCase(); if (kc.includes(c) || c.includes(kc)) return p }
-    return null
-  }
-  const matched = new Set()
-  const entries = Object.entries(cleanPayload)
-  for (const [t] of entries) { const p = findPhotos(t); if (p) for (const [k, v] of Object.entries(photosBySection)) { if (v === p) matched.add(k) } }
-  const unmatched = Object.entries(photosBySection).filter(([k]) => !matched.has(k)).flatMap(([, p]) => p)
-
-  const globalScore = totalItems > 0 && (bueno + regular + malo) > 0 ? Math.round((bueno / totalItems) * 100) : null
-  const Icon = meta.icon
-
-  // Download all photos as ZIP
+  // ── Download all photos as ZIP ──────────────────────────────
   const handleDownloadPhotos = async () => {
     const photos = assets.filter(a => a.public_url)
     if (!photos.length) return
     setPhotosLoading(true)
     try {
       const JSZip = (await import('jszip')).default
-      const zip = new JSZip()
-      const siteId = site.idSitio || 'sitio'
-      const formLabel = meta.shortLabel || submission.form_code || 'form'
-
+      const zip   = new JSZip()
       for (let i = 0; i < photos.length; i++) {
         const p = photos[i]
         try {
           const resp = await fetch(p.public_url)
           if (!resp.ok) continue
           const blob = await resp.blob()
-          const ext = (p.mime || p.public_url || '').includes('png') ? 'png' : 'jpg'
-          const name = `${String(p.asset_type || 'foto_' + i).replace(/[^a-zA-Z0-9_\-]/g, '_')}.${ext}`
-          zip.file(name, blob)
+          const ext  = (p.mime || p.public_url || '').includes('png') ? 'png' : 'jpg'
+          zip.file(`${String(p.asset_type || 'foto_'+i).replace(/[^a-zA-Z0-9_\-]/g,'_')}.${ext}`, blob)
         } catch {}
       }
-
       const content = await zip.generateAsync({ type: 'blob' })
       const url = URL.createObjectURL(content)
-      const a = document.createElement('a')
+      const a   = document.createElement('a')
       a.href = url
-      a.download = `fotos_${siteId}_${formLabel}.zip`
+      a.download = `fotos_${site.idSitio||'sitio'}_${meta.shortLabel||'form'}.zip`
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (e) { console.error('ZIP error:', e) }
     setPhotosLoading(false)
   }
 
+  // ── Edit field handler ──────────────────────────────────────
+  const handleFieldChange = useCallback((key, value) => {
+    setPendingEdits(prev => ({ ...prev, [key]: value }))
+  }, [])
+
+  const handleEditCancel = () => {
+    setEditMode(false); setPendingEdits({}); setSaveError(null)
+  }
+
+  const handleEditSave = () => {
+    if (Object.keys(pendingEdits).length === 0) { setEditMode(false); return }
+    setShowModal(true)
+  }
+
+  // ── Photo upload from dashboard ─────────────────────────────
+  const handlePhotoUpload = useCallback(async (file, sectionHint) => {
+    if (!file || !submission) return
+    try {
+      const ext  = file.name.split('.').pop() || 'jpg'
+      const path = `${submission.org_code || 'pti'}/${submissionId}/${sectionHint || 'dashboard'}_${Date.now()}.${ext}`
+      const { error } = await supabase.storage
+        .from('inspection-assets')
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (error) throw error
+      // Reload so new asset appears
+      await loadDetail(submissionId)
+      await insertSubmissionEdit(submissionId, user.username,
+        { __photo__: { from: '—', to: path, label: 'Foto subida' } },
+        `Foto subida desde panel de administración: ${file.name}`)
+    } catch (e) { console.error('Photo upload error:', e) }
+  }, [submission, submissionId, user])
+
+  // ── Finalized toggle ────────────────────────────────────────
+  const handleFinalizedToggle = async () => {
+    if (!user?.canWrite) return
+    const newVal = !fin
+    setSaving(true)
+    try {
+      await updateSubmissionPayload(submissionId, submission.payload, { __finalized__: newVal })
+      await insertSubmissionEdit(submissionId, user.username, {
+        estado: {
+          from:  fin ? 'Completado' : 'Borrador',
+          to:    newVal ? 'Completado' : 'Borrador',
+          label: 'Estado',
+        },
+      }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a Borrador desde el panel')
+      await loadDetail(submissionId)
+    } catch (e) { console.error(e) }
+    setSaving(false)
+  }
+
+  // ── Confirm save with audit ─────────────────────────────────
+  const handleConfirmSave = async (note) => {
+    setSaving(true); setSaveError(null)
+    try {
+      // Build original flat map for diff
+      const outer  = submission?.payload || {}
+      const inner  = outer.payload || outer
+      const data   = inner.data || {}
+      const rawFlat = {
+        ...data.formData, ...data.datos, ...data.herrajes,
+        ...data.prensacables, ...data.tramos, ...data.platinas,
+        ...data.certificacion, ...data.siteInfo,
+      }
+
+      // Build changes object (only truly changed fields)
+      const changes = {}
+      for (const [key, newVal] of Object.entries(pendingEdits)) {
+        const oldVal = rawFlat[key] ?? ''
+        if (String(newVal) !== String(oldVal)) {
+          changes[key] = { from: oldVal, to: newVal, label: key }
+        }
+      }
+
+      if (Object.keys(changes).length === 0) {
+        setShowModal(false); setEditMode(false); setPendingEdits({}); setSaving(false); return
+      }
+
+      await updateSubmissionPayload(submissionId, submission.payload, pendingEdits)
+      await insertSubmissionEdit(submissionId, user.username, changes, note)
+      await loadDetail(submissionId)
+
+      setShowModal(false); setEditMode(false); setPendingEdits({})
+      setSaveSuccess(true)
+      setTimeout(() => setSaveSuccess(false), 3500)
+    } catch (err) {
+      console.error('Save error:', err)
+      setSaveError(err.message || 'Error al guardar')
+    }
+    setSaving(false)
+  }
+
+  // ── Derived ─────────────────────────────────────────────────
+  const photosBySection = useMemo(() =>
+    (!assets?.length || !submission) ? {} : groupAssetsBySection(assets, submission.form_code),
+    [assets, submission])
+
+  if (isLoading) return <div className="flex items-center justify-center py-20"><Spinner size={16}/></div>
+  if (!submission) return (
+    <div className="text-center py-20 text-[13px] text-slate-400">
+      No encontrado.{' '}
+      <button onClick={() => navigate('/submissions')} className="text-accent hover:underline">Volver</button>
+    </div>
+  )
+
+  const meta        = getFormMeta(submission.form_code)
+  const site        = extractSiteInfo(submission)
+  const inspMeta    = extractMeta(submission)
+  const cleanPayload= getCleanPayload(submission)
+  const totalPhotos = assets.filter(a => a.public_url).length
+  const fin         = submission.finalized || isFinalized(submission)
+  const who         = extractSubmittedBy(submission)
+  const visitId     = submission.site_visit_id
+  const hasOrder    = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
+  const canWrite    = user?.canWrite === true
+  const pendingCount= Object.keys(pendingEdits).length
+
+  // Global checklist stats
+  let totalItems=0, bueno=0, regular=0, malo=0, pendiente=0
+  for (const sec of Object.values(cleanPayload)) {
+    if (!Array.isArray(sec)) continue
+    for (const it of sec) {
+      if (!it['Estado']) continue; totalItems++
+      const st = String(it['Estado']).toLowerCase()
+      if (st.includes('bueno') || st.includes('ejecutada')) bueno++
+      else if (st.includes('regular')) regular++
+      else if (st.includes('malo'))    malo++
+      else if (st.includes('pendiente')) pendiente++
+    }
+  }
+
+  // Photo matching
+  const findPhotos = (title) => {
+    if (photosBySection[title]) return photosBySection[title]
+    const c = title.replace(/^[^\w]*/, '').trim().toLowerCase()
+    for (const [k, p] of Object.entries(photosBySection)) {
+      const kc = k.replace(/^[^\w]*/, '').trim().toLowerCase()
+      if (kc.includes(c) || c.includes(kc)) return p
+    }
+    return null
+  }
+  const matched = new Set()
+  const entries = Object.entries(cleanPayload)
+  for (const [t] of entries) {
+    const p = findPhotos(t)
+    if (p) for (const [k, v] of Object.entries(photosBySection)) { if (v === p) matched.add(k) }
+  }
+  const unmatched     = Object.entries(photosBySection).filter(([k]) => !matched.has(k)).flatMap(([,p]) => p)
+  const globalScore   = totalItems > 0 && (bueno+regular+malo) > 0 ? Math.round((bueno/totalItems)*100) : null
+  const Icon          = meta.icon
+
+  // Build diff for modal preview
+  const buildModalChanges = () => {
+    const outer  = submission?.payload || {}
+    const inner  = outer.payload || outer
+    const data   = inner.data || {}
+    const rawFlat= {
+      ...data.formData, ...data.datos, ...data.herrajes,
+      ...data.prensacables, ...data.tramos, ...data.platinas,
+      ...data.certificacion, ...data.siteInfo,
+    }
+    const ch = {}
+    for (const [k, v] of Object.entries(pendingEdits)) {
+      ch[k] = { from: rawFlat[k] ?? '', to: v, label: k }
+    }
+    return ch
+  }
+
   return (
-    <div className="space-y-4">
-      {/* Back + Actions */}
-      <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="text-[13px] text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"><ArrowLeft size={15}/> Volver</button>
-        <div className="flex items-center gap-2">
-          {totalPhotos > 0 && (
-            <button onClick={handleDownloadPhotos} disabled={photosLoading} className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1.5 transition-all">
-              {photosLoading ? <><Clock size={13} className="animate-spin"/> Descargando...</> : <><Download size={13}/> Descargar Fotos ({totalPhotos})</>}
-            </button>
-          )}
-          <button onClick={handlePdf} disabled={pdfLoading} className="h-8 px-3.5 text-[12px] font-semibold bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-card">
-            <Download size={13}/>{pdfLoading ? 'Generando...' : 'Descargar PDF'}
+    <>
+      {/* Save modal */}
+      {showModal && (
+        <SaveEditModal
+          changes={buildModalChanges()}
+          onConfirm={handleConfirmSave}
+          onCancel={() => setShowModal(false)}
+          saving={saving}
+        />
+      )}
+
+      <div className="space-y-4">
+        {/* ── Top bar ── */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <button onClick={() => navigate(-1)}
+            className="text-[13px] text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors">
+            <ArrowLeft size={15}/> Volver
           </button>
-        </div>
-      </div>
 
-      {/* ── HERO CARD ─────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
-        <div className="px-5 py-4 flex items-start gap-4">
-          {/* Score ring */}
-          <div className="flex-shrink-0">
-            {globalScore !== null ? (
-              <ScoreRing good={bueno} regular={regular} bad={malo} total={totalItems} size={64} />
-            ) : (
-              <div className={`w-14 h-14 rounded-xl ${meta.color} text-white flex items-center justify-center`}><Icon size={22}/></div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Feedback */}
+            {saveSuccess && (
+              <span className="text-[12px] text-good font-medium flex items-center gap-1">
+                <CheckCircle2 size={13}/>Cambios guardados
+              </span>
+            )}
+            {saveError && <span className="text-[12px] text-bad">{saveError}</span>}
+
+            {/* Edit controls */}
+            {canWrite && !editMode && (
+              <button onClick={() => setEditMode(true)}
+                className="h-8 px-3 text-[12px] font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 flex items-center gap-1.5 transition-all">
+                <Pencil size={12}/> Editar
+              </button>
+            )}
+            {editMode && <>
+              <span className="text-[11px] text-slate-400">
+                {pendingCount} campo{pendingCount !== 1 ? 's' : ''} modificado{pendingCount !== 1 ? 's' : ''}
+              </span>
+              <button onClick={handleEditCancel}
+                className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 flex items-center gap-1.5 transition-all">
+                <RotateCcw size={12}/> Cancelar
+              </button>
+              <button onClick={handleEditSave} disabled={pendingCount === 0}
+                className="h-8 px-3 text-[12px] font-semibold text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 flex items-center gap-1.5 transition-all">
+                <Save size={12}/> Guardar cambios
+              </button>
+            </>}
+
+            {/* Standard actions */}
+            {!editMode && totalPhotos > 0 && (
+              <button onClick={handleDownloadPhotos} disabled={photosLoading}
+                className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1.5 transition-all">
+                {photosLoading
+                  ? <><Clock size={13} className="animate-spin"/>Descargando…</>
+                  : <><Download size={13}/>Fotos ({totalPhotos})</>}
+              </button>
+            )}
+            {!editMode && (
+              <button onClick={handlePdf} disabled={pdfLoading}
+                className="h-8 px-3.5 text-[12px] font-semibold bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-card">
+                <Download size={13}/>{pdfLoading ? 'Generando…' : 'PDF'}
+              </button>
             )}
           </div>
-          {/* Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-lg font-bold text-slate-900">{site.nombreSitio || 'Sin nombre'}</h1>
-              {fin ? <span className="text-[10px] font-semibold text-good bg-good/10 px-2 py-0.5 rounded-full">Completado</span>
-                   : <span className="text-[10px] font-semibold text-warn bg-warn/10 px-2 py-0.5 rounded-full">Borrador</span>}
-            </div>
-            <div className="text-[13px] text-slate-500 mt-0.5">{meta.label}</div>
-            {/* Quick stats */}
-            {totalItems > 0 && (
-              <div className="flex items-center gap-3 mt-2 flex-wrap">
-                <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-good"/> <b className="text-good">{bueno}</b> <span className="text-slate-400">bueno</span></span>
-                <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-warn"/> <b className="text-warn">{regular}</b> <span className="text-slate-400">regular</span></span>
-                <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-bad"/> <b className="text-bad">{malo}</b> <span className="text-slate-400">malo</span></span>
-                {pendiente > 0 && <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-slate-300"/> <b>{pendiente}</b> <span className="text-slate-400">pendiente</span></span>}
-                <span className="text-[10px] text-slate-300 ml-auto">{totalItems} ítems</span>
-              </div>
-            )}
-            {/* Progress bar */}
-            {totalItems > 0 && (
-              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2 flex">
-                {bueno > 0 && <div className="h-full bg-good transition-all" style={{ width: `${(bueno/totalItems)*100}%` }} />}
-                {regular > 0 && <div className="h-full bg-warn transition-all" style={{ width: `${(regular/totalItems)*100}%` }} />}
-                {malo > 0 && <div className="h-full bg-bad transition-all" style={{ width: `${(malo/totalItems)*100}%` }} />}
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Meta chips */}
-        <div className="px-5 pb-4 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-slate-500">
-          <span className="flex items-center gap-1"><MapPin size={12} className="text-slate-400"/>{site.idSitio || '—'}</span>
-          <span className="flex items-center gap-1"><User2 size={12} className="text-slate-400"/>{who?.name || '—'}</span>
-          <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400"/>{inspMeta.date || (submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—')}</span>
-          <span className="flex items-center gap-1"><Camera size={12} className="text-slate-400"/>{totalPhotos} foto{totalPhotos !== 1 ? 's' : ''}</span>
-          {submission.app_version && <span className="text-slate-400">v{submission.app_version}</span>}
-        </div>
-
-        {hasOrder && (
-          <div className="px-5 pb-3">
-            <Link to={`/orders/${visitId}`} className="inline-flex items-center gap-1.5 text-[12px] text-accent font-medium hover:underline"><Eye size={12}/>Ver visita completa<ChevronRight size={10}/></Link>
+        {/* Edit mode banner */}
+        {editMode && (
+          <div className="bg-accent/5 border border-accent/20 rounded-xl px-4 py-3 flex items-start gap-3">
+            <Pencil size={14} className="text-accent flex-shrink-0 mt-0.5" />
+            <p className="text-[12px] text-accent leading-relaxed">
+              <strong>Modo edición activo.</strong> Modifica los campos que necesites y pulsa{' '}
+              <strong>Guardar cambios</strong>. Los campos de GPS, fechas y coordenadas no son editables.
+              Las fotos se pueden subir usando el botón <strong>Subir</strong> en cada sección.
+            </p>
           </div>
         )}
-      </div>
 
-      {/* ── SECTION CARDS ──────────────────────────────────────── */}
-      {entries.map(([t, d], i) => <SectionCard key={t} title={t} data={d} photos={findPhotos(t)} index={i} />)}
+        {/* ── HERO CARD ── */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
+          <div className="px-5 py-4 flex items-start gap-4">
+            <div className="flex-shrink-0">
+              {globalScore !== null
+                ? <ScoreRing good={bueno} regular={regular} bad={malo} total={totalItems} size={64}/>
+                : <div className={`w-14 h-14 rounded-xl ${meta.color} text-white flex items-center justify-center`}><Icon size={22}/></div>}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg font-bold text-slate-900">{site.nombreSitio || 'Sin nombre'}</h1>
+                {/* Status — clickable if canWrite */}
+                {canWrite && !editMode
+                  ? (
+                    <button onClick={handleFinalizedToggle} disabled={saving}
+                      title="Click para cambiar estado"
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all hover:scale-105 active:scale-95
+                        ${fin
+                          ? 'text-good bg-good/10 border-good/20 hover:bg-good/20'
+                          : 'text-warn bg-warn/10 border-warn/20 hover:bg-warn/20'}`}>
+                      {saving ? '…' : fin ? '✓ Completado' : '○ Borrador'}
+                    </button>
+                  ) : (
+                    fin
+                      ? <span className="text-[10px] font-semibold text-good bg-good/10 px-2 py-0.5 rounded-full">Completado</span>
+                      : <span className="text-[10px] font-semibold text-warn bg-warn/10 px-2 py-0.5 rounded-full">Borrador</span>
+                  )}
+              </div>
+              <div className="text-[13px] text-slate-500 mt-0.5">{meta.label}</div>
+              {totalItems > 0 && (
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-good"/><b className="text-good">{bueno}</b><span className="text-slate-400">bueno</span></span>
+                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-warn"/><b className="text-warn">{regular}</b><span className="text-slate-400">regular</span></span>
+                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-bad"/><b className="text-bad">{malo}</b><span className="text-slate-400">malo</span></span>
+                  {pendiente > 0 && <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-slate-300"/><b>{pendiente}</b><span className="text-slate-400">pendiente</span></span>}
+                  <span className="text-[10px] text-slate-300 ml-auto">{totalItems} ítems</span>
+                </div>
+              )}
+              {totalItems > 0 && (
+                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2 flex">
+                  {bueno   > 0 && <div className="h-full bg-good transition-all" style={{ width:`${(bueno/totalItems)*100}%` }}/>}
+                  {regular > 0 && <div className="h-full bg-warn transition-all" style={{ width:`${(regular/totalItems)*100}%` }}/>}
+                  {malo    > 0 && <div className="h-full bg-bad  transition-all" style={{ width:`${(malo/totalItems)*100}%` }}/>}
+                </div>
+              )}
+            </div>
+          </div>
 
-      {entries.length === 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 py-14 text-center text-[13px] text-slate-400 shadow-card">Sin datos de formulario</div>
-      )}
+          {/* Meta chips */}
+          <div className="px-5 pb-4 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-slate-500">
+            <span className="flex items-center gap-1"><MapPin   size={12} className="text-slate-400"/>{site.idSitio || '—'}</span>
+            <span className="flex items-center gap-1"><User2    size={12} className="text-slate-400"/>{who?.name || '—'}</span>
+            <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400"/>{inspMeta.date || (submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—')}</span>
+            <span className="flex items-center gap-1"><Camera   size={12} className="text-slate-400"/>{totalPhotos} foto{totalPhotos !== 1 ? 's' : ''}</span>
+            {submission.app_version && <span className="text-slate-400">v{submission.app_version}</span>}
+          </div>
 
-      {/* Unmatched photos */}
-      {unmatched.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-card p-4">
-          <div className="flex items-center gap-2 mb-2"><Camera size={14} className="text-accent"/><span className="text-[13px] font-semibold text-slate-800">Otras fotos</span><span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{unmatched.length}</span></div>
-          <PhotoGallery photos={unmatched} />
+          {hasOrder && (
+            <div className="px-5 pb-3">
+              <Link to={`/orders/${visitId}`} className="inline-flex items-center gap-1.5 text-[12px] text-accent font-medium hover:underline">
+                <Eye size={12}/>Ver visita completa<ChevronRight size={10}/>
+              </Link>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+
+        {/* ── SECTION CARDS ── */}
+        {entries.map(([t, d], i) => (
+          <SectionCard
+            key={t} title={t} data={d} photos={findPhotos(t)} index={i}
+            editMode={editMode}
+            pendingEdits={pendingEdits}
+            onFieldChange={handleFieldChange}
+            onPhotoUpload={(file) => handlePhotoUpload(file, t)}
+          />
+        ))}
+
+        {entries.length === 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 py-14 text-center text-[13px] text-slate-400 shadow-card">
+            Sin datos de formulario
+          </div>
+        )}
+
+        {/* Unmatched photos */}
+        {unmatched.length > 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 shadow-card p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Camera size={14} className="text-accent"/>
+              <span className="text-[13px] font-semibold text-slate-800">Otras fotos</span>
+              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{unmatched.length}</span>
+            </div>
+            <PhotoGallery photos={unmatched} editMode={editMode}
+              onUpload={(file) => handlePhotoUpload(file, 'otras')} />
+          </div>
+        )}
+
+        {/* ── AUDIT HISTORY ── */}
+        <EditHistory submissionId={submissionId} />
+      </div>
+    </>
   )
 }

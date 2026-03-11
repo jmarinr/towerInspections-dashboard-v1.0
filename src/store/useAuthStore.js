@@ -27,6 +27,7 @@ export const useAuthStore = create(
           name: userEntry.name,
           role: userEntry.role,
           roleLabel: roleConfig?.label || userEntry.role,
+          canWrite: userEntry.canWrite === true,
         }
 
         set({ isAuthed: true, user })

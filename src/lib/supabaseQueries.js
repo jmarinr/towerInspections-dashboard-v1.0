@@ -305,3 +305,99 @@ function normalizeSubmission(raw) {
     payload: p,
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// SUBMISSION EDITING & AUDIT
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Update a submission's payload in Supabase.
+ * Merges edits into the correct nesting level of the payload.
+ * @param {string} submissionId
+ * @param {object} currentPayload  - full payload object from submission
+ * @param {object} fieldUpdates    - flat { fieldKey: newValue } object
+ */
+export async function updateSubmissionPayload(submissionId, currentPayload, fieldUpdates) {
+  // Navigate to the correct nesting: payload.payload.data.formData (or datos, etc.)
+  const outer = currentPayload || {}
+  const inner = outer.payload || outer
+  const data = inner.data || {}
+
+  // Apply updates to all possible data sub-objects (formData, datos, checklistData)
+  // We merge into formData as canonical, but also update any sub-object that already has the key
+  const subObjects = ['formData', 'datos', 'herrajes', 'prensacables', 'tramos', 'platinas', 'certificacion', 'siteInfo']
+  const updatedData = { ...data }
+
+  for (const [key, value] of Object.entries(fieldUpdates)) {
+    // Handle finalized/status specially — it lives at inner level
+    if (key === '__finalized__') continue
+
+    // Find which sub-object owns this key, update there + formData
+    let placed = false
+    for (const sub of subObjects) {
+      if (updatedData[sub] && key in updatedData[sub]) {
+        updatedData[sub] = { ...updatedData[sub], [key]: value }
+        placed = true
+      }
+    }
+    // Also always update formData as canonical store
+    updatedData.formData = { ...(updatedData.formData || {}), [key]: value }
+  }
+
+  // Handle finalized flag
+  const newFinalized = fieldUpdates.__finalized__
+  const updatedInner = {
+    ...inner,
+    data: updatedData,
+    ...(newFinalized !== undefined ? { finalized: newFinalized, submitted_at: newFinalized ? new Date().toISOString() : inner.submitted_at } : {}),
+    _edited_at: new Date().toISOString(),
+  }
+
+  const updatedPayload = outer.payload
+    ? { ...outer, payload: updatedInner }
+    : updatedInner
+
+  const { error } = await supabase
+    .from('submissions')
+    .update({
+      payload: updatedPayload,
+      updated_at: new Date().toISOString(),
+      ...(newFinalized !== undefined ? { finalized: newFinalized } : {}),
+    })
+    .eq('id', submissionId)
+
+  if (error) throw error
+  return updatedPayload
+}
+
+/**
+ * Insert an audit record into submission_edits.
+ * @param {string} submissionId
+ * @param {string} editedBy      - admin username
+ * @param {object} changes       - { fieldKey: { from, to, label } }
+ * @param {string} note          - required justification text
+ */
+export async function insertSubmissionEdit(submissionId, editedBy, changes, note) {
+  const { error } = await supabase
+    .from('submission_edits')
+    .insert({
+      submission_id: submissionId,
+      edited_by: editedBy,
+      changes,
+      note,
+    })
+  if (error) throw error
+}
+
+/**
+ * Fetch edit history for a submission.
+ */
+export async function fetchSubmissionEdits(submissionId) {
+  const { data, error } = await supabase
+    .from('submission_edits')
+    .select('*')
+    .eq('submission_id', submissionId)
+    .order('edited_at', { ascending: false })
+  if (error) throw error
+  return data || []
+}
