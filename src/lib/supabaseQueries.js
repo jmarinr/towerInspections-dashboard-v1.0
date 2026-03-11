@@ -286,12 +286,12 @@ function normalizeSubmission(raw) {
   const inner = p.payload || p
 
   // Check finalized at every possible nesting level.
-  // Also treat submitted_at as finalized (inspector app may not set finalized:true explicitly)
+  // Trust only explicit finalized flags — submitted_at is NOT a reliable signal
+  // because the inspector app writes submitted_at on all submissions including drafts.
   const finalized =
     raw.finalized === true ||
     p.finalized === true ||
-    (p.payload != null && p.payload.finalized === true) ||
-    !!(inner.submitted_at)
+    (p.payload != null && p.payload.finalized === true)
 
   return {
     ...raw,

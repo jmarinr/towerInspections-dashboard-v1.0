@@ -65,8 +65,8 @@ export function isFinalized(submission) {
   if (submission?.finalized === true) return true
   // Dig into payload nesting
   const { inner } = resolveInner(submission)
-  // A submission is finalized if: finalized===true OR submitted_at is present
-  return inner.finalized === true || !!inner.submitted_at
+  // Only trust explicit finalized flag — submitted_at is NOT reliable
+  return inner.finalized === true
 }
 
 // ═══════════════════════════════════════════
