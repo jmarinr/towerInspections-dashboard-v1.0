@@ -420,7 +420,10 @@ function EditHistory({ submissionId }) {
 export default function SubmissionDetail() {
   const { submissionId }                        = useParams()
   const navigate                                = useNavigate()
-  const { submission, assets, loadDetail, clearDetail } = useSubmissionsStore()
+  const submission   = useSubmissionsStore(s => s.activeSubmission)
+  const assets       = useSubmissionsStore(s => s.activeAssets || [])
+  const loadDetail   = useSubmissionsStore(s => s.loadDetail)
+  const clearDetail  = useSubmissionsStore(s => s.clearDetail)
   const isLoading                               = useSubmissionsStore(s => s.isLoadingDetail)
   const user                                    = useAuthStore(s => s.user)
 
