@@ -18,6 +18,8 @@ import { downloadMaintenancePdf } from '../utils/pdf/maintenancePdf'
 import { downloadGroundingPdf } from '../utils/pdf/groundingPdf'
 import { downloadPMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
 import { downloadSafetyPdf } from '../utils/pdf/safetyPdf'
+import { generateEquipmentV2Pdf } from '../utils/pdf/equipmentV2Pdf'
+import EquipmentV2Detail from '../components/submissions/EquipmentV2Detail'
 import {
   updateSubmissionPayload,
   insertSubmissionEdit,
@@ -453,6 +455,22 @@ export default function SubmissionDetail() {
       else if (fc === 'grounding-system-test')  await downloadGroundingPdf(submission, assets)
       else if (fc === 'executed-maintenance')   await downloadPMExecutedPdf(submission, assets)
       else if (fc === 'safety-system')          await downloadSafetyPdf(submission, assets)
+      else if (fc === 'equipment-v2') {
+        const photoMap = {}
+        if (assets) assets.forEach(a => {
+          const field = a.asset_type || a.type || a.meta?.field
+          const url   = a.storage_url || a.public_url || a.url
+          if (field && url) photoMap[field] = url
+        })
+        const blob = await generateEquipmentV2Pdf(submission, photoMap)
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        const site = submission?.payload?.payload?.data?.siteInfo || {}
+        a.href     = url
+        a.download = `Inventario_v2_${site.idSitio || 'sitio'}_${Date.now()}.pdf`
+        document.body.appendChild(a); a.click(); document.body.removeChild(a)
+        URL.revokeObjectURL(url)
+      }
       else                                       await downloadSubmissionPdf(submission, assets)
     } catch (e) { console.error('PDF error:', e) }
     setPdfLoading(false)
@@ -801,21 +819,30 @@ export default function SubmissionDetail() {
           )}
         </div>
 
-        {/* ── SECTION CARDS ── */}
-        {entries.map(([t, d], i) => (
-          <SectionCard
-            key={t} title={t} data={d} photos={findPhotos(t)} index={i}
-            editMode={editMode}
-            pendingEdits={pendingEdits}
-            onFieldChange={handleFieldChange}
-            onPhotoUpload={(file) => handlePhotoUpload(file, t)}
-          />
-        ))}
-
-        {entries.length === 0 && (
-          <div className="bg-white rounded-xl border border-slate-200 py-14 text-center text-[13px] text-slate-400 shadow-card">
-            Sin datos de formulario
+        {/* ── EQUIPMENT V2 — Vista especializada ── */}
+        {normalizeFormCode(submission.form_code) === 'equipment-v2' ? (
+          <div className="px-0">
+            <EquipmentV2Detail submission={submission} assets={assets} />
           </div>
+        ) : (
+          <>
+            {/* ── SECTION CARDS ── */}
+            {entries.map(([t, d], i) => (
+              <SectionCard
+                key={t} title={t} data={d} photos={findPhotos(t)} index={i}
+                editMode={editMode}
+                pendingEdits={pendingEdits}
+                onFieldChange={handleFieldChange}
+                onPhotoUpload={(file) => handlePhotoUpload(file, t)}
+              />
+            ))}
+
+            {entries.length === 0 && (
+              <div className="bg-white rounded-xl border border-slate-200 py-14 text-center text-[13px] text-slate-400 shadow-card">
+                Sin datos de formulario
+              </div>
+            )}
+          </>
         )}
 
         {/* Unmatched photos */}

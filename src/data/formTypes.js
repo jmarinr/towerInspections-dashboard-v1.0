@@ -43,6 +43,13 @@ export const FORM_TYPES = {
     color: 'bg-purple-500',
     colorLight: 'bg-purple-50 text-purple-700',
   },
+  'equipment-v2': {
+    label: 'Inventario de Equipos v2',
+    shortLabel: 'Inventario v2',
+    icon: Package,
+    color: 'bg-emerald-600',
+    colorLight: 'bg-emerald-50 text-emerald-800',
+  },
 }
 
 /**
@@ -56,6 +63,7 @@ const CODE_ALIASES = {
   'mantenimiento': 'preventive-maintenance',
   'mantenimiento-ejecutado': 'executed-maintenance',
   'inventario': 'equipment',
+  'inventario-v2': 'equipment-v2',
   'puesta-tierra': 'grounding-system-test',
   'sistema-ascenso': 'safety-system',
   // English → English (identity)
@@ -63,6 +71,7 @@ const CODE_ALIASES = {
   'preventive-maintenance': 'preventive-maintenance',
   'executed-maintenance': 'executed-maintenance',
   'equipment': 'equipment',
+  'equipment-v2': 'equipment-v2',
   'safety-system': 'safety-system',
   'grounding-system-test': 'grounding-system-test',
 }
