@@ -588,7 +588,35 @@ export function groupAssetsBySection(assets, formCode) {
         label = `${actId} — ${photoType === 'before' ? 'Antes' : 'Después'}`
       }
 
-    // ── Inventario de Equipos ──
+    // ── Inventario de Equipos v2 ──
+    } else if (fc === 'inventario-v2' || fc === 'equipment-v2') {
+      // asset_type formats:
+      //   equipmentV2:fotoDistribucionTorre   — torre fotos
+      //   equipmentV2:fotoTorreCompleta
+      //   equipmentV2:fotoCroquisEdificio
+      //   equipmentV2:fotoPlanoPlanta         — piso
+      //   carrier:N:foto1 / foto2 / foto3     — por carrier
+      if (parts[0] === 'carrier') {
+        const cIdx  = parts[1] ?? '0'
+        const fNum  = parts[2] ?? 'foto'
+        sectionTitle = `📡 Carrier #${parseInt(cIdx) + 1}`
+        label = `Foto ${fNum.replace('foto', '')} — Carrier ${parseInt(cIdx) + 1}`
+      } else if (parts[0] === 'equipmentV2') {
+        const fieldMap = {
+          fotoDistribucionTorre: { sec: '🗼 Torre',  lbl: 'Distribución de equipos en torre' },
+          fotoTorreCompleta:     { sec: '🗼 Torre',  lbl: 'Torre completa' },
+          fotoCroquisEdificio:   { sec: '🗼 Torre',  lbl: 'Croquis esquemático del edificio' },
+          fotoPlanoPlanta:       { sec: '🏢 Piso',   lbl: 'Plano de planta y equipos' },
+        }
+        const info = fieldMap[parts[1]] || { sec: '📷 Fotos', lbl: labelize(parts[1] || type) }
+        sectionTitle = info.sec
+        label = info.lbl
+      } else {
+        sectionTitle = '📷 Fotos'
+        label = labelize(type)
+      }
+
+    // ── Inventario de Equipos (v1) ──
     } else if (fc === 'inventario' || fc.includes('equipment')) {
       const field = parts[1] || ''
       const labels = { fotoTorre: 'Foto de la Torre', croquisEsquematico: 'Croquis Esquemático', planoPlanta: 'Plano de Planta' }

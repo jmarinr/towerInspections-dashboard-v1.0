@@ -172,20 +172,13 @@ function FloorClientCard({ cliente, index }) {
 }
 
 // ── Carrier card ───────────────────────────────────────────────────────────────
-function CarrierCard({ carrier, index, assets }) {
+function CarrierCard({ carrier, index, assetPhotoMap }) {
   const name = carrier.nombre || `Carrier ${index + 1}`
 
-  // Find carrier photos from assets
-  const findPhoto = (key) => {
-    if (!assets) return null
-    const tag = `carrier:${index}:${key}`
-    const asset = assets.find(a => a.asset_type === tag || a.type === tag || (a.meta && a.meta.field === tag))
-    return asset?.storage_url || asset?.url || null
-  }
-
-  const foto1 = findPhoto('foto1') || carrier.foto1
-  const foto2 = findPhoto('foto2') || carrier.foto2
-  const foto3 = findPhoto('foto3') || carrier.foto3
+  // asset_type for carrier photos: "carrier:N:foto1" | "carrier:N:foto2" | "carrier:N:foto3"
+  const foto1 = assetPhotoMap?.[`carrier:${index}:foto1`] || carrier.foto1
+  const foto2 = assetPhotoMap?.[`carrier:${index}:foto2`] || carrier.foto2
+  const foto3 = assetPhotoMap?.[`carrier:${index}:foto3`] || carrier.foto3
 
   return (
     <div className="rounded-xl border border-gray-200 overflow-hidden">
@@ -224,13 +217,14 @@ export default function EquipmentV2Detail({ submission, assets }) {
   const fotos    = raw.fotos     || {}
   const carriers = raw.carriers  || []
 
-  // Resolve fotos from assets
+  // Build photo map from assets — keyed by asset_type (as written by inspector)
+  // asset_type formats: "equipmentV2:fieldName" | "carrier:N:fotoX"
   const assetPhotoMap = {}
   if (assets) {
     assets.forEach(a => {
-      const field = a.asset_type || a.type || a.meta?.field
-      const url   = a.storage_url || a.url
-      if (field && url) assetPhotoMap[field] = url
+      const key = a.asset_type || a.type || a.meta?.field || ''
+      const url = a.public_url || a.storage_url || a.url
+      if (key && url) assetPhotoMap[key] = url
     })
   }
 
@@ -302,7 +296,7 @@ export default function EquipmentV2Detail({ submission, assets }) {
         <Section icon={Radio} title={`Carriers (${carriers.length})`} color="bg-gray-700">
           <div className="space-y-4">
             {carriers.map((c, i) => (
-              <CarrierCard key={i} carrier={c} index={i} assets={assets} />
+              <CarrierCard key={i} carrier={c} index={i} assetPhotoMap={assetPhotoMap} />
             ))}
           </div>
         </Section>

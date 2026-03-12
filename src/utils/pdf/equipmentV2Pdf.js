@@ -465,12 +465,24 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
   const carriers = data.carriers || []
 
   // ── Resolve photos ────────────────────────────────────────────────────────
-  const allPhotos = { ...fotos, ...(photoMap || {}) }
-  // Also flatten carrier photos into allPhotos
+  // Normalize photoMap: accept both "equipmentV2:fieldName" and plain "fieldName" keys
+  // Inspector writes asset_type as "equipmentV2:fotoDistribucionTorre", "carrier:N:fotoX"
+  const normalizedPhotoMap = {}
+  for (const [k, v] of Object.entries(photoMap || {})) {
+    normalizedPhotoMap[k] = v  // keep original key (e.g. "carrier:0:foto1")
+    // Also add short key for torre/piso fotos: strip "equipmentV2:" prefix
+    if (k.startsWith('equipmentV2:')) {
+      normalizedPhotoMap[k.replace('equipmentV2:', '')] = v
+    }
+  }
+
+  // Merge: payload fotos (may have base64 or null) + normalized asset URLs
+  const allPhotos = { ...fotos, ...normalizedPhotoMap }
+  // Also flatten carrier photos from payload into allPhotos (fallback if no asset)
   carriers.forEach((c, ci) => {
-    if (c.foto1) allPhotos[`carrier:${ci}:foto1`] = c.foto1
-    if (c.foto2) allPhotos[`carrier:${ci}:foto2`] = c.foto2
-    if (c.foto3) allPhotos[`carrier:${ci}:foto3`] = c.foto3
+    if (c.foto1 && !allPhotos[`carrier:${ci}:foto1`]) allPhotos[`carrier:${ci}:foto1`] = c.foto1
+    if (c.foto2 && !allPhotos[`carrier:${ci}:foto2`]) allPhotos[`carrier:${ci}:foto2`] = c.foto2
+    if (c.foto3 && !allPhotos[`carrier:${ci}:foto3`]) allPhotos[`carrier:${ci}:foto3`] = c.foto3
   })
 
   // ── PDF setup ──────────────────────────────────────────────────────────────
