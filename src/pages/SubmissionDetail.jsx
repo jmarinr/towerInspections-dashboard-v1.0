@@ -531,9 +531,11 @@ export default function SubmissionDetail() {
       if (error) throw error
       // Reload so new asset appears
       await loadDetail(submissionId)
-      await insertSubmissionEdit(submissionId, user.username,
+      // Audit — non-blocking
+      insertSubmissionEdit(submissionId, user.username,
         { __photo__: { from: '—', to: path, label: 'Foto subida' } },
         `Foto subida desde panel de administración: ${file.name}`)
+        .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
     } catch (e) { console.error('Photo upload error:', e) }
   }, [submission, submissionId, user])
 
@@ -544,13 +546,15 @@ export default function SubmissionDetail() {
     setSaving(true)
     try {
       await updateSubmissionPayload(submissionId, submission.payload, { __finalized__: newVal })
-      await insertSubmissionEdit(submissionId, user.username, {
+      // Audit — non-blocking
+      insertSubmissionEdit(submissionId, user.username, {
         estado: {
           from:  fin ? 'Completado' : 'Borrador',
           to:    newVal ? 'Completado' : 'Borrador',
           label: 'Estado',
         },
       }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a Borrador desde el panel')
+        .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
       await loadDetail(submissionId)
     } catch (e) { console.error(e) }
     setSaving(false)
@@ -584,7 +588,9 @@ export default function SubmissionDetail() {
       }
 
       await updateSubmissionPayload(submissionId, submission.payload, pendingEdits)
-      await insertSubmissionEdit(submissionId, user.username, changes, note)
+      // Audit — non-blocking: table may need 'NOTIFY pgrst, reload schema' in Supabase
+      insertSubmissionEdit(submissionId, user.username, changes, note)
+        .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
       await loadDetail(submissionId)
 
       setShowModal(false); setEditMode(false); setPendingEdits({})
