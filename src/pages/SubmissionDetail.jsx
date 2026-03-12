@@ -564,22 +564,33 @@ export default function SubmissionDetail() {
   const handleConfirmSave = async (note) => {
     setSaving(true); setSaveError(null)
     try {
-      // Build original flat map for diff
+      // Build original flat map for diff — merge all sub-objects, case-insensitive lookup
       const outer  = submission?.payload || {}
       const inner  = outer.payload || outer
       const data   = inner.data || {}
-      const rawFlat = {
-        ...data.formData, ...data.datos, ...data.herrajes,
-        ...data.prensacables, ...data.tramos, ...data.platinas,
-        ...data.certificacion, ...data.siteInfo,
+
+      const rawFlat = {}
+      const subObjs = [data.formData, data.datos, data.herrajes, data.prensacables,
+                       data.tramos, data.platinas, data.certificacion, data.siteInfo]
+      for (const sub of subObjs) {
+        if (!sub || typeof sub !== 'object') continue
+        for (const [k, v] of Object.entries(sub)) {
+          rawFlat[k] = v
+          rawFlat[k.toLowerCase()] = v
+        }
+      }
+      const findOld = (key) => {
+        if (key in rawFlat) return rawFlat[key]
+        const kl = key.toLowerCase()
+        return kl in rawFlat ? rawFlat[kl] : ''
       }
 
       // Build changes object (only truly changed fields)
       const changes = {}
       for (const [key, newVal] of Object.entries(pendingEdits)) {
-        const oldVal = rawFlat[key] ?? ''
-        if (String(newVal) !== String(oldVal)) {
-          changes[key] = { from: oldVal, to: newVal, label: key }
+        const oldVal = findOld(key)
+        if (String(newVal) !== String(oldVal ?? '')) {
+          changes[key] = { from: oldVal ?? '', to: newVal, label: key }
         }
       }
 
@@ -667,14 +678,17 @@ export default function SubmissionDetail() {
     const outer  = submission?.payload || {}
     const inner  = outer.payload || outer
     const data   = inner.data || {}
-    const rawFlat= {
-      ...data.formData, ...data.datos, ...data.herrajes,
-      ...data.prensacables, ...data.tramos, ...data.platinas,
-      ...data.certificacion, ...data.siteInfo,
+    const rawFlat = {}
+    const _subs = [data.formData, data.datos, data.herrajes, data.prensacables,
+                   data.tramos, data.platinas, data.certificacion, data.siteInfo]
+    for (const sub of _subs) {
+      if (!sub || typeof sub !== 'object') continue
+      for (const [k, v] of Object.entries(sub)) { rawFlat[k] = v; rawFlat[k.toLowerCase()] = v }
     }
+    const _findOld = (key) => key in rawFlat ? rawFlat[key] : (key.toLowerCase() in rawFlat ? rawFlat[key.toLowerCase()] : '')
     const ch = {}
     for (const [k, v] of Object.entries(pendingEdits)) {
-      ch[k] = { from: rawFlat[k] ?? '', to: v, label: k }
+      ch[k] = { from: _findOld(k) ?? '', to: v, label: k }
     }
     return ch
   }

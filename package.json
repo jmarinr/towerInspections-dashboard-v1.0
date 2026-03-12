@@ -1,6 +1,6 @@
 {
   "name": "pti-admin-panel",
-  "version": "3.3.34",
+  "version": "3.3.35",
   "private": true,
   "type": "module",
   "scripts": {

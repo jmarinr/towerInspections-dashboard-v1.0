@@ -318,38 +318,57 @@ function normalizeSubmission(raw) {
  * @param {object} fieldUpdates    - flat { fieldKey: newValue } object
  */
 export async function updateSubmissionPayload(submissionId, currentPayload, fieldUpdates) {
-  // Navigate to the correct nesting: payload.payload.data.formData (or datos, etc.)
   const outer = currentPayload || {}
   const inner = outer.payload || outer
-  const data = inner.data || {}
+  const data  = inner.data || {}
 
-  // Apply updates to all possible data sub-objects (formData, datos, checklistData)
-  // We merge into formData as canonical, but also update any sub-object that already has the key
-  const subObjects = ['formData', 'datos', 'herrajes', 'prensacables', 'tramos', 'platinas', 'certificacion', 'siteInfo']
-  const updatedData = { ...data }
-
-  for (const [key, value] of Object.entries(fieldUpdates)) {
-    // Handle finalized/status specially — it lives at inner level
-    if (key === '__finalized__') continue
-
-    // Find which sub-object owns this key, update there + formData
-    let placed = false
-    for (const sub of subObjects) {
-      if (updatedData[sub] && key in updatedData[sub]) {
-        updatedData[sub] = { ...updatedData[sub], [key]: value }
-        placed = true
+  /**
+   * Deep-update helper: walks every object/array in `obj` and replaces
+   * any key that matches (exact OR case-insensitive). Returns a new object.
+   * This handles the mismatch between display labels ("Proveedor") and
+   * internal keys ("proveedor", "idSitio", etc).
+   */
+  function deepApply(obj, key, value) {
+    if (!obj || typeof obj !== 'object') return obj
+    if (Array.isArray(obj)) return obj.map(item => deepApply(item, key, value))
+    const updated = { ...obj }
+    let hit = false
+    // Exact match first
+    if (key in updated) { updated[key] = value; hit = true }
+    // Case-insensitive match (handles "Proveedor" → "proveedor")
+    if (!hit) {
+      const keyLower = key.toLowerCase()
+      for (const k of Object.keys(updated)) {
+        if (k.toLowerCase() === keyLower) { updated[k] = value; hit = true; break }
       }
     }
-    // Also always update formData as canonical store
+    // Recurse into sub-objects even if we found a match (key may exist in multiple levels)
+    for (const k of Object.keys(updated)) {
+      if (updated[k] && typeof updated[k] === 'object' && k !== '__proto__') {
+        const sub = deepApply(updated[k], key, value)
+        if (sub !== updated[k]) updated[k] = sub
+      }
+    }
+    return updated
+  }
+
+  let updatedData = { ...data }
+
+  for (const [key, value] of Object.entries(fieldUpdates)) {
+    if (key === '__finalized__') continue
+    // Apply deep into all known sub-objects
+    updatedData = deepApply(updatedData, key, value)
+    // Always also write into formData as canonical fallback
     updatedData.formData = { ...(updatedData.formData || {}), [key]: value }
   }
 
-  // Handle finalized flag
   const newFinalized = fieldUpdates.__finalized__
   const updatedInner = {
     ...inner,
     data: updatedData,
-    ...(newFinalized !== undefined ? { finalized: newFinalized, submitted_at: newFinalized ? new Date().toISOString() : inner.submitted_at } : {}),
+    ...(newFinalized !== undefined
+      ? { finalized: newFinalized, submitted_at: newFinalized ? new Date().toISOString() : inner.submitted_at }
+      : {}),
     _edited_at: new Date().toISOString(),
   }
 
