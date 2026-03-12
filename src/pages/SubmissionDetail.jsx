@@ -177,7 +177,15 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
   const isFld = data && typeof data === 'object' && !Array.isArray(data)
 
   // Non-editable GPS/datetime keys
-  const READONLY_KEYS = new Set(['lat','lng','startedAt','finishedAt','date','time','created_at','updated_at','_meta'])
+  const READONLY_KEYS = new Set([
+    'lat','lng','startedAt','finishedAt','date','time','created_at','updated_at','_meta',
+    // submitted_by fields — managed by system, not editable
+    'Nombre','Rol','Usuario','Fecha de envío','Fecha de envio',
+    'name','role','username',
+  ])
+  // Entire sections that are never editable
+  const READONLY_SECTIONS = new Set(['👤 Enviado por', '📍 Inicio de inspección'])
+  const isSectionReadonly = READONLY_SECTIONS.has(title)
 
   let sGood=0, sReg=0, sBad=0, sTotal=0
   if (isCL) data.forEach(it => {
@@ -222,7 +230,7 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
           {isFld && (
             <div className="mt-3 space-y-0">
               {Object.entries(data).map(([k, v]) => {
-                const isReadonly = READONLY_KEYS.has(k) || k.startsWith('foto') || k.startsWith('__')
+                const isReadonly = isSectionReadonly || READONLY_KEYS.has(k) || k.startsWith('foto') || k.startsWith('__')
                 if (editMode && !isReadonly) {
                   return (
                     <EditableField key={k} label={k} value={v} fieldKey={k}

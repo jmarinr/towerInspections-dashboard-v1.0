@@ -354,9 +354,26 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
 
   let updatedData = { ...data }
 
+  // submitted_by fields shown in dashboard as Nombre/Rol/Usuario
+  // Map of display label → submitted_by key
+  const SUBMITTED_BY_LABEL_MAP = {
+    'nombre': 'name', 'name': 'name',
+    'rol': 'role', 'role': 'role',
+    'usuario': 'username', 'username': 'username',
+  }
+  let updatedSubmittedBy = inner.submitted_by ? { ...inner.submitted_by } : null
+
   for (const [key, value] of Object.entries(fieldUpdates)) {
     if (key === '__finalized__') continue
-    // Apply deep into all known sub-objects
+
+    // Check if key maps to submitted_by (case-insensitive)
+    const sbKey = SUBMITTED_BY_LABEL_MAP[key.toLowerCase()]
+    if (sbKey && updatedSubmittedBy) {
+      updatedSubmittedBy = { ...updatedSubmittedBy, [sbKey]: value }
+      continue  // Don't also write into data
+    }
+
+    // Apply deep into all known sub-objects of data
     updatedData = deepApply(updatedData, key, value)
     // Always also write into formData as canonical fallback
     updatedData.formData = { ...(updatedData.formData || {}), [key]: value }
@@ -366,6 +383,7 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
   const updatedInner = {
     ...inner,
     data: updatedData,
+    ...(updatedSubmittedBy ? { submitted_by: updatedSubmittedBy } : {}),
     ...(newFinalized !== undefined
       ? { finalized: newFinalized, submitted_at: newFinalized ? new Date().toISOString() : inner.submitted_at }
       : {}),
