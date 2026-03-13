@@ -419,19 +419,17 @@ class PageBuilder {
     this.y -= 8
   }
 
-  // ── Photo pair / triple row ────────────────────────────────────────────────
+  // ── Generic photo row (used for carriers) ────────────────────────────────
   async drawPhotoRow(imgs, labels, photoH = 100) {
     if (!imgs || imgs.length === 0) return
     const count = Math.min(imgs.length, 3)
     const gap = 6
-    const totalGap = gap * (count - 1)
-    const imgW = (CW - totalGap) / count
+    const imgW = (CW - gap * (count - 1)) / count
     this.checkSpace(photoH + 20)
     let px = ML
     for (let i = 0; i < count; i++) {
       const img = imgs[i]
       const lbl = labels && labels[i] ? labels[i] : ''
-      // Label above
       if (lbl) {
         this.page.drawText(s(lbl), { x: px, y: this.y - 9, size: 5.5, font: this.fontBold, color: C.text })
       }
@@ -440,18 +438,82 @@ class PageBuilder {
       if (img) {
         try {
           const scale = Math.min(imgW / img.width, photoH / img.height)
-          const dw = img.width * scale
-          const dh = img.height * scale
-          this.page.drawImage(img, {
-            x: px + (imgW - dw) / 2,
-            y: imgY + (photoH - dh) / 2,
-            width: dw, height: dh
-          })
+          const dw = img.width * scale, dh = img.height * scale
+          this.page.drawImage(img, { x: px + (imgW - dw) / 2, y: imgY + (photoH - dh) / 2, width: dw, height: dh })
         } catch {}
       }
       px += imgW + gap
     }
     this.y -= (labels && labels.some(Boolean) ? 14 : 6) + photoH + 4
+  }
+
+  // ── Torre photos: foto1 full-width, then foto2+foto3 side by side ─────────
+  async drawTorrePhotos(imgDistribucion, imgCroquis, imgTorre) {
+    const GAP = 8
+    const LBL = 10  // label height
+    const hasAny = imgDistribucion || imgCroquis || imgTorre
+
+    // ── Row 1: Distribución de equipos (full width, tall) ──────────────────
+    {
+      const H = 180
+      this.checkSpace(LBL + H + GAP)
+      this.page.drawText('Distribucion de equipos en torre', {
+        x: ML, y: this.y - LBL + 2, size: 6, font: this.fontBold, color: C.text
+      })
+      const imgY = this.y - LBL - H
+      this.page.drawRectangle({ x: ML, y: imgY, width: CW, height: H, borderColor: C.border, borderWidth: 0.5 })
+      if (imgDistribucion) {
+        try {
+          const scale = Math.min(CW / imgDistribucion.width, H / imgDistribucion.height)
+          const dw = imgDistribucion.width * scale, dh = imgDistribucion.height * scale
+          this.page.drawImage(imgDistribucion, {
+            x: ML + (CW - dw) / 2, y: imgY + (H - dh) / 2, width: dw, height: dh
+          })
+        } catch {}
+      }
+      this.y -= LBL + H + GAP
+    }
+
+    // ── Row 2: Croquis (left) + Torre completa (right) — side by side ──────
+    {
+      const H = 160
+      const W = (CW - GAP) / 2
+      this.checkSpace(LBL + H + GAP)
+
+      // Left: croquis esquemático
+      this.page.drawText('Croquis esquematico del edificio', {
+        x: ML, y: this.y - LBL + 2, size: 6, font: this.fontBold, color: C.text
+      })
+      const imgY = this.y - LBL - H
+      this.page.drawRectangle({ x: ML, y: imgY, width: W, height: H, borderColor: C.border, borderWidth: 0.5 })
+      if (imgCroquis) {
+        try {
+          const scale = Math.min(W / imgCroquis.width, H / imgCroquis.height)
+          const dw = imgCroquis.width * scale, dh = imgCroquis.height * scale
+          this.page.drawImage(imgCroquis, {
+            x: ML + (W - dw) / 2, y: imgY + (H - dh) / 2, width: dw, height: dh
+          })
+        } catch {}
+      }
+
+      // Right: torre completa
+      const rx = ML + W + GAP
+      this.page.drawText('Foto de torre completa', {
+        x: rx, y: this.y - LBL + 2, size: 6, font: this.fontBold, color: C.text
+      })
+      this.page.drawRectangle({ x: rx, y: imgY, width: W, height: H, borderColor: C.border, borderWidth: 0.5 })
+      if (imgTorre) {
+        try {
+          const scale = Math.min(W / imgTorre.width, H / imgTorre.height)
+          const dw = imgTorre.width * scale, dh = imgTorre.height * scale
+          this.page.drawImage(imgTorre, {
+            x: rx + (W - dw) / 2, y: imgY + (H - dh) / 2, width: dw, height: dh
+          })
+        } catch {}
+      }
+
+      this.y -= LBL + H + GAP
+    }
   }
 }
 
@@ -544,21 +606,12 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
   p.redSubheader('INVENTARIO DE EQUIPOS')
   p.drawTorreTable(torre.items || [])
 
-  // ── Torre photos ──────────────────────────────────────────────────────────
-  const torroImgs = [
+  // ── Torre photos: full-width distribucion, then croquis+torre side by side
+  await p.drawTorrePhotos(
     imgCache['fotoDistribucionTorre'],
-    imgCache['fotoTorreCompleta'],
     imgCache['fotoCroquisEdificio'],
-  ]
-  const torroLabels = ['Distribucion de equipos en torre', 'Foto de torre completa', 'Croquis esquematico del edificio']
-  if (torroImgs.some(Boolean)) {
-    p.checkSpace(130)
-    await p.drawPhotoRow(torroImgs, torroLabels, 110)
-  } else {
-    // Empty photo placeholder row
-    p.checkSpace(80)
-    p.drawPhotoRow([null, null, null], torroLabels, 70)
-  }
+    imgCache['fotoTorreCompleta'],
+  )
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGES — Inventario en Piso (one logical section, paginated)
