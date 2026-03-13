@@ -340,15 +340,6 @@ class PageBuilder {
       this.y -= rowH
     }
 
-    // Empty rows if no items
-    if (list.length === 0) {
-      for (let i = 0; i < 5; i++) {
-        this.checkSpace(rowH)
-        this.page.drawRectangle({ x: ML, y: this.y - rowH, width: CW, height: rowH, borderColor: C.border, borderWidth: 0.3 })
-        this.y -= rowH
-      }
-    }
-    this.y -= 6
   }
 
   // ── Floor client block ────────────────────────────────────────────────────
