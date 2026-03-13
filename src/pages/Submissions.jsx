@@ -1,19 +1,17 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, ChevronRight } from 'lucide-react'
+import { Search, ChevronRight, SlidersHorizontal, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useOrdersStore } from '../store/useOrdersStore'
 import { FORM_TYPES, getFormMeta, isFormVisible, normalizeFormCode } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
-/** Compute checklist score for a submission */
 function getScore(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
   const data = p.data || p
   const formType = normalizeFormCode(sub?.form_code || sub?.form_type || p?.form_code || p?.form_type || '')
 
-  // --- Standard checklist forms (Inspección General, Mant. Preventivo) ---
   const cl = data.checklistData || {}
   const keys = Object.keys(cl)
   if (keys.length) {
@@ -28,26 +26,21 @@ function getScore(sub) {
     if (total) return Math.round((good / total) * 100)
   }
 
-  // --- Puesta a Tierra: score por resistencia (Ω) ---
-  // ≤5Ω = Bueno (100pts), ≤10Ω = Regular (50pts), >10Ω = Malo (0pts)
   if (formType === 'grounding-system-test') {
-    const OHM_FIELDS = ['rPataTorre', 'rCerramiento', 'rPorton', 'rPararrayos', 'rBarraSPT', 'rEscalerilla1', 'rEscalerilla2']
+    const OHM_FIELDS = ['rPataTorre','rCerramiento','rPorton','rPararrayos','rBarraSPT','rEscalerilla1','rEscalerilla2']
     let total = 0, points = 0
-    for (const field of OHM_FIELDS) {
-      const val = parseFloat(data[field])
+    for (const f of OHM_FIELDS) {
+      const val = parseFloat(data[f])
       if (isNaN(val) || val === 0) continue
       total++
       if (val <= 5) points += 100
       else if (val <= 10) points += 50
-      // >10Ω = 0 pts (Malo)
     }
     if (total) return Math.round(points / total)
     return null
   }
 
-  // --- Sistema de Ascenso: status fields anidados en secciones ---
   if (formType === 'safety-system') {
-    // Campos type:'status' y sus secciones padre
     const STATUS_FIELDS = [
       { section: 'herrajes', field: 'herrajeInferior' },
       { section: 'herrajes', field: 'herrajeSuperior' },
@@ -57,7 +50,6 @@ function getScore(sub) {
     ]
     let total = 0, good = 0
     for (const { section, field } of STATUS_FIELDS) {
-      // Intenta anidado (data.herrajes.herrajeInferior) y flat (data.herrajeInferior)
       const val = ((data[section] && data[section][field]) || data[field] || '').toLowerCase()
       if (!val) continue
       total++
@@ -67,184 +59,238 @@ function getScore(sub) {
     return null
   }
 
-  // --- Mantenimiento Ejecutado: score por actividades con foto after en assets ---
   if (formType === 'executed-maintenance') {
-    // Método 1: activities array en data
-    const activitiesArr = data.activities || data.pmActivities || []
-    if (activitiesArr.length > 0) {
-      const total = activitiesArr.length
-      const completed = activitiesArr.filter(a => a.afterUrl || a.photoAfter || a.fotoAfter).length
-      if (total) return Math.round((completed / total) * 100)
-    }
-    // Método 2: derivar de assets (executed:pmx-N:before/after)
     const assets = sub?.assets || []
     if (assets.length > 0) {
-      const beforeIds = new Set()
-      const afterIds = new Set()
+      const beforeIds = new Set(), afterIds = new Set()
       for (const a of assets) {
         const m = (a.asset_type || '').match(/^executed:(pmx-\d+):(before|after)$/)
-        if (m) {
-          if (m[2] === 'before') beforeIds.add(m[1])
-          if (m[2] === 'after') afterIds.add(m[1])
-        }
+        if (m) { if (m[2] === 'before') beforeIds.add(m[1]); if (m[2] === 'after') afterIds.add(m[1]) }
       }
-      // Actividades que tienen al menos before o after
       const allIds = new Set([...beforeIds, ...afterIds])
-      const total = allIds.size
-      if (total) return Math.round((afterIds.size / total) * 100)
-    }
-    // Método 3: activityStatus en data
-    const actData = data.activityStatus || data.pmExecutedActivities || {}
-    const actKeys = Object.keys(actData)
-    if (actKeys.length) {
-      let total = 0, completed = 0
-      for (const k of actKeys) {
-        const st = actData[k]
-        total++
-        const stVal = (typeof st === 'string' ? st : st?.status || '').toLowerCase()
-        if (stVal === 'completado' || stVal === 'done' || stVal === 'completed') completed++
-      }
-      if (total) return Math.round((completed / total) * 100)
+      if (allIds.size) return Math.round((afterIds.size / allIds.size) * 100)
     }
     return null
   }
-
   return null
 }
 
-function MiniScoreRing({ score }) {
-  if (score === null) return null
-  const size = 32, r = 12, c = 2 * Math.PI * r
-  const color = score >= 80 ? '#22C55E' : score >= 50 ? '#F59E0B' : '#EF4444'
-  const offset = c - (score / 100) * c
+function ScorePill({ score }) {
+  if (score === null || score === undefined) return <span className="text-slate-300 text-[12px]">—</span>
+  const color = score >= 80 ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+              : score >= 50 ? 'bg-amber-50 text-amber-700 ring-amber-200'
+              :               'bg-red-50 text-red-700 ring-red-200'
   return (
-    <svg width={size} height={size} className="block mx-auto">
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e5e7eb" strokeWidth="3" />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3"
-        strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`} />
-      <text x={size/2} y={size/2 + 3.5} textAnchor="middle" fontSize="8" fontWeight="700" fill={color}>{score}%</text>
-    </svg>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold ring-1 ring-inset ${color}`}>
+      {score}%
+    </span>
+  )
+}
+
+function StatusPill({ finalized }) {
+  return finalized
+    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />Completado
+      </span>
+    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />Borrador
+      </span>
+}
+
+function FormTypeBadge({ meta }) {
+  const I = meta.icon
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-medium ${meta.colorLight}`}>
+      <I size={11} />{meta.shortLabel}
+    </span>
   )
 }
 
 export default function Submissions() {
-  const load = useSubmissionsStore((s) => s.load)
-  const isLoading = useSubmissionsStore((s) => s.isLoading)
-  const submissions = useSubmissionsStore((s) => s.submissions)
-  const filterFormCode = useSubmissionsStore((s) => s.filterFormCode)
-  const search = useSubmissionsStore((s) => s.search)
-  const setFilter = useSubmissionsStore((s) => s.setFilter)
-  const getFiltered = useSubmissionsStore((s) => s.getFiltered)
-  const loadOrders = useOrdersStore((s) => s.load)
-  const orders = useOrdersStore((s) => s.orders)
-  const navigate = useNavigate()
-  useEffect(() => { load(); loadOrders() }, [])
-  const filtered = useMemo(() => getFiltered().filter(s => isFormVisible(s.form_code)), [submissions, filterFormCode, search])
+  const load            = useSubmissionsStore((s) => s.load)
+  const isLoading       = useSubmissionsStore((s) => s.isLoading)
+  const submissions     = useSubmissionsStore((s) => s.submissions)
+  const filterFormCode  = useSubmissionsStore((s) => s.filterFormCode)
+  const search          = useSubmissionsStore((s) => s.search)
+  const setFilter       = useSubmissionsStore((s) => s.setFilter)
+  const getFiltered     = useSubmissionsStore((s) => s.getFiltered)
+  const loadOrders      = useOrdersStore((s) => s.load)
+  const orders          = useOrdersStore((s) => s.orders)
+  const navigate        = useNavigate()
 
-  // Build order_number lookup: visit_id → order_number
+  useEffect(() => { load(); loadOrders() }, [])
+
+  const filtered = useMemo(
+    () => getFiltered().filter(s => isFormVisible(s.form_code)),
+    [submissions, filterFormCode, search]
+  )
+
   const orderMap = useMemo(() => {
     const map = {}
-    for (const o of orders) { map[o.id] = o.order_number || o.id.slice(0, 8) }
+    for (const o of orders) map[o.id] = o.order_number || o.id.slice(0, 8)
     return map
   }, [orders])
 
+  const hasFilter = search || filterFormCode !== 'all'
+
   return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-        <div className="relative flex-1">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input type="text" value={search} onChange={e => setFilter({ search: e.target.value })} placeholder="Buscar..."
-            className="w-full h-8 pl-8 pr-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-shadow bg-white" />
+    <div className="space-y-5">
+
+      {/* ── Header row ── */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-[18px] font-bold text-slate-900">Formularios</h1>
+          <span className="text-[12px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full tabular-nums">
+            {filtered.length}
+          </span>
         </div>
-        <select value={filterFormCode} onChange={e => setFilter({ filterFormCode: e.target.value })}
-          className="h-8 px-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent bg-white">
-          <option value="all">Todos los tipos</option>
-          {Object.entries(FORM_TYPES).filter(([c]) => isFormVisible(c)).map(([c, m]) => <option key={c} value={c}>{m.label}</option>)}
-        </select>
-        <span className="text-2xs text-gray-400 hidden sm:block tabular-nums whitespace-nowrap">{filtered.length} resultado{filtered.length !== 1 ? 's' : ''}</span>
       </div>
 
-      {isLoading && <div className="flex items-center justify-center py-16"><Spinner size={16} /></div>}
+      {/* ── Filters ── */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text" value={search}
+            onChange={e => setFilter({ search: e.target.value })}
+            placeholder="Buscar por sitio, inspector..."
+            className="w-full h-9 pl-9 pr-3 text-[13px] bg-white border border-slate-200 rounded-lg shadow-sm
+              focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-slate-400"
+          />
+          {search && (
+            <button onClick={() => setFilter({ search: '' })}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        <select
+          value={filterFormCode}
+          onChange={e => setFilter({ filterFormCode: e.target.value })}
+          className="h-9 px-3 text-[13px] bg-white border border-slate-200 rounded-lg shadow-sm
+            focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all text-slate-700">
+          <option value="all">Todos los tipos</option>
+          {Object.entries(FORM_TYPES).filter(([c]) => isFormVisible(c)).map(([c, m]) =>
+            <option key={c} value={c}>{m.label}</option>
+          )}
+        </select>
+
+        {hasFilter && (
+          <button onClick={() => setFilter({ search: '', filterFormCode: 'all' })}
+            className="h-9 px-3 text-[13px] text-slate-500 hover:text-slate-700 bg-white border border-slate-200
+              rounded-lg shadow-sm flex items-center gap-1.5 transition-colors">
+            <X size={13} />Limpiar
+          </button>
+        )}
+      </div>
+
+      {/* ── Table ── */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-20">
+          <Spinner size={16} />
+        </div>
+      )}
 
       {!isLoading && filtered.length > 0 && (
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500">Tipo</th>
-                <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500">Sitio</th>
-                <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500 hidden md:table-cell">Orden</th>
-                <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500 hidden md:table-cell">Inspector</th>
-                <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500 hidden lg:table-cell">Inicio</th>
-                <th className="text-left px-3 py-2 text-2xs font-medium text-gray-500">Estado</th>
-                <th className="text-center px-2 py-2 text-2xs font-medium text-gray-500 w-14 hidden sm:table-cell">Score</th>
-                <th className="w-8"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map(sub => {
-                const m = getFormMeta(sub.form_code)
-                const site = extractSiteInfo(sub)
-                const who = extractSubmittedBy(sub)
-                const inspMeta = extractMeta(sub)
-                const fin = sub.finalized || isFinalized(sub)
-                const score = getScore(sub)
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Table header */}
+          <div className="grid grid-cols-[2fr_2.5fr_1fr_1.5fr_1fr_1fr_auto] gap-0 border-b border-slate-100 bg-slate-50/60 px-0">
+            {['Tipo', 'Sitio', 'Orden', 'Inspector', 'Fecha', 'Estado', ''].map((h, i) => (
+              <div key={i} className="px-4 py-3 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
+                {h}
+              </div>
+            ))}
+          </div>
 
-                // Start date/time from meta
-                const startedAt = inspMeta.startedAt || ''
-                let startDate = '', startTime = ''
-                if (startedAt) {
-                  const parts = startedAt.split(' ')
-                  startDate = parts[0] || ''
-                  startTime = parts[1] || ''
-                }
-                if (!startDate && sub.created_at) {
-                  const d = new Date(sub.created_at)
-                  startDate = d.toLocaleDateString('es', { day: 'numeric', month: 'short' })
-                  startTime = d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
-                }
+          {/* Rows */}
+          <div className="divide-y divide-slate-50">
+            {filtered.map(sub => {
+              const m         = getFormMeta(sub.form_code)
+              const site      = extractSiteInfo(sub)
+              const who       = extractSubmittedBy(sub)
+              const inspMeta  = extractMeta(sub)
+              const fin       = sub.finalized || isFinalized(sub)
+              const score     = getScore(sub)
 
-                // Order reference
-                const visitId = sub.site_visit_id
-                const hasOrder = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
+              let startDate = '', startTime = ''
+              const startedAt = inspMeta.startedAt || ''
+              if (startedAt) { const parts = startedAt.split(' '); startDate = parts[0] || ''; startTime = parts[1] || '' }
+              if (!startDate && sub.created_at) {
+                const d = new Date(sub.created_at)
+                startDate = d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: '2-digit' })
+                startTime = d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })
+              }
 
-                return (
-                  <tr key={sub.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50 cursor-pointer transition-colors group" onClick={() => navigate(`/submissions/${sub.id}`)}>
-                    <td className="px-3 py-2.5 text-sm text-gray-900 font-medium">{m.shortLabel}</td>
-                    <td className="px-3 py-2.5">
-                      <div className="text-sm text-gray-700">{site.nombreSitio}</div>
-                      {site.idSitio && <div className="text-2xs text-gray-400">ID: {site.idSitio}</div>}
-                    </td>
-                    <td className="px-3 py-2.5 hidden md:table-cell">
-                      {hasOrder
-                        ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()} className="text-2xs text-accent hover:underline font-medium">{orderMap[visitId] || '--'}</Link>
-                        : <span className="text-2xs text-gray-300">--</span>}
-                    </td>
-                    <td className="px-3 py-2.5 text-sm text-gray-500 hidden md:table-cell">{who?.name || '--'}</td>
-                    <td className="px-3 py-2.5 hidden lg:table-cell">
-                      <div className="text-sm text-gray-600">{startDate}</div>
-                      {startTime && <div className="text-2xs text-gray-400">{startTime}</div>}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {fin ? <span className="text-2xs font-medium text-success">Completado</span>
-                           : <span className="text-2xs font-medium text-warning">Borrador</span>}
-                    </td>
-                    <td className="px-2 py-2.5 text-center hidden sm:table-cell">
-                      <MiniScoreRing score={score} />
-                    </td>
-                    <td className="pr-3"><ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" /></td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+              const visitId  = sub.site_visit_id
+              const hasOrder = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
+
+              return (
+                <div key={sub.id}
+                  onClick={() => navigate(`/submissions/${sub.id}`)}
+                  className="grid grid-cols-[2fr_2.5fr_1fr_1.5fr_1fr_1fr_auto] items-center gap-0
+                    hover:bg-indigo-50/30 cursor-pointer transition-colors group">
+
+                  {/* Tipo */}
+                  <div className="px-4 py-3.5">
+                    <FormTypeBadge meta={m} />
+                  </div>
+
+                  {/* Sitio */}
+                  <div className="px-4 py-3.5 min-w-0">
+                    <div className="text-[13px] font-medium text-slate-800 truncate">
+                      {site.nombreSitio || <span className="text-slate-400">Sin nombre</span>}
+                    </div>
+                    {site.idSitio && (
+                      <div className="text-[11px] text-slate-400 mt-0.5">ID: {site.idSitio}</div>
+                    )}
+                  </div>
+
+                  {/* Orden */}
+                  <div className="px-4 py-3.5 hidden md:block">
+                    {hasOrder
+                      ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()}
+                          className="text-[12px] text-indigo-500 hover:text-indigo-700 font-medium hover:underline">
+                          {orderMap[visitId] || '--'}
+                        </Link>
+                      : <span className="text-[12px] text-slate-300">—</span>}
+                  </div>
+
+                  {/* Inspector */}
+                  <div className="px-4 py-3.5 hidden md:block">
+                    <div className="text-[13px] text-slate-600 truncate">{who?.name || '—'}</div>
+                  </div>
+
+                  {/* Fecha */}
+                  <div className="px-4 py-3.5 hidden lg:block">
+                    <div className="text-[13px] text-slate-600">{startDate}</div>
+                    {startTime && <div className="text-[11px] text-slate-400">{startTime}</div>}
+                  </div>
+
+                  {/* Estado + Score */}
+                  <div className="px-4 py-3.5 flex flex-col gap-1.5">
+                    <StatusPill finalized={fin} />
+                    <ScorePill score={score} />
+                  </div>
+
+                  {/* Arrow */}
+                  <div className="px-3 py-3.5">
+                    <ChevronRight size={15} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
         </div>
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <div className="text-center py-16 text-sm text-gray-400">{search || filterFormCode !== 'all' ? 'Sin resultados. Ajusta los filtros.' : 'Sin formularios aun.'}</div>
+        <div className="bg-white rounded-2xl border border-slate-200 py-20 text-center shadow-sm">
+          <div className="text-[14px] font-medium text-slate-500 mb-1">Sin resultados</div>
+          <div className="text-[12px] text-slate-400">
+            {hasFilter ? 'Ajusta los filtros para ver más.' : 'Aún no hay formularios registrados.'}
+          </div>
+        </div>
       )}
     </div>
   )
