@@ -1,108 +1,113 @@
 /**
  * EquipmentV2Detail.jsx
- * Vista especializada para submissions de tipo inventario-v2 / equipment-v2
- * Renderiza las secciones Torre, Piso y Carriers con tablas visuales.
+ * Vista especializada para inventario-v2 / equipment-v2
  */
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Package, Building2, Radio } from 'lucide-react'
+import { ChevronDown, ChevronRight, Package, Building2, Radio, MapPin } from 'lucide-react'
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function calcArea(alto, ancho) {
   const a = parseFloat(alto), b = parseFloat(ancho)
   return Number.isFinite(a) && Number.isFinite(b) ? (a * b).toFixed(4) : '—'
 }
+const v = (x) => (x !== undefined && x !== null && x !== '') ? String(x) : '—'
 
-function val(v) {
-  return v !== undefined && v !== null && v !== '' ? String(v) : '—'
-}
-
-// ── Section wrapper ────────────────────────────────────────────────────────────
-function Section({ icon: Icon, title, color = 'bg-gray-800', children, defaultOpen = true }) {
+// ── Collapsible section ────────────────────────────────────────────────────────
+function Section({ icon: Icon, title, badge, headerClass = 'bg-slate-800', children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
-    <div className="rounded-2xl border border-gray-200 overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center gap-3 px-4 py-3 text-left ${color} text-white`}
-      >
-        {Icon && <Icon size={16} />}
-        <span className="font-bold text-sm flex-1">{title}</span>
-        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+    <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className={`w-full flex items-center gap-3 px-4 py-3 text-left ${headerClass}`}>
+        {Icon && <Icon size={15} className="text-white/70 flex-shrink-0" />}
+        <span className="font-semibold text-[13px] text-white flex-1">{title}</span>
+        {badge && <span className="text-[10px] text-white/50 font-medium mr-1">{badge}</span>}
+        {open
+          ? <ChevronDown size={14} className="text-white/40 flex-shrink-0" />
+          : <ChevronRight size={14} className="text-white/40 flex-shrink-0" />}
       </button>
       {open && <div className="p-4 bg-white">{children}</div>}
     </div>
   )
 }
 
-// ── Site info grid ─────────────────────────────────────────────────────────────
+// ── Site info ─────────────────────────────────────────────────────────────────
 function SiteInfoGrid({ info }) {
   if (!info) return null
   const fields = [
-    ['ID Sitio',       info.idSitio],
-    ['Nombre Sitio',   info.nombreSitio],
-    ['Proveedor',      info.proveedor],
-    ['Tipo de Visita', info.tipoVisita || info.tipoSitio],
-    ['Fecha Inicio',   info.fechaInicio || info.fecha],
-    ['Fecha Termino',  info.fechaTermino],
-    ['Dirección',      info.direccion],
-    ['Altura Torre',   info.alturaTorre || info.altura],
-    ['Tipo Sitio',     info.tipoSitio],
-    ['Tipo Estructura',info.tipoEstructura || info.tipoTorre],
-    ['Latitud',        info.latitud || info.coordenadas],
-    ['Longitud',       info.longitud],
-  ].filter(([, v]) => v)
+    ['ID Sitio',        info.idSitio],
+    ['Nombre Sitio',    info.nombreSitio],
+    ['Tipo de Visita',  info.tipoVisita || info.tipoSitio],
+    ['Proveedor',       info.proveedor],
+    ['Fecha Inicio',    info.fechaInicio || info.fecha],
+    ['Fecha Término',   info.fechaTermino],
+    ['Altura Torre',    info.alturaTorre || info.altura],
+    ['Tipo Sitio',      info.tipoSitio],
+    ['Tipo Estructura', info.tipoEstructura || info.tipoTorre],
+    ['Dirección',       info.direccion],
+    ['Latitud',         info.latitud || info.coordenadas],
+    ['Longitud',        info.longitud],
+  ].filter(([, val]) => val)
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
+    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
       {fields.map(([label, value]) => (
         <div key={label}>
-          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">{label}</div>
-          <div className="text-sm text-gray-900 font-medium">{val(value)}</div>
+          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{label}</div>
+          <div className="text-[13px] text-slate-800 font-medium">{v(value)}</div>
         </div>
       ))}
     </div>
   )
 }
 
-// ── Torre table ────────────────────────────────────────────────────────────────
-function TorreTable({ items }) {
-  if (!items || items.length === 0)
-    return <p className="text-sm text-gray-400 italic">Sin filas registradas.</p>
+// ── Torre / Carrier inventory table ───────────────────────────────────────────
+function InventoryTable({ items }) {
+  const empty = !items || items.length === 0
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200">
-      <table className="min-w-[900px] w-full text-xs">
+    <div className="overflow-x-auto rounded-xl border border-slate-100">
+      <table className="min-w-[820px] w-full text-[12px]">
         <thead>
           <tr className="bg-red-600 text-white">
-            <th className="px-2 py-2 text-center" rowSpan={2}>Altura (m)</th>
-            <th className="px-2 py-2 text-center" rowSpan={2}>Orientación</th>
-            <th className="px-2 py-2 text-center" rowSpan={2}>Tipo de Antena y/o Equipo</th>
-            <th className="px-2 py-2 text-center" rowSpan={2}>Número de Antenas y/o Equipo</th>
-            <th className="px-2 py-2 text-center" colSpan={3}>Dimensiones en metros</th>
-            <th className="px-2 py-2 text-center" rowSpan={2}>Área M2</th>
-            <th className="px-2 py-2 text-center" rowSpan={2}>Carrier</th>
-            <th className="px-2 py-2 text-center" rowSpan={2}>Comentario</th>
+            <th className="px-3 py-2.5 text-left font-semibold" rowSpan={2}>Altura (m)</th>
+            <th className="px-3 py-2.5 text-left font-semibold" rowSpan={2}>Orientación</th>
+            <th className="px-3 py-2.5 text-left font-semibold" rowSpan={2}>Tipo de Antena y/o Equipo</th>
+            <th className="px-3 py-2.5 text-center font-semibold" rowSpan={2}>Cantidad</th>
+            <th className="px-3 py-2.5 text-center font-semibold border-l border-red-500" colSpan={3}>
+              Dimensiones en metros
+            </th>
+            <th className="px-3 py-2.5 text-center font-semibold" rowSpan={2}>Área M²</th>
+            <th className="px-3 py-2.5 text-left font-semibold" rowSpan={2}>Carrier</th>
+            <th className="px-3 py-2.5 text-left font-semibold" rowSpan={2}>Comentario</th>
           </tr>
-          <tr className="bg-red-600 text-white border-t border-red-500">
-            <th className="px-2 py-1 text-center">Alto</th>
-            <th className="px-2 py-1 text-center">Ancho</th>
-            <th className="px-2 py-1 text-center">Profundidad</th>
+          <tr className="bg-red-700 text-white border-t border-red-500">
+            <th className="px-3 py-1.5 text-center font-semibold border-l border-red-500">Alto</th>
+            <th className="px-3 py-1.5 text-center font-semibold">Ancho</th>
+            <th className="px-3 py-1.5 text-center font-semibold">Profundidad</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((row, i) => (
-            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-              <td className="px-2 py-2 text-center font-medium">{val(row.alturaMts)}</td>
-              <td className="px-2 py-2 text-center">{val(row.orientacion)}</td>
-              <td className="px-2 py-2">{val(row.tipoEquipo)}</td>
-              <td className="px-2 py-2 text-center">{val(row.cantidad)}</td>
-              <td className="px-2 py-2 text-center">{val(row.alto)}</td>
-              <td className="px-2 py-2 text-center">{val(row.ancho)}</td>
-              <td className="px-2 py-2 text-center">{val(row.profundidad)}</td>
-              <td className="px-2 py-2 text-center font-mono text-gray-700">{calcArea(row.alto, row.ancho)}</td>
-              <td className="px-2 py-2">{val(row.carrier)}</td>
-              <td className="px-2 py-2 text-gray-600">{val(row.comentario)}</td>
+          {empty ? (
+            <tr>
+              <td colSpan={10} className="px-4 py-6 text-center text-slate-400 text-[12px] italic">
+                Sin equipos registrados
+              </td>
+            </tr>
+          ) : items.map((row, i) => (
+            <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+              <td className="px-3 py-2.5 font-semibold text-slate-700">{v(row.alturaMts)}</td>
+              <td className="px-3 py-2.5 text-slate-600">{v(row.orientacion)}</td>
+              <td className="px-3 py-2.5 text-slate-700">{v(row.tipoEquipo)}</td>
+              <td className="px-3 py-2.5 text-center text-slate-600">{v(row.cantidad)}</td>
+              <td className="px-3 py-2.5 text-center text-slate-600">{v(row.alto)}</td>
+              <td className="px-3 py-2.5 text-center text-slate-600">{v(row.ancho)}</td>
+              <td className="px-3 py-2.5 text-center text-slate-600">{v(row.profundidad)}</td>
+              <td className="px-3 py-2.5 text-center font-mono text-slate-500 text-[11px]">
+                {calcArea(row.alto, row.ancho)}
+              </td>
+              <td className="px-3 py-2.5 text-slate-600">{v(row.carrier)}</td>
+              <td className="px-3 py-2.5 text-slate-500 max-w-[140px] truncate">{v(row.comentario)}</td>
             </tr>
           ))}
         </tbody>
@@ -111,55 +116,80 @@ function TorreTable({ items }) {
   )
 }
 
+// ── Photo grid ────────────────────────────────────────────────────────────────
+function PhotoGrid({ photos }) {
+  const items = photos.filter(([, url]) => url)
+  if (!items.length) return null
+  return (
+    <div className="mt-4">
+      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Fotos</div>
+      <div className="grid grid-cols-3 gap-3">
+        {photos.map(([label, url], i) => (
+          <div key={i} className="space-y-1">
+            <div className="text-[11px] text-slate-500 font-medium truncate">{label}</div>
+            <div className="aspect-video rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
+              {url
+                ? <img src={url} alt={label} className="w-full h-full object-cover" />
+                : <span className="text-[11px] text-slate-300">Sin foto</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Floor client card ──────────────────────────────────────────────────────────
 function FloorClientCard({ cliente, index }) {
-  const tipo = cliente.tipoCliente === 'ancla' ? 'Cliente Ancla' : 'Cliente Colo'
+  const isAncla = cliente.tipoCliente === 'ancla'
+  const label   = isAncla ? 'Cliente Ancla' : 'Cliente Colo'
+  const color   = isAncla ? 'bg-slate-700' : 'bg-slate-600'
 
   return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-2 bg-gray-800 text-white">
-        <span className="text-xs font-bold">{tipo}</span>
+    <div className="rounded-xl border border-slate-200 overflow-hidden">
+      <div className={`flex items-center gap-2 px-4 py-2.5 ${color}`}>
+        <Building2 size={13} className="text-white/60" />
+        <span className="text-[12px] font-bold text-white">{label}</span>
         {cliente.nombreCliente && (
-          <span className="text-xs opacity-75">— {cliente.nombreCliente}</span>
+          <span className="text-[12px] text-white/60 ml-1">— {cliente.nombreCliente}</span>
         )}
-        <span className="ml-auto text-[10px] opacity-50">#{index + 1}</span>
+        <span className="ml-auto text-[10px] text-white/30">#{index + 1}</span>
       </div>
 
-      <div className="p-4 space-y-3">
-        {/* Info row */}
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+      <div className="p-4 space-y-3 bg-white">
+        {/* Info */}
+        <div className="grid grid-cols-3 gap-4 text-[12px]">
           {[
             ['Área Arrendada', cliente.areaArrendada],
-            ['Área en Uso', cliente.areaEnUso],
-            ['Placa de Equipos', cliente.placaEquipos],
-          ].filter(([, v]) => v).map(([lbl, v]) => (
+            ['Área en Uso',    cliente.areaEnUso],
+            ['Placa Equipos',  cliente.placaEquipos],
+          ].filter(([, val]) => val).map(([lbl, val]) => (
             <div key={lbl}>
-              <div className="text-[10px] font-bold text-gray-500 uppercase">{lbl}</div>
-              <div className="text-gray-900 font-medium">{val(v)}</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{lbl}</div>
+              <div className="text-slate-700 font-medium">{v(val)}</div>
             </div>
           ))}
         </div>
 
-        {/* Gabinetes table */}
+        {/* Gabinetes */}
         {cliente.gabinetes && cliente.gabinetes.length > 0 && (
-          <div className="overflow-x-auto rounded-lg border border-gray-100">
-            <table className="min-w-[500px] w-full text-xs">
-              <thead className="bg-gray-800 text-white">
+          <div className="overflow-x-auto rounded-lg border border-slate-100">
+            <table className="w-full text-[12px]">
+              <thead className="bg-slate-800 text-white">
                 <tr>
                   {['Gabinete', 'Largo', 'Ancho', 'Alto', 'Foto #'].map(h => (
-                    <th key={h} className="px-3 py-2 text-left font-bold">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left font-semibold">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {cliente.gabinetes.map((g, gi) => (
-                  <tr key={gi} className={gi % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-1.5 font-medium">{val(g.gabinete)}</td>
-                    <td className="px-3 py-1.5">{val(g.largo)}</td>
-                    <td className="px-3 py-1.5">{val(g.ancho)}</td>
-                    <td className="px-3 py-1.5">{val(g.alto)}</td>
-                    <td className="px-3 py-1.5 text-gray-500">{val(g.fotoRef)}</td>
+                  <tr key={gi} className={gi % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                    <td className="px-3 py-2 font-medium text-slate-700">{v(g.gabinete)}</td>
+                    <td className="px-3 py-2 text-slate-600">{v(g.largo)}</td>
+                    <td className="px-3 py-2 text-slate-600">{v(g.ancho)}</td>
+                    <td className="px-3 py-2 text-slate-600">{v(g.alto)}</td>
+                    <td className="px-3 py-2 text-slate-500">{v(g.fotoRef)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -171,54 +201,42 @@ function FloorClientCard({ cliente, index }) {
   )
 }
 
-// ── Carrier card ───────────────────────────────────────────────────────────────
+// ── Carrier card ──────────────────────────────────────────────────────────────
 function CarrierCard({ carrier, index, assetPhotoMap }) {
   const name = carrier.nombre || `Carrier ${index + 1}`
-
-  // asset_type for carrier photos: "carrier:N:foto1" | "carrier:N:foto2" | "carrier:N:foto3"
   const foto1 = assetPhotoMap?.[`carrier:${index}:foto1`] || carrier.foto1
   const foto2 = assetPhotoMap?.[`carrier:${index}:foto2`] || carrier.foto2
   const foto3 = assetPhotoMap?.[`carrier:${index}:foto3`] || carrier.foto3
 
   return (
-    <div className="rounded-xl border border-gray-200 overflow-hidden">
-      <div className="flex items-center gap-3 px-4 py-2 bg-gray-700 text-white">
-        <Radio size={14} />
-        <span className="font-bold text-sm">{name}</span>
-        <span className="ml-auto text-[10px] opacity-50">Carrier #{index + 1}</span>
+    <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-700">
+        <Radio size={13} className="text-white/60" />
+        <span className="font-bold text-[13px] text-white">{name}</span>
+        <span className="ml-auto text-[10px] text-white/30">Carrier #{index + 1}</span>
       </div>
-
-      <div className="p-4 space-y-4">
-        <TorreTable items={carrier.items} />
-
-        {(foto1 || foto2 || foto3) && (
-          <div className="grid grid-cols-3 gap-3">
-            {[foto1, foto2, foto3].map((url, pi) => (
-              <div key={pi} className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 aspect-video flex items-center justify-center">
-                {url
-                  ? <img src={url} alt={`Foto ${pi + 1} — ${name}`} className="w-full h-full object-cover" />
-                  : <span className="text-xs text-gray-400">Sin foto {pi + 1}</span>
-                }
-              </div>
-            ))}
-          </div>
-        )}
+      <div className="p-4 space-y-4 bg-white">
+        <InventoryTable items={carrier.items} />
+        <PhotoGrid photos={[
+          [`Foto 1 — ${name}`, foto1],
+          [`Foto 2 — ${name}`, foto2],
+          [`Foto 3 — ${name}`, foto3],
+        ]} />
       </div>
     </div>
   )
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// ── Main export ────────────────────────────────────────────────────────────────
 export default function EquipmentV2Detail({ submission, assets }) {
-  const raw     = submission?.payload?.payload?.data || submission?.payload?.data || {}
+  const raw      = submission?.payload?.payload?.data || submission?.payload?.data || {}
   const siteInfo = raw.siteInfo  || {}
   const torre    = raw.torre     || {}
   const piso     = raw.piso      || {}
   const fotos    = raw.fotos     || {}
   const carriers = raw.carriers  || []
 
-  // Build photo map from assets — keyed by asset_type (as written by inspector)
-  // asset_type formats: "equipmentV2:fieldName" | "carrier:N:fotoX"
+  // Build asset photo map from the DB assets (keyed by asset_type)
   const assetPhotoMap = {}
   if (assets) {
     assets.forEach(a => {
@@ -234,67 +252,50 @@ export default function EquipmentV2Detail({ submission, assets }) {
   const fotoPlano        = assetPhotoMap['equipmentV2:fotoPlanoPlanta']       || fotos.fotoPlanoPlanta
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
 
-      {/* ── Datos del Sitio ───────────────────────────────────────────── */}
-      <Section icon={Package} title="Datos del Sitio" color="bg-gray-800">
+      {/* Datos del Sitio */}
+      <Section icon={MapPin} title="Datos del Sitio" headerClass="bg-slate-800">
         <SiteInfoGrid info={siteInfo} />
       </Section>
 
-      {/* ── Inventario de Equipos en Torre ───────────────────────────── */}
-      <Section icon={Package} title="Inventario de Equipos en Torre" color="bg-red-700">
+      {/* Torre */}
+      <Section icon={Package} title="Inventario de Equipos en Torre" headerClass="bg-red-700">
         <div className="space-y-4">
-          <TorreTable items={torre.items || []} />
-
-          {/* Torre photos */}
-          {(fotoDistribucion || fotoTorre || fotoCroquis) && (
-            <div>
-              <div className="text-xs font-bold text-gray-600 mb-2">Fotos de torre</div>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  [fotoDistribucion, 'Distribución de equipos en torre'],
-                  [fotoTorre,        'Torre completa'],
-                  [fotoCroquis,      'Croquis esquemático del edificio'],
-                ].map(([url, lbl], pi) => (
-                  <div key={pi} className="space-y-1">
-                    <div className="text-[10px] text-gray-500 font-semibold">{lbl}</div>
-                    <div className="rounded-xl overflow-hidden border border-gray-200 bg-gray-50 aspect-video flex items-center justify-center">
-                      {url
-                        ? <img src={url} alt={lbl} className="w-full h-full object-cover" />
-                        : <span className="text-xs text-gray-300">Sin foto</span>
-                      }
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <InventoryTable items={torre.items} />
+          <PhotoGrid photos={[
+            ['Distribución en torre', fotoDistribucion],
+            ['Torre completa',        fotoTorre],
+            ['Croquis del edificio',  fotoCroquis],
+          ]} />
         </div>
       </Section>
 
-      {/* ── Inventario de Equipos en Piso ─────────────────────────────── */}
-      {(piso.clientes && piso.clientes.length > 0) && (
-        <Section icon={Building2} title="Inventario de Equipos en Piso" color="bg-gray-800">
-          <div className="space-y-4">
-            {piso.clientes.map((c, i) => (
+      {/* Piso */}
+      {(piso.clientes?.length > 0 || fotoPlano) && (
+        <Section icon={Building2} title="Inventario de Equipos en Piso" headerClass="bg-slate-800">
+          <div className="space-y-3">
+            {(piso.clientes || []).map((c, i) => (
               <FloorClientCard key={i} cliente={c} index={i} />
             ))}
 
-            {/* Plano de planta */}
             {fotoPlano && (
-              <div>
-                <div className="text-xs font-bold text-gray-600 mb-2">Plano de planta y equipos</div>
-                <img src={fotoPlano} alt="Plano de planta" className="max-w-full rounded-xl border border-gray-200" />
+              <div className="mt-2">
+                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                  Plano de planta y equipos
+                </div>
+                <img src={fotoPlano} alt="Plano de planta"
+                  className="max-w-full rounded-xl border border-slate-200 shadow-sm" />
               </div>
             )}
           </div>
         </Section>
       )}
 
-      {/* ── Carriers ──────────────────────────────────────────────────── */}
+      {/* Carriers */}
       {carriers.length > 0 && (
-        <Section icon={Radio} title={`Carriers (${carriers.length})`} color="bg-gray-700">
-          <div className="space-y-4">
+        <Section icon={Radio} title={`Carriers`} badge={`${carriers.length} carrier${carriers.length !== 1 ? 's' : ''}`} headerClass="bg-slate-700">
+          <div className="space-y-3">
             {carriers.map((c, i) => (
               <CarrierCard key={i} carrier={c} index={i} assetPhotoMap={assetPhotoMap} />
             ))}
