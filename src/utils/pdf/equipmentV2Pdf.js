@@ -583,7 +583,32 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
   p.redSubheader('INVENTARIO DE EQUIPOS')
   p.drawTorreTable(torre.items || [])
 
-  // ── Torre photos: full-width distribucion, then croquis+torre side by side
+  // ── Fill remaining space on page 1 with empty rows until bottom margin ────
+  // rowH=16 matches drawTorreTable row height; cols layout same as table
+  {
+    const ROW_H = 16
+    const cols = [46, 65, 90, 68, 38, 38, 52, 48, 48, CW - 46 - 65 - 90 - 68 - 38 - 38 - 52 - 48 - 48]
+    while (p.y - ROW_H >= MB + 2) {
+      p.page.drawRectangle({ x: ML, y: p.y - ROW_H, width: CW, height: ROW_H, borderColor: C.border, borderWidth: 0.3 })
+      let rx = ML
+      for (let ci = 0; ci < cols.length; ci++) {
+        if (ci > 0) p.page.drawLine({
+          start: { x: rx, y: p.y }, end: { x: rx, y: p.y - ROW_H },
+          thickness: 0.3, color: C.border
+        })
+        rx += cols[ci]
+      }
+      p.y -= ROW_H
+    }
+  }
+
+  // ── Torre photos always start on page 2 ──────────────────────────────────
+  p._drawFooter()
+  p.page = doc.addPage([PW, PH])
+  p.pageNum++
+  p.y = PH - MT
+  p._miniHeader(siteHeaderData)
+
   await p.drawTorrePhotos(
     imgCache['fotoDistribucionTorre'],
     imgCache['fotoCroquisEdificio'],
