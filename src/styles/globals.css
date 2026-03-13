@@ -28,9 +28,9 @@
   --nav-active-bg:  rgba(255,255,255,0.10);
   --nav-hover-bg:   rgba(255,255,255,0.06);
 
-  --stat-accent-bg: #0F172A;
+  --stat-accent-bg: #4F46E5;
   --stat-accent-text: #FFFFFF;
-  --stat-accent-sub:  #64748B;
+  --stat-accent-sub:  rgba(255,255,255,0.65);
 
   --shadow-card:    0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.07);
 }
