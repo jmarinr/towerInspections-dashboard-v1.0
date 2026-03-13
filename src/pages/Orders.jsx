@@ -10,6 +10,7 @@ import { generateGroundingPdf } from '../utils/pdf/groundingPdf'
 import { generatePMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
 import { generateSafetyPdf } from '../utils/pdf/safetyPdf'
 import { generateSubmissionPdf } from '../utils/pdf/generateReport'
+import { generateEquipmentV2Pdf } from '../utils/pdf/equipmentV2Pdf'
 
 async function downloadAllPdfs(orderId, orderNumber) {
   // Fetch all submissions with assets for this order
@@ -25,11 +26,20 @@ async function downloadAllPdfs(orderId, orderNumber) {
       else if (fc === 'grounding-system-test') bytes = await generateGroundingPdf(sub, sub.assets || [])
       else if (fc === 'executed-maintenance') bytes = await generatePMExecutedPdf(sub, sub.assets || [])
       else if (fc === 'safety-system') bytes = await generateSafetyPdf(sub, sub.assets || [])
+      else if (fc === 'equipment-v2') {
+        const photoMap = {}
+        ;(sub.assets || []).forEach(a => {
+          const key = a.asset_type || a.type || ''
+          const url = a.public_url || a.storage_url || a.url
+          if (key && url) photoMap[key] = url
+        })
+        bytes = await generateEquipmentV2Pdf(sub, photoMap)
+      }
       else bytes = await generateSubmissionPdf(sub, sub.assets || [])
     } catch (e) { console.error(`PDF error for ${fc}:`, e); continue }
 
     if (bytes) {
-      const blob = new Blob([bytes], { type: 'application/pdf' })
+      const blob = bytes instanceof Blob ? bytes : new Blob([bytes], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
