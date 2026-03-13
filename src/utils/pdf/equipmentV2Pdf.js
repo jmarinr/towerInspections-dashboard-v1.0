@@ -440,16 +440,19 @@ class PageBuilder {
 
   // ── Torre photos layout (página 2):
   //   Fila 1: Distribución de equipos en torre — ancho completo
-  //   Fila 2: Foto de torre completa (izq) | Foto de torre completa (der)
-  //   Fila 3: Croquis esquemático (izq)    | Croquis esquemático (der)
+  //   Fila 2: imgTorre    — izq 2/3 (diagrama) + der 1/3 (foto real) con barra roja
+  //   Fila 3: imgCroquis  — izq 2/3 (diagrama) + der 1/3 (foto real) con barra roja
   async drawTorrePhotos(imgDistribucion, imgCroquis, imgTorre) {
-    const GAP  = 8   // gap entre columnas
-    const VGAP = 6   // gap entre filas
-    const LBL  = 11  // altura del label
-    const H1   = 160 // altura fila 1 (ancho completo)
-    const H2   = 140 // altura filas 2 y 3 (mitad/mitad)
-    const W    = (CW - GAP) / 2
+    const GAP   = 8    // gap entre columnas
+    const VGAP  = 8    // gap entre filas
+    const LBL   = 11   // altura label superior
+    const H1    = 160  // altura fila 1 (ancho completo)
+    const H2    = 200  // altura filas 2 y 3
+    const BAR_H = 16   // altura barra roja inferior en el recuadro derecho
+    const W_L   = Math.round(CW * 0.65)   // izquierda: 65% (croquis/diagrama)
+    const W_R   = CW - W_L - GAP          // derecha: resto (foto real)
 
+    // Dibuja un recuadro con imagen centrada
     const drawBox = (img, x, y, w, h) => {
       this.page.drawRectangle({ x, y, width: w, height: h, borderColor: C.border, borderWidth: 0.5 })
       if (img) {
@@ -461,40 +464,59 @@ class PageBuilder {
       }
     }
 
+    // Dibuja recuadro derecho con barra roja inferior y label centrado
+    const drawBoxWithRedBar = (img, x, y, w, h, label) => {
+      // Outer border
+      this.page.drawRectangle({ x, y, width: w, height: h, borderColor: C.border, borderWidth: 0.5 })
+      // Image area (above the red bar)
+      const imgH = h - BAR_H
+      if (img) {
+        try {
+          const scale = Math.min(w / img.width, imgH / img.height)
+          const dw = img.width * scale, dh = img.height * scale
+          this.page.drawImage(img, {
+            x: x + (w - dw) / 2,
+            y: y + BAR_H + (imgH - dh) / 2,
+            width: dw, height: dh
+          })
+        } catch {}
+      }
+      // Red bar at bottom
+      this.page.drawRectangle({ x, y, width: w, height: BAR_H, color: C.red })
+      // Label in bar
+      const lw = this.fontBold.widthOfTextAtSize(s(label), 6)
+      this.page.drawText(s(label), {
+        x: x + Math.max(2, (w - lw) / 2),
+        y: y + (BAR_H - 6) / 2 + 1,
+        size: 6, font: this.fontBold, color: C.white
+      })
+    }
+
     // ── Fila 1: Distribución — ancho completo ────────────────────────────
     this.checkSpace(LBL + H1 + VGAP)
     this.page.drawText('Distribucion de equipos en torre', {
       x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
     })
-    const y1 = this.y - LBL - H1
-    drawBox(imgDistribucion, ML, y1, CW, H1)
+    drawBox(imgDistribucion, ML, this.y - LBL - H1, CW, H1)
     this.y -= LBL + H1 + VGAP
 
-    // ── Fila 2: Torre completa × 2 (lado a lado) ─────────────────────────
-    this.checkSpace(LBL + H2 + VGAP)
-    this.page.drawText('Foto de torre completa', {
-      x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
-    })
-    this.page.drawText('Foto de torre completa', {
-      x: ML + W + GAP, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
-    })
-    const y2 = this.y - LBL - H2
-    drawBox(imgTorre, ML,           y2, W, H2)
-    drawBox(imgTorre, ML + W + GAP, y2, W, H2)
-    this.y -= LBL + H2 + VGAP
+    // ── Fila 2: Foto de torre completa ───────────────────────────────────
+    // Izquierda: croquis/diagrama (sin barra)
+    // Derecha: foto real con barra roja "Foto de Torre Completa"
+    this.checkSpace(H2 + VGAP)
+    const y2 = this.y - H2
+    drawBox(imgTorre,  ML,            y2, W_L, H2)
+    drawBoxWithRedBar(imgTorre, ML + W_L + GAP, y2, W_R, H2, 'Foto de Torre Completa')
+    this.y -= H2 + VGAP
 
-    // ── Fila 3: Croquis esquemático × 2 (lado a lado) ────────────────────
-    this.checkSpace(LBL + H2 + VGAP)
-    this.page.drawText('Croquis esquematico del edificio', {
-      x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
-    })
-    this.page.drawText('Croquis esquematico del edificio', {
-      x: ML + W + GAP, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
-    })
-    const y3 = this.y - LBL - H2
-    drawBox(imgCroquis, ML,           y3, W, H2)
-    drawBox(imgCroquis, ML + W + GAP, y3, W, H2)
-    this.y -= LBL + H2 + VGAP
+    // ── Fila 3: Croquis esquemático del edificio ─────────────────────────
+    // Izquierda: croquis (sin barra)
+    // Derecha: foto croquis con barra roja "Croquis Esquematico"
+    this.checkSpace(H2 + VGAP)
+    const y3 = this.y - H2
+    drawBox(imgCroquis,  ML,            y3, W_L, H2)
+    drawBoxWithRedBar(imgCroquis, ML + W_L + GAP, y3, W_R, H2, 'Croquis Esquematico del Edificio')
+    this.y -= H2 + VGAP
   }
 }
 
