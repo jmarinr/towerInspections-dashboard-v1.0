@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Orders from './pages/Orders'
@@ -6,6 +7,7 @@ import OrderDetail from './pages/OrderDetail'
 import Submissions from './pages/Submissions'
 import SubmissionDetail from './pages/SubmissionDetail'
 import { useAuthStore } from './store/useAuthStore'
+import { useThemeStore } from './store/useThemeStore'
 import Shell from './components/layout/Shell'
 
 function RequireAuth({ children }) {
@@ -21,18 +23,20 @@ function Page({ children }) {
 
 export default function App() {
   const isAuthed = useAuthStore((s) => s.isAuthed)
+  const init = useThemeStore((s) => s.init)
+
+  // Apply saved theme on first load
+  useEffect(() => { init() }, [])
 
   return (
     <Routes>
       <Route path="/login" element={isAuthed ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/" element={<Navigate to={isAuthed ? '/dashboard' : '/login'} replace />} />
-
-      <Route path="/dashboard" element={<Page><Dashboard /></Page>} />
-      <Route path="/orders" element={<Page><Orders /></Page>} />
-      <Route path="/orders/:orderId" element={<Page><OrderDetail /></Page>} />
-      <Route path="/submissions" element={<Page><Submissions /></Page>} />
+      <Route path="/dashboard"              element={<Page><Dashboard /></Page>} />
+      <Route path="/orders"                 element={<Page><Orders /></Page>} />
+      <Route path="/orders/:orderId"        element={<Page><OrderDetail /></Page>} />
+      <Route path="/submissions"            element={<Page><Submissions /></Page>} />
       <Route path="/submissions/:submissionId" element={<Page><SubmissionDetail /></Page>} />
-
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
