@@ -439,84 +439,83 @@ class PageBuilder {
   }
 
   // ── Torre photos layout (página 2):
-  //   Fila 1: Distribución de equipos en torre — ancho completo
-  //   Fila 2: imgTorre    — izq 2/3 (diagrama) + der 1/3 (foto real) con barra roja
-  //   Fila 3: imgCroquis  — izq 2/3 (diagrama) + der 1/3 (foto real) con barra roja
+  //
+  //  Fila 1 — "Distribución de equipos en torre"
+  //    ┌──────────────────────┬──────────────────────┐
+  //    │  slot izq (foto)     │  slot der (foto)     │
+  //    │                      │ [barra roja]          │
+  //    │                      │ Foto de Torre Compl.  │
+  //    └──────────────────────┴──────────────────────┘
+  //
+  //  Fila 2 — "Croquis esquemático del edificio en corte"
+  //    ┌──────────────────────────────────────────────┐
+  //    │             foto — ancho completo            │
+  //    └──────────────────────────────────────────────┘
+  //
   async drawTorrePhotos(imgDistribucion, imgCroquis, imgTorre) {
     const GAP   = 8    // gap entre columnas
-    const VGAP  = 8    // gap entre filas
-    const LBL   = 11   // altura label superior
-    const H1    = 160  // altura fila 1 (ancho completo)
-    const H2    = 200  // altura filas 2 y 3
-    const BAR_H = 16   // altura barra roja inferior en el recuadro derecho
-    const W_L   = Math.round(CW * 0.65)   // izquierda: 65% (croquis/diagrama)
-    const W_R   = CW - W_L - GAP          // derecha: resto (foto real)
+    const VGAP  = 10   // gap entre filas
+    const LBL   = 11   // altura label de sección
+    const H1    = 210  // altura fila 1
+    const H2    = 180  // altura fila 2
+    const BAR_H = 16   // barra roja inferior
+    const W2    = (CW - GAP) / 2  // mitad de ancho para fila 1
 
-    // Dibuja un recuadro con imagen centrada
+    // Box simple con imagen centrada
     const drawBox = (img, x, y, w, h) => {
       this.page.drawRectangle({ x, y, width: w, height: h, borderColor: C.border, borderWidth: 0.5 })
       if (img) {
         try {
-          const scale = Math.min(w / img.width, h / img.height)
-          const dw = img.width * scale, dh = img.height * scale
+          const sc = Math.min(w / img.width, h / img.height)
+          const dw = img.width * sc, dh = img.height * sc
           this.page.drawImage(img, { x: x + (w - dw) / 2, y: y + (h - dh) / 2, width: dw, height: dh })
         } catch {}
       }
     }
 
-    // Dibuja recuadro derecho con barra roja inferior y label centrado
-    const drawBoxWithRedBar = (img, x, y, w, h, label) => {
-      // Outer border
+    // Box con barra roja en la parte inferior + label centrado en blanco
+    const drawBoxWithBar = (img, x, y, w, h, label) => {
       this.page.drawRectangle({ x, y, width: w, height: h, borderColor: C.border, borderWidth: 0.5 })
-      // Image area (above the red bar)
       const imgH = h - BAR_H
       if (img) {
         try {
-          const scale = Math.min(w / img.width, imgH / img.height)
-          const dw = img.width * scale, dh = img.height * scale
-          this.page.drawImage(img, {
-            x: x + (w - dw) / 2,
-            y: y + BAR_H + (imgH - dh) / 2,
-            width: dw, height: dh
-          })
+          const sc = Math.min(w / img.width, imgH / img.height)
+          const dw = img.width * sc, dh = img.height * sc
+          this.page.drawImage(img, { x: x + (w - dw) / 2, y: y + BAR_H + (imgH - dh) / 2, width: dw, height: dh })
         } catch {}
       }
-      // Red bar at bottom
       this.page.drawRectangle({ x, y, width: w, height: BAR_H, color: C.red })
-      // Label in bar
-      const lw = this.fontBold.widthOfTextAtSize(s(label), 6)
+      const lw = this.fontBold.widthOfTextAtSize(s(label), 6.5)
       this.page.drawText(s(label), {
-        x: x + Math.max(2, (w - lw) / 2),
-        y: y + (BAR_H - 6) / 2 + 1,
-        size: 6, font: this.fontBold, color: C.white
+        x: x + Math.max(3, (w - lw) / 2),
+        y: y + (BAR_H - 6.5) / 2 + 1,
+        size: 6.5, font: this.fontBold, color: C.white
       })
     }
 
-    // ── Fila 1: Distribución — ancho completo ────────────────────────────
+    // ── Fila 1: "Distribución de equipos en torre" ────────────────────────
+    // Label de sección
     this.checkSpace(LBL + H1 + VGAP)
     this.page.drawText('Distribucion de equipos en torre', {
       x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
     })
-    drawBox(imgDistribucion, ML, this.y - LBL - H1, CW, H1)
+    const y1 = this.y - LBL - H1
+    // Slot izquierdo — foto de distribución (sin barra)
+    drawBox(imgDistribucion, ML, y1, W2, H1)
+    // Slot derecho — misma foto con barra roja "Foto de Torre Completa"
+    drawBoxWithBar(imgTorre, ML + W2 + GAP, y1, W2, H1, 'Foto de Torre Completa')
     this.y -= LBL + H1 + VGAP
 
-    // ── Fila 2: Foto de torre completa ───────────────────────────────────
-    // Izquierda: croquis/diagrama (sin barra)
-    // Derecha: foto real con barra roja "Foto de Torre Completa"
-    this.checkSpace(H2 + VGAP)
-    const y2 = this.y - H2
-    drawBox(imgTorre,  ML,            y2, W_L, H2)
-    drawBoxWithRedBar(imgTorre, ML + W_L + GAP, y2, W_R, H2, 'Foto de Torre Completa')
-    this.y -= H2 + VGAP
-
-    // ── Fila 3: Croquis esquemático del edificio ─────────────────────────
-    // Izquierda: croquis (sin barra)
-    // Derecha: foto croquis con barra roja "Croquis Esquematico"
-    this.checkSpace(H2 + VGAP)
-    const y3 = this.y - H2
-    drawBox(imgCroquis,  ML,            y3, W_L, H2)
-    drawBoxWithRedBar(imgCroquis, ML + W_L + GAP, y3, W_R, H2, 'Croquis Esquematico del Edificio')
-    this.y -= H2 + VGAP
+    // ── Fila 2: "Croquis esquemático del edificio en corte" ───────────────
+    // Label de sección
+    this.checkSpace(LBL + H2 + VGAP)
+    this.page.drawText('Croquis esquematico del edificio en corte', {
+      x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
+    })
+    const y2 = this.y - LBL - H2
+    // Una sola foto — ancho completo
+    drawBox(imgCroquis, ML, y2, CW, H2)
+    this.y -= LBL + H2 + VGAP
   }
 }
 
