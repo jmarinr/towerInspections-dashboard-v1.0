@@ -395,11 +395,15 @@ class PageBuilder {
     const totalH = HDR_H + ROW_H * 2 + GAB_HDR_H + GAB_H * totalRows
     this.page.drawRectangle({ x, y: y - totalH, width: cardW, height: totalH, borderColor: C.border, borderWidth: 0.5 })
 
-    // ── Header bar ───────────────────────────────────────────────────────────
-    this.page.drawRectangle({ x, y: y - HDR_H, width: cardW, height: HDR_H, color: C.black })
-    this.page.drawText(tipo, { x: x + 4, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.white })
+    // ── Header row (light background, dark text — like reference PDF) ─────────
+    // Just a bottom border line, no fill
+    this.page.drawLine({
+      start: { x, y: y - HDR_H }, end: { x: x + cardW, y: y - HDR_H },
+      thickness: 0.4, color: C.border,
+    })
+    this.page.drawText(tipo, { x: x + 4, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.text })
     if (nombreCliente) {
-      this.page.drawText(nombreCliente, { x: x + 78, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.white })
+      this.page.drawText(nombreCliente, { x: x + 78, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.text })
     }
     y -= HDR_H
 
