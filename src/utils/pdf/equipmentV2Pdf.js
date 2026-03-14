@@ -725,9 +725,7 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
     prefetchKey('fotoTorreCompleta'),
     prefetchKey('fotoCroquisEdificio'),
     prefetchKey('fotoPlanoPlanta'),
-    ...carriers.flatMap((_, ci) => [
-      `carrier:${ci}:foto1`, `carrier:${ci}:foto2`, `carrier:${ci}:foto3`
-    ].map(prefetchKey)),
+
   ])
 
   const p = new PageBuilder(doc, font, fontBold, logo)
@@ -825,70 +823,6 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
     p.y -= planoH  // agota la pagina — la siguiente seccion arranca en pagina nueva
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // PAGES — Carriers (continuous, all in sequence)
-  // No se fuerza nueva pagina aqui — checkSpace la crea cuando hace falta.
-  // Si no hay carriers, no se agrega ninguna pagina extra.
-  // ═══════════════════════════════════════════════════════════════════════════
-  if (carriers.length > 0) {
-    for (let ci = 0; ci < carriers.length; ci++) {
-      const carrier = carriers[ci]
-      const cName = s(carrier.nombre || `Carrier ${ci + 1}`)
-
-      p.checkSpace(30)
-      // Carrier name header
-      const ch = 16
-      p.page.drawRectangle({ x: ML, y: p.y - ch, width: CW, height: ch, color: C.darkGray })
-      p.page.drawText(`Carrier: ${cName}`, {
-        x: ML + 6, y: p.y - ch + 5, size: 8, font: fontBold, color: C.white
-      })
-      p.y -= ch + 2
-
-      // Torre table filtered for this carrier
-      p.drawTorreTable(carrier.items || [])
-
-      // Carrier/Comentario summary table (from last column of items)
-      const hasComments = (carrier.items || []).some(it => it.comentario)
-      if (hasComments) {
-        const ccols = [{ label: 'Carrier', w: 100 }, { label: 'Comentario', w: CW - 100 }]
-        const ccH = 14
-        p.checkSpace(ccH + (carrier.items || []).length * 14 + 10)
-
-        // Header
-        p.page.drawRectangle({ x: ML, y: p.y - ccH, width: CW, height: ccH, color: C.red })
-        p.page.drawText('Carrier', {
-          x: ML + (100 - fontBold.widthOfTextAtSize('Carrier', 6)) / 2,
-          y: p.y - ccH + 4, size: 6, font: fontBold, color: C.white
-        })
-        p.page.drawText('Comentario', {
-          x: ML + 100 + 4, y: p.y - ccH + 4, size: 6, font: fontBold, color: C.white
-        })
-        p.y -= ccH
-
-        for (const row of (carrier.items || [])) {
-          if (!row.carrier && !row.comentario) continue
-          const rh = 13
-          p.checkSpace(rh)
-          p.page.drawRectangle({ x: ML, y: p.y - rh, width: CW, height: rh, borderColor: C.border, borderWidth: 0.3 })
-          p.page.drawLine({ start: { x: ML + 100, y: p.y }, end: { x: ML + 100, y: p.y - rh }, thickness: 0.3, color: C.border })
-          p._cellVal(row.carrier || cName, ML + 3, p.y - rh + 4, 6, 94)
-          p._cellVal(row.comentario, ML + 104, p.y - rh + 4, 6, CW - 108)
-          p.y -= rh
-        }
-        p.y -= 4
-      }
-
-      // Photos
-      const c1 = imgCache[`carrier:${ci}:foto1`]
-      const c2 = imgCache[`carrier:${ci}:foto2`]
-      const c3 = imgCache[`carrier:${ci}:foto3`]
-      if (c1 || c2 || c3) {
-        await p.drawPhotoRow([c1, c2, c3], [`Foto 1 — ${cName}`, `Foto 2 — ${cName}`, `Foto 3 — ${cName}`], 100)
-      }
-
-      p.y -= 6
-    }
-  }
 
   // ── Finalize ──────────────────────────────────────────────────────────────
   p._drawFooter()
