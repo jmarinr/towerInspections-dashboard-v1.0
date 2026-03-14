@@ -9,7 +9,7 @@ const v   = (x) => (x !== undefined && x !== null && x !== '') ? String(x) : nul
 const vd  = (x) => v(x) ?? '—'
 
 // ── Collapsible panel ─────────────────────────────────────────────────────────
-function Panel({ icon: Icon, title, badge, accent = '#6366F1', ghostNum, children, defaultOpen = true }) {
+function Panel({ icon: Icon, title, badge, accent = '#00b4a0', ghostNum, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
     <div className="rounded-2xl overflow-hidden transition-all"
@@ -263,7 +263,7 @@ export default function EquipmentV2Detail({ submission, assets }) {
   return (
     <div className="space-y-3">
 
-      <Panel icon={MapPin} title="Datos del Sitio" accent="#6366F1" ghostNum="01">
+      <Panel icon={MapPin} title="Datos del Sitio" accent="#00b4a0" ghostNum="01">
         <SiteInfoGrid info={siteInfo} />
       </Panel>
 

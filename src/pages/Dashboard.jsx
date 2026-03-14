@@ -10,13 +10,13 @@ function StatCard({ icon: Icon, label, value, sub, primary = false }) {
   return (
     <div className="rounded-2xl p-5 border th-shadow animate-slide-up flex flex-col gap-3 transition-colors"
       style={{
-        background: primary ? 'var(--stat-accent-bg)' : 'var(--bg-card)',
-        borderColor: primary ? 'transparent' : 'var(--border)',
+        background:   primary ? 'var(--stat-accent-bg)' : 'var(--bg-card)',
+        borderColor:  primary ? 'transparent' : 'var(--border)',
       }}>
       <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-        style={{ background: primary ? 'rgba(255,255,255,0.12)' : 'var(--bg-base)' }}>
+        style={{ background: primary ? 'rgba(255,255,255,0.15)' : 'var(--accent-light)' }}>
         <Icon size={16} strokeWidth={1.8}
-          style={{ color: primary ? 'var(--stat-accent-text)' : 'var(--text-secondary)' }} />
+          style={{ color: primary ? 'var(--stat-accent-text)' : 'var(--accent)' }} />
       </div>
       <div>
         <div className="text-[28px] font-bold leading-none tabular-nums"
@@ -104,7 +104,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <span className="text-[13px] font-bold tabular-nums th-text-p">{count}</span>
-                      <ChevronRight size={11} className="th-text-m group-hover:text-indigo-400 transition-colors" />
+                      <ChevronRight size={11} className="th-text-m group-hover:text-teal-500 transition-colors" />
                     </div>
                   </Link>
                 )
@@ -168,7 +168,7 @@ export default function Dashboard() {
                         </span>}
                     {date && <span className="text-[10px] th-text-m">{date}</span>}
                   </div>
-                  <ChevronRight size={13} className="th-text-m group-hover:text-indigo-400 transition-colors flex-shrink-0" />
+                  <ChevronRight size={13} className="th-text-m group-hover:text-teal-500 transition-colors flex-shrink-0" />
                 </Link>
               )
             })}

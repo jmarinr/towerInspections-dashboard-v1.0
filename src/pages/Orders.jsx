@@ -61,7 +61,7 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
   return (
     <button onClick={handleClick} disabled={loading}
       title="Descargar todos los PDFs"
-      className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 disabled:opacity-40 transition-colors">
+      className="p-1.5 rounded-lg th-text-m hover:text-teal-600 hover:bg-teal-50 disabled:opacity-40 transition-colors">
       {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
     </button>
   )
@@ -86,8 +86,8 @@ export default function Orders() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h1 className="text-[20px] font-bold text-slate-900">Visitas</h1>
-        <span className="text-[12px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full tabular-nums">
+        <h1 className="text-[20px] font-bold th-text-p">Visitas</h1>
+        <span className="text-[12px] font-semibold th-text-m bg-slate-100 px-2.5 py-0.5 rounded-full tabular-nums">
           {filtered.length}
         </span>
       </div>
@@ -95,22 +95,22 @@ export default function Orders() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-m pointer-events-none" />
           <input type="text" value={search} onChange={e => setFilter({ search: e.target.value })}
             placeholder="Buscar orden, sitio…"
-            className="w-full h-9 pl-9 pr-8 text-[13px] bg-white border border-slate-200 rounded-lg shadow-sm
-              focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-slate-400" />
+            className="w-full h-9 pl-9 pr-8 text-[13px] th-bg-card border th-border rounded-lg
+              focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all placeholder:th-text-m" />
           {search && (
             <button onClick={() => setFilter({ search: '' })}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-m hover:th-text-s">
               <X size={13} />
             </button>
           )}
         </div>
 
         <select value={filterStatus} onChange={e => setFilter({ filterStatus: e.target.value })}
-          className="h-9 px-3 text-[13px] bg-white border border-slate-200 rounded-lg shadow-sm
-            focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all text-slate-700">
+          className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
+            focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all th-text-s">
           <option value="all">Todas</option>
           <option value="open">Abiertas</option>
           <option value="closed">Cerradas</option>
@@ -118,8 +118,8 @@ export default function Orders() {
 
         {hasFilter && (
           <button onClick={() => setFilter({ search: '', filterStatus: 'all' })}
-            className="h-9 px-3 text-[13px] text-slate-500 hover:text-slate-800 bg-white border border-slate-200
-              rounded-lg shadow-sm flex items-center gap-1.5 transition-colors hover:bg-slate-50">
+            className="h-9 px-3 text-[13px] th-text-m hover:th-text-p th-bg-card border th-border
+              rounded-lg shadow-sm flex items-center gap-1.5 transition-colors hover:bg-slate-50/40">
             <X size={13} />Limpiar
           </button>
         )}
@@ -128,16 +128,16 @@ export default function Orders() {
       {isLoading && <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>}
 
       {!isLoading && filtered.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="rounded-2xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70">
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Orden</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sitio</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden md:table-cell">Inspector</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider hidden lg:table-cell">Fecha</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Estado</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider text-center w-16">PDFs</th>
+              <tr className="border-b th-border-l">
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Orden</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Sitio</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider hidden md:table-cell">Inspector</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider hidden lg:table-cell">Fecha</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Estado</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-16">PDFs</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -147,23 +147,25 @@ export default function Orders() {
                 const open = o.status === 'open'
                 return (
                   <tr key={o.id} onClick={() => navigate(`/orders/${o.id}`)}
-                    className="hover:bg-slate-50/60 cursor-pointer transition-colors group">
+                    className="cursor-pointer transition-colors group"
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
 
                     <td className="px-4 py-3.5">
-                      <span className="text-[13px] font-bold text-indigo-500">{o.order_number}</span>
+                      <span className="text-[13px] font-bold text-teal-600">{o.order_number}</span>
                     </td>
 
                     <td className="px-4 py-3.5 min-w-0">
-                      <div className="text-[13px] font-semibold text-slate-800 truncate max-w-[200px]">{o.site_name}</div>
-                      {o.site_id && <div className="text-[11px] text-slate-400 mt-0.5">ID: {o.site_id}</div>}
+                      <div className="text-[13px] font-semibold th-text-p truncate max-w-[200px]">{o.site_name}</div>
+                      {o.site_id && <div className="text-[11px] th-text-m mt-0.5">ID: {o.site_id}</div>}
                     </td>
 
                     <td className="px-4 py-3.5 hidden md:table-cell">
-                      <span className="text-[13px] text-slate-600">{o.inspector_name || '—'}</span>
+                      <span className="text-[13px] th-text-s">{o.inspector_name || '—'}</span>
                     </td>
 
                     <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <span className="text-[13px] text-slate-600">
+                      <span className="text-[13px] th-text-s">
                         {d ? d.toLocaleDateString('es', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}
                       </span>
                     </td>
@@ -173,7 +175,7 @@ export default function Orders() {
                         ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Abierta
                           </span>
-                        : <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 ring-1 ring-inset ring-slate-200">
+                        : <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 th-text-m ring-1 ring-inset ring-slate-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Cerrada
                           </span>}
                     </td>
@@ -183,7 +185,7 @@ export default function Orders() {
                     </td>
 
                     <td className="pr-3 py-3.5">
-                      <ChevronRight size={15} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+                      <ChevronRight size={15} className="th-text-m group-hover:text-teal-500 transition-colors" />
                     </td>
                   </tr>
                 )
@@ -194,9 +196,9 @@ export default function Orders() {
       )}
 
       {!isLoading && filtered.length === 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 py-20 text-center shadow-sm">
-          <div className="text-[15px] font-semibold text-slate-500 mb-1">Sin resultados</div>
-          <div className="text-[13px] text-slate-400">
+        <div className="rounded-2xl th-shadow py-20 text-center" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
+          <div className="text-[15px] font-semibold th-text-m mb-1">Sin resultados</div>
+          <div className="text-[13px] th-text-m">
             {hasFilter ? 'Ajusta los filtros.' : 'Sin visitas registradas aún.'}
           </div>
         </div>

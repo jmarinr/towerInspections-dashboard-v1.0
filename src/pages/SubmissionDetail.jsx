@@ -78,10 +78,10 @@ function StatusBadge({ value }) {
   if (v.includes('malo'))
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-bad/10 text-bad"><XCircle size={10}/>{value}</span>
   if (v.includes('n/a'))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400"><Minus size={10}/>N/A</span>
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 th-text-m"><Minus size={10}/>N/A</span>
   if (v.includes('pendiente'))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-400"><Clock size={10}/>Pendiente</span>
-  return <span className="text-[11px] text-slate-500">{value || '—'}</span>
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 th-text-m"><Clock size={10}/>Pendiente</span>
+  return <span className="text-[11px] th-text-m">{value || '—'}</span>
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -139,22 +139,22 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
   return (
     <div className={`flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0 transition-colors
       ${changed ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}>
-      <span className="text-[11px] text-slate-400 w-36 flex-shrink-0 pt-1.5">{label}</span>
+      <span className="text-[11px] th-text-m w-36 flex-shrink-0 pt-1.5">{label}</span>
       <div className="flex-1 relative">
         {isLong
           ? <textarea rows={3}
               className={`w-full text-[12px] border rounded px-2 py-1 outline-none resize-none transition-all
                 ${changed
-                  ? 'border-accent bg-white shadow-sm ring-1 ring-accent/20'
-                  : 'border-slate-200 bg-slate-50 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20'}`}
+                  ? 'border-teal-400 bg-white shadow-sm ring-1 ring-teal-400/20'
+                  : 'border-slate-200 bg-slate-50 focus:border-teal-400 focus:bg-white focus:ring-1 focus:ring-teal-400/20'}`}
               value={current}
               onChange={e => onChange(fieldKey, e.target.value)}
             />
           : <input
               className={`w-full text-[12px] border rounded px-2 py-1 outline-none transition-all
                 ${changed
-                  ? 'border-accent bg-white shadow-sm ring-1 ring-accent/20'
-                  : 'border-slate-200 bg-slate-50 focus:border-accent focus:bg-white focus:ring-1 focus:ring-accent/20'}`}
+                  ? 'border-teal-400 bg-white shadow-sm ring-1 ring-teal-400/20'
+                  : 'border-slate-200 bg-slate-50 focus:border-teal-400 focus:bg-white focus:ring-1 focus:ring-teal-400/20'}`}
               value={current}
               onChange={e => onChange(fieldKey, e.target.value)}
             />
@@ -201,26 +201,27 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
   const photoCount = photos?.length || 0
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-card"
+    <div className="rounded-xl th-shadow overflow-hidden"
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
       style={{ animationDelay: `${index * 40}ms` }}>
       <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors text-left">
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/30 transition-colors text-left">
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-semibold text-slate-800">{title}</div>
+          <div className="text-[13px] font-semibold th-text-p">{title}</div>
           {isCL && sTotal > 0 && (
             <div className="flex gap-0.5 mt-1 flex-wrap">
               {data.slice(0,20).map((it,i) => <StatusDot key={i} value={it['Estado']} />)}
-              {data.length > 20 && <span className="text-[9px] text-slate-400 ml-1">+{data.length-20}</span>}
+              {data.length > 20 && <span className="text-[9px] th-text-m ml-1">+{data.length-20}</span>}
             </div>
           )}
         </div>
         <div className="flex items-center gap-2">
           {photoCount > 0 && (
-            <span className="flex items-center gap-1 text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+            <span className="flex items-center gap-1 text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded">
               <Camera size={9}/>{photoCount}
             </span>
           )}
-          {open ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
+          {open ? <ChevronDown size={14} className="th-text-m"/> : <ChevronRight size={14} className="th-text-m"/>}
         </div>
       </button>
 
@@ -242,10 +243,10 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
                 const isPhoto = k.startsWith('foto') && typeof v === 'string' && v.startsWith('http')
                 return (
                   <div key={k} className="flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0">
-                    <span className="text-[11px] text-slate-400 w-36 flex-shrink-0 pt-0.5">{k}</span>
+                    <span className="text-[11px] th-text-m w-36 flex-shrink-0 pt-0.5">{k}</span>
                     {isPhoto
                       ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-[11px] text-accent hover:underline">Ver foto</a>
-                      : <span className="text-[12px] text-slate-700 flex-1">{display}</span>
+                      : <span className="text-[12px] th-text-s flex-1">{display}</span>
                     }
                   </div>
                 )
@@ -261,16 +262,16 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
                   <StatusDot value={it['Estado']} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] font-medium text-slate-700">
+                      <span className="text-[11px] font-medium th-text-s">
                         {it['Item'] || it['Ítem'] || it['nombre'] || `Ítem ${i+1}`}
                       </span>
                       <StatusBadge value={it['Estado']} />
                       {hv && it['Valor'] && (
-                        <span className="text-[10px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{it['Valor']}</span>
+                        <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded">{it['Valor']}</span>
                       )}
                     </div>
                     {ho && it['Observación'] && (
-                      <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{it['Observación']}</p>
+                      <p className="text-[11px] th-text-m mt-0.5 leading-snug">{it['Observación']}</p>
                     )}
                   </div>
                 </div>
@@ -298,7 +299,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-elevated w-full max-w-md" onClick={e => e.stopPropagation()}>
+      <div className="rounded-2xl shadow-elevated w-full max-w-md" style={{background:"var(--bg-card)"}} onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
@@ -306,7 +307,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
           </div>
           <div>
             <h2 className="text-[15px] font-bold text-slate-900">Confirmar cambios</h2>
-            <p className="text-[12px] text-slate-500 mt-0.5">Quedarán registrados en el historial de auditoría.</p>
+            <p className="text-[12px] th-text-m mt-0.5">Quedarán registrados en el historial de auditoría.</p>
           </div>
         </div>
 
@@ -314,10 +315,10 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
         <div className="px-5 py-3 max-h-48 overflow-y-auto space-y-2">
           {entries.map(([key, { from, to, label }]) => (
             <div key={key} className="text-[12px] bg-slate-50 rounded-lg px-3 py-2">
-              <div className="font-medium text-slate-600 mb-1">{label || key}</div>
+              <div className="font-medium th-text-s mb-1">{label || key}</div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-bad/90 line-through">{String(from ?? '—')}</span>
-                <ChevronRight size={10} className="text-slate-400 flex-shrink-0"/>
+                <ChevronRight size={10} className="th-text-m flex-shrink-0"/>
                 <span className="text-good font-medium">{String(to ?? '—')}</span>
               </div>
             </div>
@@ -327,7 +328,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
         {/* Note input */}
         <div className="px-5 pb-5 border-t border-slate-100 pt-4 space-y-3">
           <div>
-            <label className="text-[11px] font-semibold text-slate-600 uppercase tracking-wide block mb-1.5">
+            <label className="text-[11px] font-semibold th-text-s uppercase tracking-wide block mb-1.5">
               Razón del cambio <span className="text-bad">*</span>
             </label>
             <textarea
@@ -341,7 +342,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel}
-              className="flex-1 h-9 text-[13px] font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+              className="flex-1 h-9 text-[13px] font-medium th-text-s bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
               Cancelar
             </button>
             <button onClick={() => onConfirm(note)}
@@ -374,12 +375,12 @@ function EditHistory({ submissionId }) {
   }, [open, submissionId])
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
+    <div className="rounded-xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
       <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors text-left">
-        <History size={14} className="text-slate-400" />
-        <span className="text-[13px] font-semibold text-slate-700 flex-1">Historial de ediciones</span>
-        {open ? <ChevronDown size={14} className="text-slate-400"/> : <ChevronRight size={14} className="text-slate-400"/>}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/30 transition-colors text-left">
+        <History size={14} className="th-text-m" />
+        <span className="text-[13px] font-semibold th-text-s flex-1">Historial de ediciones</span>
+        {open ? <ChevronDown size={14} className="th-text-m"/> : <ChevronRight size={14} className="th-text-m"/>}
       </button>
 
       {open && (
@@ -387,15 +388,15 @@ function EditHistory({ submissionId }) {
           {loading && <div className="py-6 flex justify-center"><Spinner size={14} /></div>}
 
           {!loading && edits.length === 0 && (
-            <p className="text-[12px] text-slate-400 py-5 text-center">Sin ediciones registradas</p>
+            <p className="text-[12px] th-text-m py-5 text-center">Sin ediciones registradas</p>
           )}
 
           {!loading && edits.map(edit => (
             <div key={edit.id} className="py-3 border-b border-slate-50 last:border-0">
               {/* Who + when */}
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-[11px] font-semibold text-slate-800">{edit.edited_by}</span>
-                <span className="text-[10px] text-slate-400">
+                <span className="text-[11px] font-semibold th-text-p">{edit.edited_by}</span>
+                <span className="text-[10px] th-text-m">
                   {new Date(edit.edited_at).toLocaleString('es', { dateStyle:'medium', timeStyle:'short' })}
                 </span>
               </div>
@@ -403,16 +404,16 @@ function EditHistory({ submissionId }) {
               <div className="space-y-1 mb-2">
                 {Object.entries(edit.changes || {}).map(([key, ch]) => (
                   <div key={key} className="text-[11px] flex items-center gap-1.5 flex-wrap">
-                    <span className="text-slate-500 font-medium">{ch.label || key}:</span>
+                    <span className="th-text-m font-medium">{ch.label || key}:</span>
                     <span className="text-bad/80 line-through">{String(ch.from ?? '—')}</span>
-                    <ChevronRight size={9} className="text-slate-300"/>
+                    <ChevronRight size={9} className="th-text-m"/>
                     <span className="text-good font-medium">{String(ch.to ?? '—')}</span>
                   </div>
                 ))}
               </div>
               {/* Note */}
               {edit.note && (
-                <p className="text-[11px] text-slate-400 italic bg-slate-50 rounded px-2 py-1 mt-1">
+                <p className="text-[11px] th-text-m italic bg-slate-50 rounded px-2 py-1 mt-1">
                   "{edit.note}"
                 </p>
               )}
@@ -629,7 +630,7 @@ export default function SubmissionDetail() {
 
   if (isLoading) return <div className="flex items-center justify-center py-20"><Spinner size={16}/></div>
   if (!submission) return (
-    <div className="text-center py-20 text-[13px] text-slate-400">
+    <div className="text-center py-20 text-[13px] th-text-m">
       No encontrado.{' '}
       <button onClick={() => navigate('/submissions')} className="text-accent hover:underline">Volver</button>
     </div>
@@ -717,7 +718,7 @@ export default function SubmissionDetail() {
         {/* ── Top bar ── */}
         <div className="flex items-center justify-between flex-wrap gap-2">
           <button onClick={() => navigate(-1)}
-            className="text-[13px] text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors">
+            className="text-[13px] th-text-m hover:th-text-p flex items-center gap-1 transition-colors">
             <ArrowLeft size={15}/> Volver
           </button>
 
@@ -738,11 +739,11 @@ export default function SubmissionDetail() {
               </button>
             )}
             {editMode && <>
-              <span className="text-[11px] text-slate-400">
+              <span className="text-[11px] th-text-m">
                 {pendingCount} campo{pendingCount !== 1 ? 's' : ''} modificado{pendingCount !== 1 ? 's' : ''}
               </span>
               <button onClick={handleEditCancel}
-                className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 flex items-center gap-1.5 transition-all">
+                className="h-8 px-3 text-[12px] font-medium th-text-s bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 flex items-center gap-1.5 transition-all">
                 <RotateCcw size={12}/> Cancelar
               </button>
               <button onClick={handleEditSave} disabled={pendingCount === 0}
@@ -754,7 +755,7 @@ export default function SubmissionDetail() {
             {/* Standard actions */}
             {!editMode && totalPhotos > 0 && (
               <button onClick={handleDownloadPhotos} disabled={photosLoading}
-                className="h-8 px-3 text-[12px] font-medium text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 flex items-center gap-1.5 transition-all">
+                className="h-8 px-3 text-[12px] font-medium th-text-s th-bg-card border th-border rounded-lg hover:bg-slate-50/40 disabled:opacity-50 flex items-center gap-1.5 transition-all">
                 {photosLoading
                   ? <><Clock size={13} className="animate-spin"/>Descargando…</>
                   : <><Download size={13}/>Fotos ({totalPhotos})</>}
@@ -782,7 +783,7 @@ export default function SubmissionDetail() {
         )}
 
         {/* ── HERO CARD ── */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-card overflow-hidden">
+        <div className="rounded-xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
           <div className="px-5 py-4 flex items-start gap-4">
             <div className="flex-shrink-0">
               {globalScore !== null
@@ -809,14 +810,14 @@ export default function SubmissionDetail() {
                       : <span className="text-[10px] font-semibold text-warn bg-warn/10 px-2 py-0.5 rounded-full">Borrador</span>
                   )}
               </div>
-              <div className="text-[13px] text-slate-500 mt-0.5">{meta.label}</div>
+              <div className="text-[13px] th-text-m mt-0.5">{meta.label}</div>
               {totalItems > 0 && (
                 <div className="flex items-center gap-3 mt-2 flex-wrap">
-                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-good"/><b className="text-good">{bueno}</b><span className="text-slate-400">bueno</span></span>
-                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-warn"/><b className="text-warn">{regular}</b><span className="text-slate-400">regular</span></span>
-                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-bad"/><b className="text-bad">{malo}</b><span className="text-slate-400">malo</span></span>
-                  {pendiente > 0 && <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-slate-300"/><b>{pendiente}</b><span className="text-slate-400">pendiente</span></span>}
-                  <span className="text-[10px] text-slate-300 ml-auto">{totalItems} ítems</span>
+                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-good"/><b className="text-good">{bueno}</b><span className="th-text-m">bueno</span></span>
+                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-warn"/><b className="text-warn">{regular}</b><span className="th-text-m">regular</span></span>
+                  <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-bad"/><b className="text-bad">{malo}</b><span className="th-text-m">malo</span></span>
+                  {pendiente > 0 && <span className="flex items-center gap-1 text-[11px]"><span className="w-2 h-2 rounded-full bg-slate-300"/><b>{pendiente}</b><span className="th-text-m">pendiente</span></span>}
+                  <span className="text-[10px] th-text-m ml-auto">{totalItems} ítems</span>
                 </div>
               )}
               {totalItems > 0 && (
@@ -830,12 +831,12 @@ export default function SubmissionDetail() {
           </div>
 
           {/* Meta chips */}
-          <div className="px-5 pb-4 flex flex-wrap gap-x-5 gap-y-1 text-[12px] text-slate-500">
-            <span className="flex items-center gap-1"><MapPin   size={12} className="text-slate-400"/>{site.idSitio || '—'}</span>
-            <span className="flex items-center gap-1"><User2    size={12} className="text-slate-400"/>{who?.name || '—'}</span>
-            <span className="flex items-center gap-1"><Calendar size={12} className="text-slate-400"/>{inspMeta.date || (submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—')}</span>
-            <span className="flex items-center gap-1"><Camera   size={12} className="text-slate-400"/>{totalPhotos} foto{totalPhotos !== 1 ? 's' : ''}</span>
-            {submission.app_version && <span className="text-slate-400">v{submission.app_version}</span>}
+          <div className="px-5 pb-4 flex flex-wrap gap-x-5 gap-y-1 text-[12px] th-text-m">
+            <span className="flex items-center gap-1"><MapPin   size={12} className="th-text-m"/>{site.idSitio || '—'}</span>
+            <span className="flex items-center gap-1"><User2    size={12} className="th-text-m"/>{who?.name || '—'}</span>
+            <span className="flex items-center gap-1"><Calendar size={12} className="th-text-m"/>{inspMeta.date || (submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—')}</span>
+            <span className="flex items-center gap-1"><Camera   size={12} className="th-text-m"/>{totalPhotos} foto{totalPhotos !== 1 ? 's' : ''}</span>
+            {submission.app_version && <span className="th-text-m">v{submission.app_version}</span>}
           </div>
 
           {hasOrder && (
@@ -866,7 +867,7 @@ export default function SubmissionDetail() {
             ))}
 
             {entries.length === 0 && (
-              <div className="bg-white rounded-xl border border-slate-200 py-14 text-center text-[13px] text-slate-400 shadow-card">
+              <div className="rounded-xl th-shadow py-14 text-center text-[13px] th-text-m">
                 Sin datos de formulario
               </div>
             )}
@@ -875,11 +876,11 @@ export default function SubmissionDetail() {
 
         {/* Unmatched photos */}
         {unmatched.length > 0 && (
-          <div className="bg-white rounded-xl border border-slate-200 shadow-card p-4">
+          <div className="rounded-xl th-shadow p-4" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
             <div className="flex items-center gap-2 mb-2">
               <Camera size={14} className="text-accent"/>
-              <span className="text-[13px] font-semibold text-slate-800">Otras fotos</span>
-              <span className="text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{unmatched.length}</span>
+              <span className="text-[13px] font-semibold th-text-p">Otras fotos</span>
+              <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded">{unmatched.length}</span>
             </div>
             <PhotoGallery photos={unmatched} editMode={editMode}
               onUpload={(file) => handlePhotoUpload(file, 'otras')} />

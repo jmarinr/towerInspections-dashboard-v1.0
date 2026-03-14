@@ -33,8 +33,8 @@ export const FORM_TYPES = {
     label: 'Sistema de Ascenso',
     shortLabel: 'Ascenso',
     icon: Shield,
-    color: 'bg-indigo-500',
-    colorLight: 'bg-indigo-50 text-indigo-700',
+    color: 'bg-violet-500',
+    colorLight: 'bg-violet-50 text-violet-700',
   },
   'grounding-system-test': {
     label: 'Prueba de Puesta a Tierra',

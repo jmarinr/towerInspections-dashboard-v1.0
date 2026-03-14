@@ -110,7 +110,7 @@ function TypeBadge({ meta }) {
 // ── Table header cell ──────────────────────────────────────────────────────────
 function TH({ children, className = '' }) {
   return (
-    <div className={`px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider ${className}`}>
+    <div className={`px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider ${className}`}>
       {children}
     </div>
   )
@@ -149,8 +149,8 @@ export default function Submissions() {
 
       {/* Header */}
       <div className="flex items-center gap-3">
-        <h1 className="text-[20px] font-bold text-slate-900">Formularios</h1>
-        <span className="text-[12px] font-semibold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full tabular-nums">
+        <h1 className="text-[20px] font-bold th-text-p">Formularios</h1>
+        <span className="text-[12px] font-semibold th-text-m px-2.5 py-0.5 rounded-full th-bg-base tabular-nums">
           {filtered.length}
         </span>
       </div>
@@ -158,17 +158,17 @@ export default function Submissions() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-m pointer-events-none" />
           <input
             type="text" value={search}
             onChange={e => setFilter({ search: e.target.value })}
             placeholder="Buscar por sitio, inspector..."
-            className="w-full h-9 pl-9 pr-8 text-[13px] bg-white border border-slate-200 rounded-lg shadow-sm
-              focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all placeholder:text-slate-400"
+            className="w-full h-9 pl-9 pr-8 text-[13px] th-bg-card border th-border rounded-lg
+              focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all placeholder:th-text-m"
           />
           {search && (
             <button onClick={() => setFilter({ search: '' })}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-m hover:th-text-s transition-colors">
               <X size={13} />
             </button>
           )}
@@ -177,8 +177,8 @@ export default function Submissions() {
         <select
           value={filterFormCode}
           onChange={e => setFilter({ filterFormCode: e.target.value })}
-          className="h-9 px-3 text-[13px] bg-white border border-slate-200 rounded-lg shadow-sm
-            focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all text-slate-700">
+          className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
+            focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all th-text-s">
           <option value="all">Todos los tipos</option>
           {Object.entries(FORM_TYPES).filter(([c]) => isFormVisible(c)).map(([c, m]) =>
             <option key={c} value={c}>{m.label}</option>
@@ -187,8 +187,8 @@ export default function Submissions() {
 
         {hasFilter && (
           <button onClick={() => setFilter({ search: '', filterFormCode: 'all' })}
-            className="h-9 px-3 text-[13px] text-slate-500 hover:text-slate-800 bg-white border border-slate-200
-              rounded-lg shadow-sm flex items-center gap-1.5 transition-colors hover:bg-slate-50">
+            className="h-9 px-3 text-[13px] th-text-m
+              rounded-lg shadow-sm flex items-center gap-1.5 transition-colors hover:bg-slate-50/40">
             <X size={13} />Limpiar
           </button>
         )}
@@ -203,19 +203,19 @@ export default function Submissions() {
 
       {/* Table */}
       {!isLoading && filtered.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="rounded-2xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
 
           {/* Header row — usando <table> real para alineación correcta */}
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/70">
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-[170px]">Tipo</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sitio</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-[90px] hidden md:table-cell">Orden</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-[130px] hidden md:table-cell">Inspector</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-[120px] hidden lg:table-cell">Fecha</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-[120px]">Estado</th>
-                <th className="px-4 py-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-[70px] hidden sm:table-cell text-center">Score</th>
+              <tr className="border-b th-border-l">
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[170px]">Tipo</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Sitio</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[90px] hidden md:table-cell">Orden</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[130px] hidden md:table-cell">Inspector</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[120px] hidden lg:table-cell">Fecha</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[120px]">Estado</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[70px] hidden sm:table-cell text-center">Score</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -238,7 +238,9 @@ export default function Submissions() {
                 return (
                   <tr key={sub.id}
                     onClick={() => navigate(`/submissions/${sub.id}`)}
-                    className="hover:bg-slate-50/60 cursor-pointer transition-colors group">
+                    className="cursor-pointer transition-colors group"
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = ''}>
 
                     {/* Tipo */}
                     <td className="px-4 py-3.5">
@@ -247,11 +249,11 @@ export default function Submissions() {
 
                     {/* Sitio */}
                     <td className="px-4 py-3.5 min-w-0">
-                      <div className="text-[13px] font-semibold text-slate-800 truncate max-w-[220px]">
-                        {site.nombreSitio || <span className="text-slate-400 font-normal">Sin nombre</span>}
+                      <div className="text-[13px] font-semibold th-text-p truncate max-w-[220px]">
+                        {site.nombreSitio || <span className="th-text-m font-normal">Sin nombre</span>}
                       </div>
                       {site.idSitio && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">ID: {site.idSitio}</div>
+                        <div className="text-[11px] th-text-m mt-0.5">ID: {site.idSitio}</div>
                       )}
                     </td>
 
@@ -259,23 +261,23 @@ export default function Submissions() {
                     <td className="px-4 py-3.5 hidden md:table-cell">
                       {hasOrder
                         ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()}
-                            className="text-[12px] font-semibold text-indigo-500 hover:text-indigo-700 hover:underline transition-colors">
+                            className="text-[12px] font-semibold text-teal-600 hover:text-teal-700 hover:underline transition-colors">
                             {orderMap[visitId] || '--'}
                           </Link>
-                        : <span className="text-[12px] text-slate-300">—</span>}
+                        : <span className="text-[12px] th-text-m">—</span>}
                     </td>
 
                     {/* Inspector */}
                     <td className="px-4 py-3.5 hidden md:table-cell">
-                      <span className="text-[13px] text-slate-600 truncate block max-w-[120px]">
+                      <span className="text-[13px] th-text-s truncate block max-w-[120px]">
                         {who?.name || '—'}
                       </span>
                     </td>
 
                     {/* Fecha */}
                     <td className="px-4 py-3.5 hidden lg:table-cell">
-                      <div className="text-[13px] text-slate-700">{date}</div>
-                      {time && <div className="text-[11px] text-slate-400 mt-0.5">{time}</div>}
+                      <div className="text-[13px] th-text-s">{date}</div>
+                      {time && <div className="text-[11px] th-text-m mt-0.5">{time}</div>}
                     </td>
 
                     {/* Estado */}
@@ -290,7 +292,7 @@ export default function Submissions() {
 
                     {/* Arrow */}
                     <td className="pr-3 py-3.5">
-                      <ChevronRight size={15} className="text-slate-300 group-hover:text-indigo-400 transition-colors" />
+                      <ChevronRight size={15} className="th-text-m group-hover:text-teal-500 transition-colors" />
                     </td>
                   </tr>
                 )
@@ -302,9 +304,9 @@ export default function Submissions() {
 
       {/* Empty */}
       {!isLoading && filtered.length === 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 py-20 text-center shadow-sm">
-          <div className="text-[15px] font-semibold text-slate-500 mb-1">Sin resultados</div>
-          <div className="text-[13px] text-slate-400">
+        <div className="rounded-2xl th-shadow py-20 text-center" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
+          <div className="text-[15px] font-semibold th-text-m mb-1">Sin resultados</div>
+          <div className="text-[13px] th-text-m">
             {hasFilter ? 'Ajusta los filtros para ver más.' : 'Aún no hay formularios registrados.'}
           </div>
         </div>

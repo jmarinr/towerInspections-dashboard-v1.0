@@ -45,10 +45,10 @@ function unionKeys(rows) {
 }
 
 function PreviewValue({ value }) {
-  if (value === null || value === undefined) return <span className="text-primary/40">—</span>
+  if (value === null || value === undefined) return <span className="th-text-m">—</span>
   if (value === '__photo__') return <span className="text-accent font-bold">📷 Foto</span>
   if (isImageUrl(value)) {
-    return <img src={value} alt="" className="w-16 h-16 rounded-xl object-cover border border-primary/10" />
+    return <img src={value} alt="" className="w-16 h-16 rounded-xl object-cover border th-border" />
   }
   if (typeof value === 'string' && value.length > 100) {
     return <span title={value}>{value.slice(0, 100)}…</span>
@@ -61,12 +61,12 @@ function Table({ rows }) {
   if (!keys.length) return null
 
   return (
-    <div className="overflow-auto rounded-2xl border border-primary/10">
+    <div className="overflow-auto rounded-2xl border th-border">
       <table className="min-w-full text-left text-sm">
-        <thead className="bg-primary/5">
+        <thead className="th-bg-base">
           <tr>
             {keys.map((k) => (
-              <th key={k} className="px-3 py-2 text-[11px] font-extrabold text-primary/70 whitespace-nowrap">
+              <th key={k} className="px-3 py-2 text-[11px] font-extrabold th-text-s whitespace-nowrap">
                 {labelize(k)}
               </th>
             ))}
@@ -74,11 +74,11 @@ function Table({ rows }) {
         </thead>
         <tbody>
           {rows.map((r, idx) => (
-            <tr key={idx} className="border-t border-primary/8">
+            <tr key={idx} className="border-t th-border-l">
               {keys.map((k) => (
-                <td key={k} className="px-3 py-2 text-primary/80 align-top">
+                <td key={k} className="px-3 py-2 th-text-s align-top">
                   {isPlainObject(r?.[k]) || Array.isArray(r?.[k]) ? (
-                    <span className="text-primary/40 text-xs">(ver detalle)</span>
+                    <span className="th-text-m text-xs">(ver detalle)</span>
                   ) : (
                     <PreviewValue value={r?.[k]} />
                   )}
@@ -99,13 +99,13 @@ function Node({ title, value, level = 0 }) {
 
     return (
       <div className="space-y-2">
-        {title && <div className="text-xs font-extrabold text-primary">{title}</div>}
+        {title && <div className="text-xs font-extrabold th-text-p">{title}</div>}
         {value.length === 0 ? (
-          <div className="text-sm text-primary/40">(vacío)</div>
+          <div className="text-sm th-text-m">(vacío)</div>
         ) : allPrimitives ? (
           <div className="flex flex-wrap gap-2">
             {value.map((v, i) => (
-              <span key={i} className="px-2 py-1 rounded-full bg-primary/5 border border-primary/10 text-xs font-bold text-primary/80">
+              <span key={i} className="px-2 py-1 rounded-full th-bg-base border th-border text-xs font-bold th-text-s">
                 {formatPrimitive(v)}
               </span>
             ))}
@@ -115,8 +115,8 @@ function Node({ title, value, level = 0 }) {
         ) : (
           <div className="space-y-2">
             {value.map((v, i) => (
-              <details key={i} className="rounded-2xl border border-primary/10 bg-white">
-                <summary className="cursor-pointer select-none px-4 py-3 text-sm font-extrabold text-primary">Elemento {i + 1}</summary>
+              <details key={i} className="rounded-2xl border th-border th-bg-card">
+                <summary className="cursor-pointer select-none px-4 py-3 text-sm font-extrabold th-text-p">Elemento {i + 1}</summary>
                 <div className="px-4 pb-4 pt-1">
                   <Node value={v} level={level + 1} />
                 </div>
@@ -134,22 +134,22 @@ function Node({ title, value, level = 0 }) {
 
     if (bigObject && level > 0) {
       return (
-        <details className="rounded-2xl border border-primary/10 bg-white" open={level < 2}>
+        <details className="rounded-2xl border th-border th-bg-card" open={level < 2}>
           {title && (
-            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-extrabold text-primary">
+            <summary className="cursor-pointer select-none px-4 py-3 text-sm font-extrabold th-text-p">
               {title}
             </summary>
           )}
           <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${title ? 'px-4 pb-4 pt-1' : 'p-3'}`}>
             {entries.map(([k, v]) => (
-              <div key={k} className="rounded-2xl border border-primary/8 p-3">
-                <div className="text-[11px] text-primary/60 font-bold">{labelize(k)}</div>
+              <div key={k} className="rounded-2xl border th-border-l p-3">
+                <div className="text-[11px] th-text-s font-bold">{labelize(k)}</div>
                 {isPlainObject(v) || Array.isArray(v) ? (
                   <div className="mt-2"><Node value={v} level={level + 1} /></div>
                 ) : isImageUrl(v) ? (
-                  <img src={v} alt={k} className="mt-2 w-full max-w-[200px] rounded-xl border border-primary/10 object-cover" />
+                  <img src={v} alt={k} className="mt-2 w-full max-w-[200px] rounded-xl border th-border object-cover" />
                 ) : (
-                  <div className="text-sm font-bold text-primary mt-1 break-words">{formatPrimitive(v) || '—'}</div>
+                  <div className="text-sm font-bold th-text-p mt-1 break-words">{formatPrimitive(v) || '—'}</div>
                 )}
               </div>
             ))}
@@ -160,17 +160,17 @@ function Node({ title, value, level = 0 }) {
 
     return (
       <div className="space-y-2">
-        {title && <div className="text-xs font-extrabold text-primary">{title}</div>}
+        {title && <div className="text-xs font-extrabold th-text-p">{title}</div>}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {entries.map(([k, v]) => (
-            <div key={k} className="rounded-2xl border border-primary/8 p-3">
-              <div className="text-[11px] text-primary/60 font-bold">{labelize(k)}</div>
+            <div key={k} className="rounded-2xl border th-border-l p-3">
+              <div className="text-[11px] th-text-s font-bold">{labelize(k)}</div>
               {isPlainObject(v) || Array.isArray(v) ? (
                 <div className="mt-2"><Node value={v} level={level + 1} /></div>
               ) : isImageUrl(v) ? (
-                <img src={v} alt={k} className="mt-2 w-full max-w-[200px] rounded-xl border border-primary/10 object-cover" />
+                <img src={v} alt={k} className="mt-2 w-full max-w-[200px] rounded-xl border th-border object-cover" />
               ) : (
-                <div className="text-sm font-bold text-primary mt-1 break-words">{formatPrimitive(v) || '—'}</div>
+                <div className="text-sm font-bold th-text-p mt-1 break-words">{formatPrimitive(v) || '—'}</div>
               )}
             </div>
           ))}
@@ -181,11 +181,11 @@ function Node({ title, value, level = 0 }) {
 
   return (
     <div className="space-y-1">
-      {title && <div className="text-xs font-extrabold text-primary">{title}</div>}
+      {title && <div className="text-xs font-extrabold th-text-p">{title}</div>}
       {isImageUrl(value) ? (
-        <img src={value} alt="" className="w-full max-w-[200px] rounded-xl border border-primary/10 object-cover" />
+        <img src={value} alt="" className="w-full max-w-[200px] rounded-xl border th-border object-cover" />
       ) : (
-        <div className="text-sm text-primary/80">{formatPrimitive(value) || '—'}</div>
+        <div className="text-sm th-text-s">{formatPrimitive(value) || '—'}</div>
       )}
     </div>
   )
@@ -194,7 +194,7 @@ function Node({ title, value, level = 0 }) {
 export default function StructuredData({ data, title }) {
   return (
     <div className="space-y-3">
-      {title && <div className="text-sm font-extrabold text-primary">{title}</div>}
+      {title && <div className="text-sm font-extrabold th-text-p">{title}</div>}
       <Node value={data} />
     </div>
   )

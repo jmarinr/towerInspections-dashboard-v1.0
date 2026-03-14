@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, WifiOff, AlertCircle } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
 import { useThemeStore } from '../../store/useThemeStore'
@@ -29,7 +29,57 @@ function ThemeToggle() {
   )
 }
 
-// ── Sidebar nav link (CSS-var driven, theme-aware) ────────────────────────────
+// ── Realtime status badge ──────────────────────────────────────────────────
+function RealtimeBadge() {
+  const status = useSubmissionsStore((s) => s.realtimeStatus)
+  const lastEvent = useSubmissionsStore((s) => s.lastRealtimeEvent)
+  const [flash, setFlash] = useState(false)
+
+  // Parpadear brevemente cuando llega un evento nuevo
+  useEffect(() => {
+    if (!lastEvent) return
+    setFlash(true)
+    const t = setTimeout(() => setFlash(false), 1800)
+    return () => clearTimeout(t)
+  }, [lastEvent?.ts])
+
+  const label = {
+    connected:    'En vivo',
+    connecting:   'Conectando',
+    disconnected: 'Sin conexión',
+    error:        'Error',
+  }[status] ?? status
+
+  const icon = status === 'connected'
+    ? <Wifi size={11} />
+    : status === 'error'
+    ? <AlertCircle size={11} />
+    : <WifiOff size={11} />
+
+  const colors = {
+    connected:    { bg: flash ? 'rgba(34,197,94,.18)' : 'rgba(34,197,94,.10)', color: '#16a34a' },
+    connecting:   { bg: 'rgba(251,191,36,.10)', color: '#b45309' },
+    disconnected: { bg: 'rgba(156,163,175,.10)', color: 'var(--text-muted)' },
+    error:        { bg: 'rgba(239,68,68,.10)',   color: '#dc2626' },
+  }[status] ?? {}
+
+  return (
+    <div
+      title={`Realtime: ${label}`}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        fontSize: 10, fontWeight: 600, padding: '2px 7px',
+        borderRadius: 100, transition: 'background .4s',
+        ...colors,
+      }}
+    >
+      {icon}
+      <span className="hidden sm:inline">{label}</span>
+    </div>
+  )
+}
+
+
 function SideNavLink({ to, icon: Icon, label, onClick }) {
   return (
     <NavLink
@@ -70,7 +120,8 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
     <div className="flex flex-col h-full">
       {/* Logo */}
       <div className="px-5 pt-5 pb-4 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center shadow-md flex-shrink-0">
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md flex-shrink-0"
+          style={{ background: 'var(--accent)' }}>
           <span className="text-white font-bold text-[10px] tracking-wide">PTI</span>
         </div>
         <div>
@@ -98,8 +149,9 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
       <div className="px-3 pb-5 space-y-1">
         {/* User card */}
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg" style={{ background: 'var(--sidebar-user-bg)' }}>
-          <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-indigo-600 text-[9px] font-bold uppercase">{(user?.name || 'U')[0]}</span>
+          <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(0,180,160,0.2)' }}>
+            <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--accent)' }}>{(user?.name || 'U')[0]}</span>
           </div>
           <div className="min-w-0 flex-1">
             <div className="text-[11px] font-medium truncate" style={{ color: 'var(--sidebar-user-name)' }}>
@@ -138,17 +190,30 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
 export default function Shell({ children }) {
   const navigate  = useNavigate()
   const location  = useLocation()
-  const logout    = useAuthStore((s) => s.logout)
-  const user      = useAuthStore((s) => s.user)
-  const load      = useSubmissionsStore((s) => s.load)
+  const logout               = useAuthStore((s) => s.logout)
+  const user                 = useAuthStore((s) => s.user)
+  const load                 = useSubmissionsStore((s) => s.load)
+  const subscribeRealtime    = useSubmissionsStore((s) => s.subscribeRealtime)
+  const unsubscribeRealtime  = useSubmissionsStore((s) => s.unsubscribeRealtime)
   const { init }  = useThemeStore()
   const [mob, setMob] = useState(false)
 
   useEffect(() => { init() }, [])
 
-  const refresh     = () => load(true)
-  const pageTitle   = NAV.find(n => location.pathname.startsWith(n.to))?.label || ''
-  const handleLogout = () => { logout(); navigate('/login') }
+  // Iniciar Realtime al montar el shell (usuario ya autenticado)
+  useEffect(() => {
+    subscribeRealtime()
+    return () => { unsubscribeRealtime() }
+  }, [])
+
+  const refresh     = useCallback(() => load(true), [load])
+  const handleLogout = useCallback(() => {
+    unsubscribeRealtime()
+    logout()
+    navigate('/login')
+  }, [logout, navigate, unsubscribeRealtime])
+
+  const pageTitle = NAV.find(n => location.pathname.startsWith(n.to))?.label || ''
 
   const sidebarStyle = {
     background:  'var(--sidebar-bg)',
@@ -168,7 +233,8 @@ export default function Shell({ children }) {
           <header className="h-12 px-6 flex items-center justify-between flex-shrink-0"
             style={{ background: 'var(--header-bg)', borderBottom: '1px solid var(--header-border)' }}>
             <span className="text-[14px] font-semibold th-text-p">{pageTitle}</span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-2">
+              <RealtimeBadge />
               <ThemeToggle />
               <button onClick={refresh}
                 className="p-1.5 rounded-lg transition-colors"
@@ -198,6 +264,7 @@ export default function Shell({ children }) {
             <span className="text-[14px] font-semibold th-text-p">{pageTitle}</span>
           </div>
           <div className="flex items-center gap-1">
+            <RealtimeBadge />
             <ThemeToggle />
             <button onClick={refresh} className="p-1.5 th-text-m"><RefreshCw size={13} /></button>
           </div>
@@ -225,7 +292,8 @@ export default function Shell({ children }) {
               <div className="px-4 pt-4 pb-3 flex items-center justify-between"
                 style={{ borderBottom: '1px solid var(--sidebar-divider)' }}>
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-500 flex items-center justify-center">
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                    style={{ background: 'var(--accent)' }}>
                     <span className="text-white font-bold text-[9px]">PTI</span>
                   </div>
                   <div>
