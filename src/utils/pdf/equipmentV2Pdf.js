@@ -810,24 +810,19 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
 
     p.drawFloorClients(clientes)
 
-    // Plano de planta
-    p.checkSpace(50)
+    // Plano de planta — siempre llena el resto de la pagina actual
     p.darkSubheader('HACER PLANO DE PLANTA Y EQUIPOS')
     const plano = imgCache['fotoPlanoPlanta']
+    const planoH = p.y - MB  // toda la altura disponible hasta margen inferior
     if (plano) {
-      p.checkSpace(200)
-      const maxH = Math.min(p.y - MB - 20, 180)
-      const maxW = CW
-      const scale = Math.min(maxW / plano.width, maxH / plano.height)
+      const scale = Math.min(CW / plano.width, planoH / plano.height)
       const dw = plano.width * scale, dh = plano.height * scale
-      p.page.drawRectangle({ x: ML, y: p.y - dh - 4, width: dw, height: dh, borderColor: C.border, borderWidth: 0.5 })
-      p.page.drawImage(plano, { x: ML + (CW - dw) / 2, y: p.y - dh - 4, width: dw, height: dh })
-      p.y -= dh + 10
+      p.page.drawRectangle({ x: ML, y: p.y - planoH, width: CW, height: planoH, borderColor: C.border, borderWidth: 0.5 })
+      p.page.drawImage(plano, { x: ML + (CW - dw) / 2, y: p.y - planoH + (planoH - dh) / 2, width: dw, height: dh })
     } else {
-      p.checkSpace(160)
-      p.page.drawRectangle({ x: ML, y: p.y - 160, width: CW, height: 160, borderColor: C.border, borderWidth: 0.5 })
-      p.y -= 164
+      p.page.drawRectangle({ x: ML, y: p.y - planoH, width: CW, height: planoH, borderColor: C.border, borderWidth: 0.5 })
     }
+    p.y -= planoH  // agota la pagina — la siguiente seccion arranca en pagina nueva
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
