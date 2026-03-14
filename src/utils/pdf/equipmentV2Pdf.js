@@ -374,74 +374,110 @@ class PageBuilder {
     this.y -= 4
   }
 
-  // ── Draw a single client card in a given column (x offset, width) ─────────
-  _drawClientCard(cliente, x, cardW, startY) {
-    const tipo  = cliente.tipoCliente === 'ancla' ? 'CLIENTE ANCLA:' : 'CLIENTE COLO:'
-    const HDR_H = 13
-    const ROW_H = 11
-    const GAB_H = 12
+  // ── Draw a single client card ─────────────────────────────────────────────
+  // cliente: object with data, OR null → draws empty card skeleton
+  // tipo: 'CLIENTE ANCLA:' | 'CLIENTE COLO:' (always explicit, even for empty)
+  // minGabRows: shared across pair so both cards are the same height
+  _drawClientCard(cliente, tipo, x, cardW, startY, minGabRows = 3) {
+    const HDR_H     = 13
+    const ROW_H     = 11
+    const GAB_H     = 12
     const GAB_HDR_H = 13
     let y = startY
 
-    // Header bar
+    const nombreCliente = cliente ? s(cliente.nombreCliente) : ''
+    const areaArrendada = cliente ? s(cliente.areaArrendada) : ''
+    const areaEnUso     = cliente ? s(cliente.areaEnUso)     : ''
+    const gabs          = (cliente?.gabinetes?.length) ? cliente.gabinetes : []
+    const totalRows     = Math.max(gabs.length, minGabRows)
+
+    // Outer border — wraps the entire card (header + rows + gab table)
+    const totalH = HDR_H + ROW_H * 2 + GAB_HDR_H + GAB_H * totalRows
+    this.page.drawRectangle({ x, y: y - totalH, width: cardW, height: totalH, borderColor: C.border, borderWidth: 0.5 })
+
+    // ── Header bar ───────────────────────────────────────────────────────────
     this.page.drawRectangle({ x, y: y - HDR_H, width: cardW, height: HDR_H, color: C.black })
     this.page.drawText(tipo, { x: x + 4, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.white })
-    this.page.drawText(s(cliente.nombreCliente), { x: x + 78, y: y - HDR_H + 4, size: 6.5, font: this.font, color: C.white })
+    if (nombreCliente) {
+      this.page.drawText(nombreCliente, { x: x + 78, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.white })
+    }
     y -= HDR_H
 
-    // Info rows
+    // ── Info rows (AREA ARRENDADA, AREA EN USO) ───────────────────────────
     for (const [lbl, val] of [
-      ['AREA ARRENDADA', s(cliente.areaArrendada)],
-      ['AREA EN USO',    s(cliente.areaEnUso)],
+      ['AREA ARRENDADA', areaArrendada],
+      ['AREA EN USO',    areaEnUso],
     ]) {
-      this.page.drawRectangle({ x, y: y - ROW_H, width: cardW, height: ROW_H, borderColor: C.border, borderWidth: 0.3 })
-      this.page.drawText(lbl, { x: x + 3, y: y - ROW_H + 3, size: 5.5, font: this.fontBold, color: C.text })
-      this.page.drawText(val, { x: x + 75, y: y - ROW_H + 3, size: 6, font: this.font, color: C.text })
+      this.page.drawLine({
+        start: { x, y: y - ROW_H }, end: { x: x + cardW, y: y - ROW_H },
+        thickness: 0.3, color: C.border,
+      })
+      this.page.drawText(lbl, { x: x + 4, y: y - ROW_H + 3, size: 5.5, font: this.fontBold, color: C.text })
+      if (val) {
+        this.page.drawText(val, { x: x + 75, y: y - ROW_H + 3, size: 6, font: this.font, color: C.text })
+      }
       y -= ROW_H
     }
 
-    // Gabinetes table header
+    // ── Gabinetes table header ────────────────────────────────────────────
     const gabCols = [
       { label: 'GABINETE', w: cardW * 0.36 },
       { label: 'LARGO',    w: cardW * 0.15 },
       { label: 'ANCHO',    w: cardW * 0.15 },
       { label: 'ALTO',     w: cardW * 0.15 },
-      { label: 'FOTO #',   w: cardW * 0.19 },
+      { label: 'FOTO #',   w: cardW - cardW * 0.36 - cardW * 0.15 * 3 },
     ]
     this.page.drawRectangle({ x, y: y - GAB_HDR_H, width: cardW, height: GAB_HDR_H, color: C.black })
     let gx = x
     for (const gc of gabCols) {
       const tw = this.fontBold.widthOfTextAtSize(gc.label, 5)
-      this.page.drawText(gc.label, { x: gx + (gc.w - tw) / 2, y: y - GAB_HDR_H + 4, size: 5, font: this.fontBold, color: C.white })
+      this.page.drawText(gc.label, {
+        x: gx + (gc.w - tw) / 2, y: y - GAB_HDR_H + 4,
+        size: 5, font: this.fontBold, color: C.white,
+      })
       gx += gc.w
     }
     y -= GAB_HDR_H
 
-    // Gabinete rows (min 3 empty rows)
-    const gabs = (cliente.gabinetes && cliente.gabinetes.length) ? cliente.gabinetes : []
-    const minRows = Math.max(gabs.length, 3)
-    for (let ri = 0; ri < minRows; ri++) {
+    // ── Gabinete rows ─────────────────────────────────────────────────────
+    for (let ri = 0; ri < totalRows; ri++) {
       const gab = gabs[ri] || {}
-      this.page.drawRectangle({ x, y: y - GAB_H, width: cardW, height: GAB_H, borderColor: C.border, borderWidth: 0.3 })
+      this.page.drawLine({
+        start: { x, y: y - GAB_H }, end: { x: x + cardW, y: y - GAB_H },
+        thickness: 0.3, color: C.border,
+      })
       let rx = x
       const vals = [s(gab.gabinete), s(gab.largo), s(gab.ancho), s(gab.alto), s(gab.fotoRef)]
       vals.forEach((val, vi) => {
-        if (vi > 0) this.page.drawLine({ start: { x: rx, y }, end: { x: rx, y: y - GAB_H }, thickness: 0.3, color: C.border })
+        if (vi > 0) {
+          this.page.drawLine({ start: { x: rx, y }, end: { x: rx, y: y - GAB_H }, thickness: 0.3, color: C.border })
+        }
         let t = val
         while (t.length > 1 && this.font.widthOfTextAtSize(t, 5.5) > gabCols[vi].w - 3) t = t.slice(0, -1)
-        this.page.drawText(t, { x: rx + 2, y: y - GAB_H + 3, size: 5.5, font: this.font, color: C.text })
+        if (t) this.page.drawText(t, { x: rx + 2, y: y - GAB_H + 3, size: 5.5, font: this.font, color: C.text })
         rx += gabCols[vi].w
       })
       y -= GAB_H
     }
+
     return startY - y  // total height consumed
   }
 
-  // ── Draw floor clients in 2-column pairs ──────────────────────────────────
-  // Layout rules (matches reference PDF):
-  //   1. Pair each ancla[i] with colo[i]
-  //   2. Extra anclas (anclas.length > colos.length) → solo on left
-  //   3. Extra colos  (colos.length > anclas.length) → paired together (colo|colo)
+  // ── Height calculator (mirrors _drawClientCard) ───────────────────────────
+  _clientCardHeight(cliente, cardW, minGabRows = 3) {
+    const gabs = (cliente?.gabinetes?.length) ? cliente.gabinetes.length : 0
+    return 13 + 11 * 2 + 13 + Math.max(gabs, minGabRows) * 12
+  }
+
+  // ── Draw floor clients — always 2-column static layout ────────────────────
+  //
+  //  Pairing rules (matches reference PDF):
+  //    Row 1:  ancla[0]  | colo[0]
+  //    Row 2:  colo[1]   | colo[2]   ← extra colos paired together
+  //    ...
+  //  If one side of a pair is absent, an EMPTY card skeleton is still drawn.
+  //  Both cards in a row share the same height (max of their gabinete counts).
+  //
   drawFloorClients(clientes) {
     const GAP   = 8
     const cardW = (CW - GAP) / 2
@@ -449,44 +485,53 @@ class PageBuilder {
     const anclas = clientes.filter(c => c.tipoCliente === 'ancla')
     const colos  = clientes.filter(c => c.tipoCliente === 'colo')
 
-    let pairs
+    // Build pairs: [{ left: cliente|null, leftTipo, right: cliente|null, rightTipo }]
+    const pairs = []
+
     if (anclas.length || colos.length) {
-      pairs = []
       const paired = Math.min(anclas.length, colos.length)
-      // Phase 1: ancla + colo pairs
-      for (let i = 0; i < paired; i++) pairs.push([anclas[i], colos[i]])
-      // Phase 2: remaining anclas solo on left
-      for (let i = paired; i < anclas.length; i++) pairs.push([anclas[i], undefined])
-      // Phase 3: remaining colos paired together
+      // Phase 1: ancla + colo
+      for (let i = 0; i < paired; i++) {
+        pairs.push({ left: anclas[i], leftTipo: 'CLIENTE ANCLA:', right: colos[i], rightTipo: 'CLIENTE COLO:' })
+      }
+      // Phase 2: extra anclas → left with empty colo on right
+      for (let i = paired; i < anclas.length; i++) {
+        pairs.push({ left: anclas[i], leftTipo: 'CLIENTE ANCLA:', right: null, rightTipo: 'CLIENTE COLO:' })
+      }
+      // Phase 3: extra colos → paired together
       const extraColos = colos.slice(paired)
-      for (let i = 0; i < extraColos.length; i += 2) pairs.push([extraColos[i], extraColos[i + 1]])
+      for (let i = 0; i < extraColos.length; i += 2) {
+        pairs.push({
+          left:  extraColos[i],      leftTipo:  'CLIENTE COLO:',
+          right: extraColos[i + 1] || null, rightTipo: 'CLIENTE COLO:',
+        })
+      }
     } else {
-      // Fallback: no type distinction, pair sequentially
-      pairs = Array.from({ length: Math.ceil(clientes.length / 2) }, (_, i) => [clientes[i*2], clientes[i*2+1]])
+      // Fallback: no tipoCliente set — pair sequentially, all as COLO
+      for (let i = 0; i < clientes.length; i += 2) {
+        pairs.push({
+          left:  clientes[i]     || null, leftTipo:  'CLIENTE COLO:',
+          right: clientes[i + 1] || null, rightTipo: 'CLIENTE COLO:',
+        })
+      }
     }
 
-    for (const [left, right] of pairs) {
-      // Estimate height needed for the taller card
-      const leftRows  = left  ? Math.max((left.gabinetes  || []).length, 3) : 0
-      const rightRows = right ? Math.max((right.gabinetes || []).length, 3) : 0
-      const estH = 13 + 22 + 13 + Math.max(leftRows, rightRows) * 12 + 10
+    for (const { left, leftTipo, right, rightTipo } of pairs) {
+      // Shared minGabRows: max of both sides so cards are same height
+      const leftGabs  = left  ? Math.max((left.gabinetes  || []).length, 3) : 3
+      const rightGabs = right ? Math.max((right.gabinetes || []).length, 3) : 3
+      const minRows   = Math.max(leftGabs, rightGabs)
+
+      const estH = 13 + 11 * 2 + 13 + minRows * 12 + 10
       this.checkSpace(estH)
 
       const startY = this.y
-      if (left)  this._drawClientCard(left,  ML,               cardW, startY)
-      if (right) this._drawClientCard(right, ML + cardW + GAP, cardW, startY)
+      // Always draw both columns — null → empty skeleton
+      this._drawClientCard(left,  leftTipo,  ML,               cardW, startY, minRows)
+      this._drawClientCard(right, rightTipo, ML + cardW + GAP, cardW, startY, minRows)
 
-      // Advance y by whichever card was taller
-      const leftH  = left  ? this._clientCardHeight(left,  cardW) : 0
-      const rightH = right ? this._clientCardHeight(right, cardW) : 0
-      this.y -= Math.max(leftH, rightH) + 6
+      this.y -= 13 + 11 * 2 + 13 + minRows * 12 + 6
     }
-  }
-
-  // Height calculator for a client card (mirrors _drawClientCard logic)
-  _clientCardHeight(cliente, cardW) {
-    const gabs = (cliente.gabinetes && cliente.gabinetes.length) ? cliente.gabinetes.length : 3
-    return 13 + 11 + 11 + 13 + (Math.max(gabs, 3) * 12)
   }
 
   // ── Generic photo row (used for carriers) ────────────────────────────────
