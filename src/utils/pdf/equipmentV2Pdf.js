@@ -503,12 +503,17 @@ class PageBuilder {
         pairs.push({ left: anclas[i], leftTipo: 'CLIENTE ANCLA:', right: null, rightTipo: 'CLIENTE COLO:' })
       }
       // Phase 3: extra colos → paired together
+      // Always at least one colo|colo row (static layout requirement)
       const extraColos = colos.slice(paired)
-      for (let i = 0; i < extraColos.length; i += 2) {
-        pairs.push({
-          left:  extraColos[i],      leftTipo:  'CLIENTE COLO:',
-          right: extraColos[i + 1] || null, rightTipo: 'CLIENTE COLO:',
-        })
+      if (extraColos.length === 0) {
+        pairs.push({ left: null, leftTipo: 'CLIENTE COLO:', right: null, rightTipo: 'CLIENTE COLO:' })
+      } else {
+        for (let i = 0; i < extraColos.length; i += 2) {
+          pairs.push({
+            left:  extraColos[i],             leftTipo:  'CLIENTE COLO:',
+            right: extraColos[i + 1] || null, rightTipo: 'CLIENTE COLO:',
+          })
+        }
       }
     } else {
       // Fallback: no tipoCliente set — pair sequentially, all as COLO
