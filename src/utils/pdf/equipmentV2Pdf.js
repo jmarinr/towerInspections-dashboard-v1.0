@@ -827,14 +827,10 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // PAGES — Carriers (continuous, all in sequence)
+  // No se fuerza nueva pagina aqui — checkSpace la crea cuando hace falta.
+  // Si no hay carriers, no se agrega ninguna pagina extra.
   // ═══════════════════════════════════════════════════════════════════════════
   if (carriers.length > 0) {
-    p._drawFooter()
-    p.page = doc.addPage([PW, PH])
-    p.pageNum++
-    p.y = PH - MT
-    p._miniHeader(siteHeaderData)
-
     for (let ci = 0; ci < carriers.length; ci++) {
       const carrier = carriers[ci]
       const cName = s(carrier.nombre || `Carrier ${ci + 1}`)
