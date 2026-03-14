@@ -458,8 +458,8 @@ class PageBuilder {
       this.checkSpace(estH)
 
       const startY = this.y
-      if (left)  this._drawClientCard(left,  ML,                startY, cardW)
-      if (right) this._drawClientCard(right, ML + cardW + GAP,  startY, cardW)
+      if (left)  this._drawClientCard(left,  ML,               cardW, startY)
+      if (right) this._drawClientCard(right, ML + cardW + GAP, cardW, startY)
 
       // Advance y by whichever card was taller
       const leftH  = left  ? this._clientCardHeight(left,  cardW) : 0
