@@ -4,9 +4,8 @@
 
 /* ── Light theme (default) ───────────────────────────────────────────────── */
 :root, [data-theme="light"] {
-  --bg-base:        #F1F5F9;
+  --bg-base:        #F8FAFC;
   --bg-card:        #FFFFFF;
-  --bg-sidebar:     #0F172A;
   --bg-input:       #FFFFFF;
 
   --border:         #E2E8F0;
@@ -15,8 +14,6 @@
   --text-primary:   #0F172A;
   --text-secondary: #475569;
   --text-muted:     #94A3B8;
-  --text-sidebar:   #94A3B8;
-  --text-sidebar-active: #FFFFFF;
 
   --accent:         #6366F1;
   --accent-light:   #EEF2FF;
@@ -25,21 +22,43 @@
   --header-bg:      #FFFFFF;
   --header-border:  #E2E8F0;
 
-  --nav-active-bg:  rgba(255,255,255,0.10);
-  --nav-hover-bg:   rgba(255,255,255,0.06);
-
-  --stat-accent-bg: #4F46E5;
+  --stat-accent-bg:   #4F46E5;
   --stat-accent-text: #FFFFFF;
   --stat-accent-sub:  rgba(255,255,255,0.65);
 
-  --shadow-card:    0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.07);
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+
+  /* ── Sidebar (light: white with border) ── */
+  --sidebar-bg:             #FFFFFF;
+  --sidebar-border:         #E2E8F0;
+  --sidebar-title:          #0F172A;
+  --sidebar-sub:            #94A3B8;
+  --sidebar-divider:        rgba(0,0,0,0.06);
+  --sidebar-user-bg:        #F8FAFC;
+  --sidebar-user-name:      #1E293B;
+  --sidebar-user-role:      #94A3B8;
+  --sidebar-nav-text:       #64748B;
+  --sidebar-nav-active-bg:  #EEF2FF;
+  --sidebar-nav-active-text:#4F46E5;
+  --sidebar-nav-hover-bg:   #F1F5F9;
+  --sidebar-action-text:    #94A3B8;
+  --sidebar-action-hover:   #475569;
+  --sidebar-action-red:     #EF4444;
+  --sidebar-version:        #CBD5E1;
+
+  /* ── Section headers in detail views (light: soft, no dark) ── */
+  --section-hdr-bg:         #F1F5F9;
+  --section-hdr-text:       #1E293B;
+  --section-hdr-red-bg:     #FEF2F2;
+  --section-hdr-red-text:   #B91C1C;
+  --section-hdr-slate-bg:   #F8FAFC;
+  --section-hdr-slate-text: #334155;
 }
 
 /* ── Dark theme ──────────────────────────────────────────────────────────── */
 [data-theme="dark"] {
   --bg-base:        #0F172A;
   --bg-card:        #1E293B;
-  --bg-sidebar:     #020617;
   --bg-input:       #1E293B;
 
   --border:         #334155;
@@ -48,8 +67,6 @@
   --text-primary:   #F1F5F9;
   --text-secondary: #94A3B8;
   --text-muted:     #475569;
-  --text-sidebar:   #64748B;
-  --text-sidebar-active: #F1F5F9;
 
   --accent:         #818CF8;
   --accent-light:   rgba(99,102,241,0.15);
@@ -58,14 +75,37 @@
   --header-bg:      #1E293B;
   --header-border:  #334155;
 
-  --nav-active-bg:  rgba(255,255,255,0.10);
-  --nav-hover-bg:   rgba(255,255,255,0.06);
-
-  --stat-accent-bg: #312E81;
+  --stat-accent-bg:   #312E81;
   --stat-accent-text: #EEF2FF;
   --stat-accent-sub:  #A5B4FC;
 
   --shadow-card:    0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);
+
+  /* ── Sidebar (dark: deep navy) ── */
+  --sidebar-bg:             #0A0F1E;
+  --sidebar-border:         transparent;
+  --sidebar-title:          #F1F5F9;
+  --sidebar-sub:            #475569;
+  --sidebar-divider:        rgba(255,255,255,0.06);
+  --sidebar-user-bg:        rgba(255,255,255,0.04);
+  --sidebar-user-name:      #CBD5E1;
+  --sidebar-user-role:      #475569;
+  --sidebar-nav-text:       #64748B;
+  --sidebar-nav-active-bg:  rgba(255,255,255,0.10);
+  --sidebar-nav-active-text:#FFFFFF;
+  --sidebar-nav-hover-bg:   rgba(255,255,255,0.06);
+  --sidebar-action-text:    #64748B;
+  --sidebar-action-hover:   #94A3B8;
+  --sidebar-action-red:     #F87171;
+  --sidebar-version:        #1E293B;
+
+  /* ── Section headers in detail views (dark: slate) ── */
+  --section-hdr-bg:         #1E293B;
+  --section-hdr-text:       #F1F5F9;
+  --section-hdr-red-bg:     #B91C1C;
+  --section-hdr-red-text:   #FFFFFF;
+  --section-hdr-slate-bg:   #334155;
+  --section-hdr-slate-text: #F1F5F9;
 }
 
 /* ── Base ────────────────────────────────────────────────────────────────── */
@@ -100,3 +140,11 @@ button { font-family: inherit; }
 .th-text-m     { color: var(--text-muted); }
 .th-divide     > * + * { border-top: 1px solid var(--border-light); }
 .th-shadow     { box-shadow: var(--shadow-card); }
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes fade-in   { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slide-up  { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slide-in  { from { transform: translateX(-100%) } to { transform: translateX(0) } }
+.animate-fade-in  { animation: fade-in  0.2s ease both; }
+.animate-slide-up { animation: slide-up 0.25s ease both; }
+.animate-slide-in { animation: slide-in 0.22s cubic-bezier(0.22,1,0.36,1) both; }

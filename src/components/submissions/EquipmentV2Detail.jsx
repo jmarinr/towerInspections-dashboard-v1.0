@@ -13,20 +13,27 @@ function calcArea(alto, ancho) {
 const v = (x) => (x !== undefined && x !== null && x !== '') ? String(x) : '—'
 
 // ── Collapsible section ────────────────────────────────────────────────────────
-function Section({ icon: Icon, title, badge, headerClass = 'bg-slate-800', children, defaultOpen = true }) {
+// variant: 'default' | 'red' | 'slate'
+function Section({ icon: Icon, title, badge, variant = 'default', children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
+  const headerStyle = variant === 'red'
+    ? { background: 'var(--section-hdr-red-bg)', color: 'var(--section-hdr-red-text)' }
+    : variant === 'slate'
+    ? { background: 'var(--section-hdr-slate-bg)', color: 'var(--section-hdr-slate-text)' }
+    : { background: 'var(--section-hdr-bg)', color: 'var(--section-hdr-text)' }
   return (
-    <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+    <div className="rounded-xl border overflow-hidden shadow-sm" style={{ borderColor: 'var(--border)' }}>
       <button type="button" onClick={() => setOpen(o => !o)}
-        className={`w-full flex items-center gap-3 px-4 py-3 text-left ${headerClass}`}>
-        {Icon && <Icon size={15} className="text-white/70 flex-shrink-0" />}
-        <span className="font-semibold text-[13px] text-white flex-1">{title}</span>
-        {badge && <span className="text-[10px] text-white/50 font-medium mr-1">{badge}</span>}
+        className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+        style={headerStyle}>
+        {Icon && <Icon size={15} className="flex-shrink-0" style={{ opacity: 0.7 }} />}
+        <span className="font-semibold text-[13px] flex-1">{title}</span>
+        {badge && <span className="text-[10px] font-medium mr-1" style={{ opacity: 0.5 }}>{badge}</span>}
         {open
-          ? <ChevronDown size={14} className="text-white/40 flex-shrink-0" />
-          : <ChevronRight size={14} className="text-white/40 flex-shrink-0" />}
+          ? <ChevronDown size={14} className="flex-shrink-0" style={{ opacity: 0.4 }} />
+          : <ChevronRight size={14} className="flex-shrink-0" style={{ opacity: 0.4 }} />}
       </button>
-      {open && <div className="p-4 bg-white">{children}</div>}
+      {open && <div className="p-4" style={{ background: 'var(--bg-card)' }}>{children}</div>}
     </div>
   )
 }
@@ -147,16 +154,16 @@ function FloorClientCard({ cliente, index }) {
 
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden">
-      <div className={`flex items-center gap-2 px-4 py-2.5 ${color}`}>
-        <Building2 size={13} className="text-white/60" />
-        <span className="text-[12px] font-bold text-white">{label}</span>
+      <div className="flex items-center gap-2 px-4 py-2.5" style={{ background: 'var(--section-hdr-slate-bg)', color: 'var(--section-hdr-slate-text)' }}>
+        <Building2 size={13} style={{ opacity: 0.6 }} />
+        <span className="text-[12px] font-bold">{label}</span>
         {cliente.nombreCliente && (
-          <span className="text-[12px] text-white/60 ml-1">— {cliente.nombreCliente}</span>
+          <span className="text-[12px] ml-1" style={{ opacity: 0.6 }}>— {cliente.nombreCliente}</span>
         )}
-        <span className="ml-auto text-[10px] text-white/30">#{index + 1}</span>
+        <span className="ml-auto text-[10px]" style={{ opacity: 0.3 }}>#{index + 1}</span>
       </div>
 
-      <div className="p-4 space-y-3 bg-white">
+      <div className="p-4 space-y-3" style={{ background: 'var(--bg-card)' }}>
         {/* Info */}
         <div className="grid grid-cols-3 gap-4 text-[12px]">
           {[
@@ -210,12 +217,12 @@ function CarrierCard({ carrier, index, assetPhotoMap }) {
 
   return (
     <div className="rounded-xl border border-slate-200 overflow-hidden shadow-sm">
-      <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-700">
-        <Radio size={13} className="text-white/60" />
-        <span className="font-bold text-[13px] text-white">{name}</span>
-        <span className="ml-auto text-[10px] text-white/30">Carrier #{index + 1}</span>
+      <div className="flex items-center gap-2.5 px-4 py-2.5" style={{ background: 'var(--section-hdr-slate-bg)', color: 'var(--section-hdr-slate-text)' }}>
+        <Radio size={13} style={{ opacity: 0.6 }} />
+        <span className="font-bold text-[13px]">{name}</span>
+        <span className="ml-auto text-[10px]" style={{ opacity: 0.3 }}>Carrier #{index + 1}</span>
       </div>
-      <div className="p-4 space-y-4 bg-white">
+      <div className="p-4 space-y-4" style={{ background: 'var(--bg-card)' }}>
         <InventoryTable items={carrier.items} />
         <PhotoGrid photos={[
           [`Foto 1 — ${name}`, foto1],
@@ -255,12 +262,12 @@ export default function EquipmentV2Detail({ submission, assets }) {
     <div className="space-y-3">
 
       {/* Datos del Sitio */}
-      <Section icon={MapPin} title="Datos del Sitio" headerClass="bg-slate-800">
+      <Section icon={MapPin} title="Datos del Sitio" variant="default">
         <SiteInfoGrid info={siteInfo} />
       </Section>
 
       {/* Torre */}
-      <Section icon={Package} title="Inventario de Equipos en Torre" headerClass="bg-red-700">
+      <Section icon={Package} title="Inventario de Equipos en Torre" variant="red">
         <div className="space-y-4">
           <InventoryTable items={torre.items} />
           <PhotoGrid photos={[
@@ -273,7 +280,7 @@ export default function EquipmentV2Detail({ submission, assets }) {
 
       {/* Piso */}
       {(piso.clientes?.length > 0 || fotoPlano) && (
-        <Section icon={Building2} title="Inventario de Equipos en Piso" headerClass="bg-slate-800">
+        <Section icon={Building2} title="Inventario de Equipos en Piso" variant="default">
           <div className="space-y-3">
             {(piso.clientes || []).map((c, i) => (
               <FloorClientCard key={i} cliente={c} index={i} />
@@ -294,7 +301,7 @@ export default function EquipmentV2Detail({ submission, assets }) {
 
       {/* Carriers */}
       {carriers.length > 0 && (
-        <Section icon={Radio} title={`Carriers`} badge={`${carriers.length} carrier${carriers.length !== 1 ? 's' : ''}`} headerClass="bg-slate-700">
+        <Section icon={Radio} title={`Carriers`} badge={`${carriers.length} carrier${carriers.length !== 1 ? 's' : ''}`} variant="slate">
           <div className="space-y-3">
             {carriers.map((c, i) => (
               <CarrierCard key={i} carrier={c} index={i} assetPhotoMap={assetPhotoMap} />

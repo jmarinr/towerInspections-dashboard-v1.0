@@ -438,17 +438,32 @@ class PageBuilder {
   }
 
   // ── Draw floor clients in 2-column pairs ──────────────────────────────────
-  // Ancla clients on left, Colo on right, paired by index
+  // Layout rules (matches reference PDF):
+  //   1. Pair each ancla[i] with colo[i]
+  //   2. Extra anclas (anclas.length > colos.length) → solo on left
+  //   3. Extra colos  (colos.length > anclas.length) → paired together (colo|colo)
   drawFloorClients(clientes) {
     const GAP   = 8
     const cardW = (CW - GAP) / 2
 
     const anclas = clientes.filter(c => c.tipoCliente === 'ancla')
     const colos  = clientes.filter(c => c.tipoCliente === 'colo')
-    // Fallback: if mixed or no type distinction, pair sequentially
-    const pairs  = (anclas.length || colos.length)
-      ? Array.from({ length: Math.max(anclas.length, colos.length) }, (_, i) => [anclas[i], colos[i]])
-      : Array.from({ length: Math.ceil(clientes.length / 2) }, (_, i) => [clientes[i*2], clientes[i*2+1]])
+
+    let pairs
+    if (anclas.length || colos.length) {
+      pairs = []
+      const paired = Math.min(anclas.length, colos.length)
+      // Phase 1: ancla + colo pairs
+      for (let i = 0; i < paired; i++) pairs.push([anclas[i], colos[i]])
+      // Phase 2: remaining anclas solo on left
+      for (let i = paired; i < anclas.length; i++) pairs.push([anclas[i], undefined])
+      // Phase 3: remaining colos paired together
+      const extraColos = colos.slice(paired)
+      for (let i = 0; i < extraColos.length; i += 2) pairs.push([extraColos[i], extraColos[i + 1]])
+    } else {
+      // Fallback: no type distinction, pair sequentially
+      pairs = Array.from({ length: Math.ceil(clientes.length / 2) }, (_, i) => [clientes[i*2], clientes[i*2+1]])
+    }
 
     for (const [left, right] of pairs) {
       // Estimate height needed for the taller card
