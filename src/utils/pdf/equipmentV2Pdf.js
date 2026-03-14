@@ -342,72 +342,136 @@ class PageBuilder {
 
   }
 
-  // ── Floor client block ────────────────────────────────────────────────────
-  drawFloorClient(cliente) {
-    const tipo = (cliente.tipoCliente === 'ancla' ? 'CLIENTE ANCLA' : 'CLIENTE COLO')
-    this.checkSpace(60)
-
-    // Client type header (black bar)
-    const hh = 13
-    this.page.drawRectangle({ x: ML, y: this.y - hh, width: CW / 2 - 2, height: hh, color: C.black })
-    this.page.drawText(tipo, { x: ML + 4, y: this.y - hh + 4, size: 7, font: this.fontBold, color: C.white })
-    this.page.drawText(s(cliente.nombreCliente), { x: ML + 90, y: this.y - hh + 4, size: 7, font: this.font, color: C.white })
-    this.y -= hh + 1
-
-    // Area rows
-    const infoH = 11
-    const half = CW / 2
-
-    const infoRows = [
-      ['AREA ARRENDADA',  s(cliente.areaArrendada)],
-      ['PLACA DE EQUIPOS:', s(cliente.placaEquipos)],
-      ['AREA EN USO',     s(cliente.areaEnUso)],
+  // ── Site info block estilo piso (líneas subrayadas, 2 columnas) ──────────
+  drawSiteInfoBlockPiso(data) {
+    // Layout: izq col (ID, Nombre, Fecha Inicio, Fecha Termino, Dirección)
+    //         der col (Altura, Tipo Sitio, Tipo Estructura, Latitud, Longitud)
+    const rows = [
+      ['ID Sitio:',      s(data.idSitio),      'Altura (Mts):',    s(data.alturaTorre)],
+      ['Nombre Sitio:',  s(data.nombreSitio),  'Tipo Sitio:',      s(data.tipoSitio)],
+      ['Fecha Inicio:',  s(data.fechaInicio),  'Tipo Estructura:', s(data.tipoEstructura || data.tipoTorre)],
+      ['Fecha Termino:', s(data.fechaTermino), 'Latitud:',         s(data.latitud || data.coordenadas)],
+      ['Dirección:',     s(data.direccion),    'Longitud:',        s(data.longitud)],
     ]
-    for (const [lbl, val] of infoRows) {
-      this.checkSpace(infoH)
-      this.page.drawRectangle({ x: ML, y: this.y - infoH, width: half - 2, height: infoH, borderColor: C.border, borderWidth: 0.3 })
-      this._cellLabel(lbl, ML + 4, this.y - infoH + 3, 6)
-      this._cellVal(val, ML + 95, this.y - infoH + 3, 6, half - 100)
-      this.y -= infoH
-    }
-    this.y -= 2
+    const rh = 14, half = CW / 2
+    const LBL_W = 72, UNDERLINE_Y_OFF = 2
 
-    // Gabinetes table
+    for (const [l1, v1, l2, v2] of rows) {
+      this.checkSpace(rh)
+      const y = this.y
+      // Left col label
+      this.page.drawText(l1, { x: ML, y: y - rh + 5, size: 6.5, font: this.fontBold, color: C.text })
+      // Left col value + underline
+      this.page.drawText(v1, { x: ML + LBL_W, y: y - rh + 5, size: 7, font: this.font, color: C.text })
+      this.page.drawLine({ start: { x: ML + LBL_W, y: y - rh + UNDERLINE_Y_OFF }, end: { x: ML + half - 4, y: y - rh + UNDERLINE_Y_OFF }, thickness: 0.4, color: C.border })
+      // Right col label
+      this.page.drawText(l2, { x: ML + half + 4, y: y - rh + 5, size: 6.5, font: this.fontBold, color: C.text })
+      // Right col value + underline
+      this.page.drawText(v2, { x: ML + half + 4 + 80, y: y - rh + 5, size: 7, font: this.font, color: C.text })
+      this.page.drawLine({ start: { x: ML + half + 4 + 80, y: y - rh + UNDERLINE_Y_OFF }, end: { x: ML + CW, y: y - rh + UNDERLINE_Y_OFF }, thickness: 0.4, color: C.border })
+      this.y -= rh
+    }
+    this.y -= 4
+  }
+
+  // ── Draw a single client card in a given column (x offset, width) ─────────
+  _drawClientCard(cliente, x, cardW, startY) {
+    const tipo  = cliente.tipoCliente === 'ancla' ? 'CLIENTE ANCLA:' : 'CLIENTE COLO:'
+    const HDR_H = 13
+    const ROW_H = 11
+    const GAB_H = 12
+    const GAB_HDR_H = 13
+    let y = startY
+
+    // Header bar
+    this.page.drawRectangle({ x, y: y - HDR_H, width: cardW, height: HDR_H, color: C.black })
+    this.page.drawText(tipo, { x: x + 4, y: y - HDR_H + 4, size: 6.5, font: this.fontBold, color: C.white })
+    this.page.drawText(s(cliente.nombreCliente), { x: x + 78, y: y - HDR_H + 4, size: 6.5, font: this.font, color: C.white })
+    y -= HDR_H
+
+    // Info rows
+    for (const [lbl, val] of [
+      ['AREA ARRENDADA', s(cliente.areaArrendada)],
+      ['AREA EN USO',    s(cliente.areaEnUso)],
+    ]) {
+      this.page.drawRectangle({ x, y: y - ROW_H, width: cardW, height: ROW_H, borderColor: C.border, borderWidth: 0.3 })
+      this.page.drawText(lbl, { x: x + 3, y: y - ROW_H + 3, size: 5.5, font: this.fontBold, color: C.text })
+      this.page.drawText(val, { x: x + 75, y: y - ROW_H + 3, size: 6, font: this.font, color: C.text })
+      y -= ROW_H
+    }
+
+    // Gabinetes table header
     const gabCols = [
-      { label: 'GABINETE', w: CW * 0.35 },
-      { label: 'LARGO',    w: CW * 0.12 },
-      { label: 'ANCHO',    w: CW * 0.12 },
-      { label: 'ALTO',     w: CW * 0.12 },
-      { label: 'FOTO #',   w: CW * 0.29 },
+      { label: 'GABINETE', w: cardW * 0.36 },
+      { label: 'LARGO',    w: cardW * 0.15 },
+      { label: 'ANCHO',    w: cardW * 0.15 },
+      { label: 'ALTO',     w: cardW * 0.15 },
+      { label: 'FOTO #',   w: cardW * 0.19 },
     ]
-    const ghdr = 13
-    this.checkSpace(ghdr + 10)
-    this.page.drawRectangle({ x: ML, y: this.y - ghdr, width: CW * 0.7, height: ghdr, color: C.black })
-    let gcx = ML
+    this.page.drawRectangle({ x, y: y - GAB_HDR_H, width: cardW, height: GAB_HDR_H, color: C.black })
+    let gx = x
     for (const gc of gabCols) {
-      const tw = this.fontBold.widthOfTextAtSize(gc.label, 5.5)
-      this.page.drawText(gc.label, { x: gcx + (gc.w - tw) / 2, y: this.y - ghdr + 4, size: 5.5, font: this.fontBold, color: C.white })
-      gcx += gc.w
+      const tw = this.fontBold.widthOfTextAtSize(gc.label, 5)
+      this.page.drawText(gc.label, { x: gx + (gc.w - tw) / 2, y: y - GAB_HDR_H + 4, size: 5, font: this.fontBold, color: C.white })
+      gx += gc.w
     }
-    this.y -= ghdr
+    y -= GAB_HDR_H
 
-    const gabH = 13
-    const gabs = cliente.gabinetes && cliente.gabinetes.length ? cliente.gabinetes : [{}]
-    for (const gab of gabs) {
-      this.checkSpace(gabH)
-      this.page.drawRectangle({ x: ML, y: this.y - gabH, width: CW * 0.7, height: gabH, borderColor: C.border, borderWidth: 0.3 })
-      let gx = ML
-      const gVals = [s(gab.gabinete), s(gab.largo), s(gab.ancho), s(gab.alto), s(gab.fotoRef)]
-      gVals.forEach((val, vi) => {
-        if (vi > 0) this.page.drawLine({ start: { x: gx, y: this.y }, end: { x: gx, y: this.y - gabH }, thickness: 0.3, color: C.border })
+    // Gabinete rows (min 3 empty rows)
+    const gabs = (cliente.gabinetes && cliente.gabinetes.length) ? cliente.gabinetes : []
+    const minRows = Math.max(gabs.length, 3)
+    for (let ri = 0; ri < minRows; ri++) {
+      const gab = gabs[ri] || {}
+      this.page.drawRectangle({ x, y: y - GAB_H, width: cardW, height: GAB_H, borderColor: C.border, borderWidth: 0.3 })
+      let rx = x
+      const vals = [s(gab.gabinete), s(gab.largo), s(gab.ancho), s(gab.alto), s(gab.fotoRef)]
+      vals.forEach((val, vi) => {
+        if (vi > 0) this.page.drawLine({ start: { x: rx, y }, end: { x: rx, y: y - GAB_H }, thickness: 0.3, color: C.border })
         let t = val
-        while (t.length > 1 && this.font.widthOfTextAtSize(t, 6) > gabCols[vi].w - 4) t = t.slice(0, -1)
-        this.page.drawText(t, { x: gx + 3, y: this.y - gabH + 4, size: 6, font: this.font, color: C.text })
-        gx += gabCols[vi].w
+        while (t.length > 1 && this.font.widthOfTextAtSize(t, 5.5) > gabCols[vi].w - 3) t = t.slice(0, -1)
+        this.page.drawText(t, { x: rx + 2, y: y - GAB_H + 3, size: 5.5, font: this.font, color: C.text })
+        rx += gabCols[vi].w
       })
-      this.y -= gabH
+      y -= GAB_H
     }
-    this.y -= 8
+    return startY - y  // total height consumed
+  }
+
+  // ── Draw floor clients in 2-column pairs ──────────────────────────────────
+  // Ancla clients on left, Colo on right, paired by index
+  drawFloorClients(clientes) {
+    const GAP   = 8
+    const cardW = (CW - GAP) / 2
+
+    const anclas = clientes.filter(c => c.tipoCliente === 'ancla')
+    const colos  = clientes.filter(c => c.tipoCliente === 'colo')
+    // Fallback: if mixed or no type distinction, pair sequentially
+    const pairs  = (anclas.length || colos.length)
+      ? Array.from({ length: Math.max(anclas.length, colos.length) }, (_, i) => [anclas[i], colos[i]])
+      : Array.from({ length: Math.ceil(clientes.length / 2) }, (_, i) => [clientes[i*2], clientes[i*2+1]])
+
+    for (const [left, right] of pairs) {
+      // Estimate height needed for the taller card
+      const leftRows  = left  ? Math.max((left.gabinetes  || []).length, 3) : 0
+      const rightRows = right ? Math.max((right.gabinetes || []).length, 3) : 0
+      const estH = 13 + 22 + 13 + Math.max(leftRows, rightRows) * 12 + 10
+      this.checkSpace(estH)
+
+      const startY = this.y
+      if (left)  this._drawClientCard(left,  ML,                startY, cardW)
+      if (right) this._drawClientCard(right, ML + cardW + GAP,  startY, cardW)
+
+      // Advance y by whichever card was taller
+      const leftH  = left  ? this._clientCardHeight(left,  cardW) : 0
+      const rightH = right ? this._clientCardHeight(right, cardW) : 0
+      this.y -= Math.max(leftH, rightH) + 6
+    }
+  }
+
+  // Height calculator for a client card (mirrors _drawClientCard logic)
+  _clientCardHeight(cliente, cardW) {
+    const gabs = (cliente.gabinetes && cliente.gabinetes.length) ? cliente.gabinetes.length : 3
+    return 13 + 11 + 11 + 13 + (Math.max(gabs, 3) * 12)
   }
 
   // ── Generic photo row (used for carriers) ────────────────────────────────
@@ -673,11 +737,9 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
     p.y = PH - MT
     p._miniHeader(siteHeaderData)
     p.darkSubheader('INVENTARIO DE EQUIPOS EN PISO')
-    p.drawSiteInfoBlock({ ...siteHeaderData, alturaTorre: siteHeaderData.alturaTorre })
+    p.drawSiteInfoBlockPiso({ ...siteHeaderData })
 
-    for (const cliente of clientes) {
-      p.drawFloorClient(cliente)
-    }
+    p.drawFloorClients(clientes)
 
     // Plano de planta
     p.checkSpace(50)
