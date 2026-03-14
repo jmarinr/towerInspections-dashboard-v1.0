@@ -438,30 +438,32 @@ class PageBuilder {
     this.y -= (labels && labels.some(Boolean) ? 14 : 6) + photoH + 4
   }
 
-  // ── Torre photos layout (página 2):
+  // ── Torre photos — cada sección llena su propia página ──────────────────
   //
-  //  Fila 1 — "Distribución de equipos en torre"
+  //  Página 2: "Distribución de equipos en torre"
   //    ┌──────────────────────┬──────────────────────┐
-  //    │  slot izq (foto)     │  slot der (foto)     │
-  //    │                      │ [barra roja]          │
-  //    │                      │ Foto de Torre Compl.  │
+  //    │  imgDistribucion     │  imgTorre            │
+  //    │  (slot izq, 50%)     │  (slot der, 50%)     │
+  //    │                      │ ┌──────────────────┐ │
+  //    │                      │ │Foto de Torre     │ │← barra roja
+  //    │                      │ │Completa          │ │
   //    └──────────────────────┴──────────────────────┘
   //
-  //  Fila 2 — "Croquis esquemático del edificio en corte"
+  //  Página 3: "Croquis esquemático del edificio en corte"
   //    ┌──────────────────────────────────────────────┐
-  //    │             foto — ancho completo            │
+  //    │           imgCroquis — ancho completo        │
   //    └──────────────────────────────────────────────┘
   //
   async drawTorrePhotos(imgDistribucion, imgCroquis, imgTorre) {
-    const GAP   = 8    // gap entre columnas
-    const VGAP  = 10   // gap entre filas
-    const LBL   = 11   // altura label de sección
-    const H1    = 210  // altura fila 1
-    const H2    = 180  // altura fila 2
-    const BAR_H = 16   // barra roja inferior
-    const W2    = (CW - GAP) / 2  // mitad de ancho para fila 1
+    // PH=792, MT=36, MB=36, miniHeader≈52pts
+    // Usable height after miniHeader = 792 - 36 - 36 - 52 = 668pts
+    const MINI_H = 52   // altura del miniHeader (negro+rojo+siteRow)
+    const LBL    = 11   // label de sección
+    const GAP    = 8    // gap entre columnas
+    const BAR_H  = 16   // barra roja
+    const USABLE = PH - MT - MB - MINI_H  // ~668pts disponibles por página
 
-    // Box simple con imagen centrada
+    // ── helpers ─────────────────────────────────────────────────────────────
     const drawBox = (img, x, y, w, h) => {
       this.page.drawRectangle({ x, y, width: w, height: h, borderColor: C.border, borderWidth: 0.5 })
       if (img) {
@@ -473,7 +475,6 @@ class PageBuilder {
       }
     }
 
-    // Box con barra roja en la parte inferior + label centrado en blanco
     const drawBoxWithBar = (img, x, y, w, h, label) => {
       this.page.drawRectangle({ x, y, width: w, height: h, borderColor: C.border, borderWidth: 0.5 })
       const imgH = h - BAR_H
@@ -485,37 +486,56 @@ class PageBuilder {
         } catch {}
       }
       this.page.drawRectangle({ x, y, width: w, height: BAR_H, color: C.red })
-      const lw = this.fontBold.widthOfTextAtSize(s(label), 6.5)
+      const lw = this.fontBold.widthOfTextAtSize(s(label), 7)
       this.page.drawText(s(label), {
-        x: x + Math.max(3, (w - lw) / 2),
-        y: y + (BAR_H - 6.5) / 2 + 1,
-        size: 6.5, font: this.fontBold, color: C.white
+        x: x + Math.max(4, (w - lw) / 2),
+        y: y + (BAR_H - 7) / 2 + 1,
+        size: 7, font: this.fontBold, color: C.white
       })
     }
 
-    // ── Fila 1: "Distribución de equipos en torre" ────────────────────────
-    // Label de sección
-    this.checkSpace(LBL + H1 + VGAP)
-    this.page.drawText('Distribucion de equipos en torre', {
-      x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
-    })
-    const y1 = this.y - LBL - H1
-    // Slot izquierdo — foto de distribución (sin barra)
-    drawBox(imgDistribucion, ML, y1, W2, H1)
-    // Slot derecho — misma foto con barra roja "Foto de Torre Completa"
-    drawBoxWithBar(imgTorre, ML + W2 + GAP, y1, W2, H1, 'Foto de Torre Completa')
-    this.y -= LBL + H1 + VGAP
+    // ── Página 2: Distribución de equipos en torre ────────────────────────
+    // La página ya fue creada con miniHeader antes de llamar esta función.
+    // Calculamos el alto disponible real desde this.y hasta MB
+    {
+      const H = this.y - MB - LBL - 2  // ocupa todo el espacio restante
+      const W = (CW - GAP) / 2
 
-    // ── Fila 2: "Croquis esquemático del edificio en corte" ───────────────
-    // Label de sección
-    this.checkSpace(LBL + H2 + VGAP)
-    this.page.drawText('Croquis esquematico del edificio en corte', {
-      x: ML, y: this.y - LBL + 3, size: 6, font: this.fontBold, color: C.text
-    })
-    const y2 = this.y - LBL - H2
-    // Una sola foto — ancho completo
-    drawBox(imgCroquis, ML, y2, CW, H2)
-    this.y -= LBL + H2 + VGAP
+      // Label
+      this.page.drawText('Distribucion de equipos en torre', {
+        x: ML, y: this.y - LBL + 3, size: 6.5, font: this.fontBold, color: C.text
+      })
+      const boxY = this.y - LBL - H
+
+      // Slot izquierdo — fotoDistribucion (sin barra)
+      drawBox(imgDistribucion, ML, boxY, W, H)
+      // Slot derecho — fotoTorre con barra roja
+      drawBoxWithBar(imgTorre, ML + W + GAP, boxY, W, H, 'Foto de Torre Completa')
+
+      this.y = boxY  // actualizar posición (ya en fondo de página)
+    }
+
+    // ── Página 3: Croquis esquemático del edificio en corte ───────────────
+    this._drawFooter()
+    this.page = this.doc.addPage([PW, PH])
+    this.pageNum++
+    this.y = PH - MT
+    this._miniHeader(this._headerData)
+
+    {
+      const H = this.y - MB - LBL - 2  // ocupa toda la página
+
+      // Label
+      this.page.drawText('Croquis esquematico del edificio en corte', {
+        x: ML, y: this.y - LBL + 3, size: 6.5, font: this.fontBold, color: C.text
+      })
+      const boxY = this.y - LBL - H
+
+      // Una sola foto — ancho completo
+      drawBox(imgCroquis, ML, boxY, CW, H)
+
+      this.y = boxY
+    }
   }
 }
 
