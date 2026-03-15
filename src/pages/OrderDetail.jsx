@@ -1,7 +1,8 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2 } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
+import LoadError from '../components/ui/LoadError'
 import { useOrdersStore } from '../store/useOrdersStore'
 import { getFormMeta, normalizeFormCode, isFormVisible } from '../data/formTypes'
 import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
@@ -55,10 +56,20 @@ export default function OrderDetail() {
   const order       = useOrdersStore((s) => s.activeOrder)
   const submissions = useOrdersStore((s) => s.activeOrderSubmissions)
   const isLoading   = useOrdersStore((s) => s.isLoadingDetail)
+  const [timedOut, setTimedOut] = useState(false)
 
-  useEffect(() => { if (orderId) loadDetail(orderId); return () => clearDetail() }, [orderId])
+  useEffect(() => {
+    if (!orderId) return
+    setTimedOut(false)
+    loadDetail(orderId)
+    const t = setTimeout(() => setTimedOut(true), 10000)
+    return () => { clearDetail(); clearTimeout(t) }
+  }, [orderId])
 
-  if (isLoading) return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>
+  if (isLoading && !timedOut)
+    return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>
+  if (timedOut && !order)
+    return <LoadError message="Tiempo de espera agotado." onRetry={() => { setTimedOut(false); loadDetail(orderId) }} />
   if (!order) return (
     <div className="text-center py-20">
       <div className="text-[14px] th-text-m mb-3">Visita no encontrada</div>

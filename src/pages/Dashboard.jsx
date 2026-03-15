@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { Link } from 'react-router-dom'
 import { ChevronRight, ArrowUpRight, TrendingUp, ClipboardList, FolderOpen, Camera, Activity } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
+import LoadError from '../components/ui/LoadError'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta, isFormVisible } from '../data/formTypes'
 import { extractSiteInfo, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
@@ -44,9 +45,24 @@ export default function Dashboard() {
   const loadStats = useSubmissionsStore((s) => s.loadStats)
   const stats     = useSubmissionsStore((s) => s.stats)
   const isLoading = useSubmissionsStore((s) => s.isLoadingStats)
+  const storeError = useSubmissionsStore((s) => s.error)
+
+  const [timedOut, setTimedOut] = useState(false)
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
-  useEffect(() => { if (authReady) { load(true); loadStats() } }, [authReady])
+  useEffect(() => {
+    if (!authReady) return
+    setTimedOut(false)
+    load(true); loadStats()
+    const t = setTimeout(() => setTimedOut(true), 10000)
+    return () => clearTimeout(t)
+  }, [authReady])
+
+  if (storeError || timedOut)
+    return <LoadError
+      message={storeError || 'Tiempo de espera agotado. Verifica tu conexión.'}
+      onRetry={() => { setTimedOut(false); load(true); loadStats() }}
+    />
 
   if (isLoading || !stats)
     return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>

@@ -14,10 +14,19 @@ export const useOrdersStore = create((set, get) => ({
     const isEmpty = state.orders.length === 0
     if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
     set({ isLoading: true, error: null })
+
+    const timeout = setTimeout(() => {
+      if (get().isLoading) {
+        set({ isLoading: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+      }
+    }, 10000)
+
     try {
       const data = await fetchSiteVisits()
-      set({ orders: data, isLoading: false, lastFetch: Date.now() })
+      clearTimeout(timeout)
+      set({ orders: data, isLoading: false, lastFetch: Date.now(), error: null })
     } catch (err) {
+      clearTimeout(timeout)
       set({ error: err?.message || 'Error al cargar órdenes', isLoading: false })
     }
   },

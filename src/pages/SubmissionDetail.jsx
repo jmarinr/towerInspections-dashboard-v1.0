@@ -6,6 +6,7 @@ import {
   Minus, Clock, Eye, Pencil, Save, RotateCcw, History, ShieldCheck, Upload,
 } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
+import LoadError from '../components/ui/LoadError'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { getFormMeta, normalizeFormCode } from '../data/formTypes'
@@ -535,18 +536,22 @@ export default function SubmissionDetail() {
 
   const [pdfLoading,    setPdfLoading]    = useState(false)
   const [photosLoading, setPhotosLoading] = useState(false)
+  const [timedOut,      setTimedOut]      = useState(false)
 
   // Edit state
   const [editMode,      setEditMode]      = useState(false)
-  const [pendingEdits,  setPendingEdits]  = useState({})   // { key: newVal }
+  const [pendingEdits,  setPendingEdits]  = useState({})
   const [showModal,     setShowModal]     = useState(false)
   const [saving,        setSaving]        = useState(false)
   const [saveError,     setSaveError]     = useState(null)
   const [saveSuccess,   setSaveSuccess]   = useState(false)
 
   useEffect(() => {
-    if (submissionId) loadDetail(submissionId)
-    return () => clearDetail()
+    if (!submissionId) return
+    setTimedOut(false)
+    loadDetail(submissionId)
+    const t = setTimeout(() => setTimedOut(true), 10000)
+    return () => { clearDetail(); clearTimeout(t) }
   }, [submissionId])
 
   // ── PDF ─────────────────────────────────────────────────────
@@ -729,7 +734,13 @@ export default function SubmissionDetail() {
     (!assets?.length || !submission) ? {} : groupAssetsBySection(assets, submission.form_code),
     [assets, submission])
 
-  if (isLoading) return <div className="flex items-center justify-center py-20"><Spinner size={16}/></div>
+  if (isLoading && !timedOut) return <div className="flex items-center justify-center py-20"><Spinner size={16}/></div>
+  if (timedOut && !submission) return (
+    <div className="p-4">
+      <button onClick={() => navigate(-1)} className="text-[13px] th-text-m mb-4 flex items-center gap-1">← Volver</button>
+      <LoadError message="Tiempo de espera agotado." onRetry={() => { setTimedOut(false); loadDetail(submissionId) }} />
+    </div>
+  )
   if (!submission) return (
     <div className="text-center py-20 text-[13px] th-text-m">
       No encontrado.{' '}

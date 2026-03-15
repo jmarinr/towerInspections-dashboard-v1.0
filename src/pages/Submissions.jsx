@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
+import LoadError from '../components/ui/LoadError'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { useOrdersStore } from '../store/useOrdersStore'
@@ -121,6 +122,7 @@ function TH({ children, className = '' }) {
 export default function Submissions() {
   const load           = useSubmissionsStore((s) => s.load)
   const isLoading      = useSubmissionsStore((s) => s.isLoading)
+  const storeError     = useSubmissionsStore((s) => s.error)
   const submissions    = useSubmissionsStore((s) => s.submissions)
   const filterFormCode = useSubmissionsStore((s) => s.filterFormCode)
   const search         = useSubmissionsStore((s) => s.search)
@@ -203,6 +205,11 @@ export default function Submissions() {
           </button>
         )}
       </div>
+
+      {/* Error */}
+      {!isLoading && storeError && (
+        <LoadError message={storeError} onRetry={() => load(true)} />
+      )}
 
       {/* Loading */}
       {isLoading && (

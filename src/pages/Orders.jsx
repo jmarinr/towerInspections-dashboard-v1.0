@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight, Download, Loader2, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
+import LoadError from '../components/ui/LoadError'
 import { useOrdersStore } from '../store/useOrdersStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
@@ -71,6 +72,7 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
 export default function Orders() {
   const load         = useOrdersStore((s) => s.load)
   const isLoading    = useOrdersStore((s) => s.isLoading)
+  const storeError   = useOrdersStore((s) => s.error)
   const orders       = useOrdersStore((s) => s.orders)
   const filterStatus = useOrdersStore((s) => s.filterStatus)
   const search       = useOrdersStore((s) => s.search)
@@ -134,6 +136,9 @@ export default function Orders() {
         )}
       </div>
 
+      {!isLoading && storeError && (
+        <LoadError message={storeError} onRetry={() => load(true)} />
+      )}
       {isLoading && <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>}
 
       {!isLoading && filtered.length > 0 && (

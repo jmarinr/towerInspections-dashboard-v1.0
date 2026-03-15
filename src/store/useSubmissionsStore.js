@@ -24,14 +24,23 @@ export const useSubmissionsStore = create((set, get) => ({
 
   load: async (force = false) => {
     const state = get()
-    // Si data está vacía, siempre recargar aunque el cache sea reciente
     const isEmpty = state.submissions.length === 0
     if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
     set({ isLoading: true, error: null })
+
+    // Timeout de seguridad — si el fetch tarda más de 10s, parar el spinner
+    const timeout = setTimeout(() => {
+      if (get().isLoading) {
+        set({ isLoading: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+      }
+    }, 10000)
+
     try {
       const data = await fetchSubmissions()
-      set({ submissions: data, isLoading: false, lastFetch: Date.now() })
+      clearTimeout(timeout)
+      set({ submissions: data, isLoading: false, lastFetch: Date.now(), error: null })
     } catch (err) {
+      clearTimeout(timeout)
       set({ error: err?.message || 'Error al cargar datos', isLoading: false })
     }
   },
@@ -88,11 +97,18 @@ export const useSubmissionsStore = create((set, get) => ({
 
   loadStats: async () => {
     set({ isLoadingStats: true })
+    const timeout = setTimeout(() => {
+      if (get().isLoadingStats) {
+        set({ isLoadingStats: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+      }
+    }, 10000)
     try {
       const stats = await fetchDashboardStats()
+      clearTimeout(timeout)
       set({ stats, isLoadingStats: false })
     } catch (err) {
-      set({ isLoadingStats: false })
+      clearTimeout(timeout)
+      set({ isLoadingStats: false, error: err?.message || 'Error al cargar estadísticas' })
     }
   },
 
