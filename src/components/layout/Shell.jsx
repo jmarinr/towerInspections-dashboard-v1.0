@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, WifiOff, AlertCircle, Users, Building2, ShieldCheck, ScrollText } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, AlertCircle, Users, Building2, ShieldCheck, ScrollText } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
@@ -38,12 +38,11 @@ function ThemeToggle() {
 
 // ── Realtime status badge ──────────────────────────────────────────────────
 function RealtimeBadge() {
-  const status = useSubmissionsStore((s) => s.realtimeStatus)
+  const lastFetch = useSubmissionsStore((s) => s.lastFetch)
+  const error     = useSubmissionsStore((s) => s.error)
   const lastEvent = useSubmissionsStore((s) => s.lastRealtimeEvent)
-  const subscribeRealtime = useSubmissionsStore((s) => s.subscribeRealtime)
   const [flash, setFlash] = useState(false)
 
-  // Parpadear brevemente cuando llega un evento nuevo
   useEffect(() => {
     if (!lastEvent) return
     setFlash(true)
@@ -51,37 +50,29 @@ function RealtimeBadge() {
     return () => clearTimeout(t)
   }, [lastEvent?.ts])
 
-  const label = {
-    connected:    'En vivo',
-    connecting:   'Conectando',
-    disconnected: 'Sin conexión',
-    error:        'Error',
-  }[status] ?? status
+  const secsAgo = lastFetch ? Math.floor((Date.now() - lastFetch) / 1000) : null
+  const isStale = secsAgo === null || secsAgo > 60
 
-  const icon = status === 'connected'
-    ? <Wifi size={11} />
-    : status === 'error'
-    ? <AlertCircle size={11} />
-    : <WifiOff size={11} />
+  const label = error ? 'Error' : isStale ? 'Sin datos' : flash ? 'Nuevo dato' : 'Activo'
+  const colors = error
+    ? { bg: 'rgba(239,68,68,.10)', color: '#dc2626' }
+    : isStale
+    ? { bg: 'rgba(156,163,175,.10)', color: 'var(--text-muted)' }
+    : flash
+    ? { bg: 'rgba(34,197,94,.25)', color: '#16a34a' }
+    : { bg: 'rgba(2,132,199,.10)', color: '#0284C7' }
 
-  const colors = {
-    connected:    { bg: flash ? 'rgba(34,197,94,.18)' : 'rgba(34,197,94,.10)', color: '#16a34a' },
-    connecting:   { bg: 'rgba(251,191,36,.10)', color: '#b45309' },
-    disconnected: { bg: 'rgba(156,163,175,.10)', color: 'var(--text-muted)' },
-    error:        { bg: 'rgba(239,68,68,.10)',   color: '#dc2626' },
-  }[status] ?? {}
-
-  const isClickable = status === 'error' || status === 'disconnected'
+  const icon = error
+    ? <AlertCircle size={11}/>
+    : <Wifi size={11}/>
 
   return (
     <div
-      onClick={isClickable ? () => subscribeRealtime() : undefined}
-      title={isClickable ? `Realtime: ${label} — clic para reconectar` : `Realtime: ${label}`}
+      title={lastFetch ? `Última actualización: ${secsAgo}s atrás` : 'Sin datos aún'}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
         fontSize: 10, fontWeight: 600, padding: '2px 7px',
         borderRadius: 100, transition: 'background .4s',
-        cursor: isClickable ? 'pointer' : 'default',
         ...colors,
       }}
     >
@@ -90,6 +81,10 @@ function RealtimeBadge() {
     </div>
   )
 }
+
+  const colors = {
+    connected:    { bg: flash ? 'rgba(34,197,94,.18)' : 'rgba(34,197,94,.10)', color: '#16a34a' },
+    connecting:   { bg: 'rgba(251,191,36,.10)', color: '#b45309' },
 
 
 function SideNavLink({ to, icon: Icon, label, onClick }) {
@@ -219,28 +214,46 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
 export default function Shell({ children }) {
   const navigate  = useNavigate()
   const location  = useLocation()
-  const logout               = useAuthStore((s) => s.logout)
-  const user                 = useAuthStore((s) => s.user)
-  const load                 = useSubmissionsStore((s) => s.load)
-  const subscribeRealtime    = useSubmissionsStore((s) => s.subscribeRealtime)
-  const unsubscribeRealtime  = useSubmissionsStore((s) => s.unsubscribeRealtime)
+  const logout    = useAuthStore((s) => s.logout)
+  const user      = useAuthStore((s) => s.user)
+  const load      = useSubmissionsStore((s) => s.load)
   const { init }  = useThemeStore()
   const [mob, setMob] = useState(false)
 
   useEffect(() => { init() }, [])
 
-  // Realtime: crear canal una vez al montar. Supabase reconecta automáticamente.
+  // Polling cada 30s — reemplaza WebSocket Realtime (era inestable con RLS)
   useEffect(() => {
-    subscribeRealtime()
-    return () => { unsubscribeRealtime() }
+    const poll = () => useSubmissionsStore.getState().load(true)
+
+    const interval = setInterval(poll, 30000)
+
+    // Re-pollear al volver al tab si pasaron más de 15s
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const last = useSubmissionsStore.getState().lastFetch
+        if (!last || Date.now() - last > 15000) poll()
+      }
+    }
+
+    // Re-pollear al recuperar red
+    const handleOnline = () => poll()
+
+    document.addEventListener('visibilitychange', handleVisibility)
+    window.addEventListener('online', handleOnline)
+
+    return () => {
+      clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleVisibility)
+      window.removeEventListener('online', handleOnline)
+    }
   }, [])
 
   const refresh     = useCallback(() => load(true), [load])
   const handleLogout = useCallback(() => {
-    unsubscribeRealtime()
     logout()
     navigate('/login')
-  }, [logout, navigate, unsubscribeRealtime])
+  }, [logout, navigate])
 
   const pageTitle = NAV.find(n => location.pathname.startsWith(n.to))?.label || ''
 
