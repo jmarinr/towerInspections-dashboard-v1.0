@@ -26,6 +26,7 @@ import {
   fetchSubmissionEdits,
 } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
+import { LOG } from '../lib/logEvent'
 
 // ─────────────────────────────────────────────────────────────
 // SCORE RING
@@ -702,9 +703,15 @@ export default function SubmissionDetail() {
       }
 
       await updateSubmissionPayload(submissionId, submission.payload, pendingEdits)
-      // Audit — non-blocking: table may need 'NOTIFY pgrst, reload schema' in Supabase
-      insertSubmissionEdit(submissionId, user.username, changes, note)
+      insertSubmissionEdit(submissionId, user.username || user.email, changes, note)
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
+      // Log en system_logs
+      LOG.submissionEdited(
+        submissionId,
+        extractSiteInfo(submission)?.nombreSitio || submissionId,
+        user.email,
+        Object.keys(changes)
+      )
       await loadDetail(submissionId)
 
       setShowModal(false); setEditMode(false); setPendingEdits({})

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuthStore } from '../../store/useAuthStore'
+import { LOG } from '../../lib/logEvent'
 import Spinner from '../../components/ui/Spinner'
 
 const ROLE_META = {
@@ -99,7 +100,11 @@ function UserModal({ user, companies, onSave, onClose }) {
         setSaving(false)
         return
       }
+      // Log creación exitosa
+      LOG.userCreated(form.email, form.role, currentUser?.email)
     } else {
+      // Detectar si se desactivó el usuario
+      const wasDeactivated = user.active && !form.active
       const { error: err } = await supabase.from('app_users').update({
         full_name:     form.full_name.trim(),
         role:          form.role,
@@ -108,6 +113,11 @@ function UserModal({ user, companies, onSave, onClose }) {
         active:        form.active,
       }).eq('id', user.id)
       if (err) { setError(err.message); setSaving(false); return }
+      if (wasDeactivated) {
+        LOG.userDeactivated(user.email, currentUser?.email)
+      } else {
+        LOG.userUpdated(user.email, { role: form.role, active: form.active }, currentUser?.email)
+      }
     }
     onSave()
   }

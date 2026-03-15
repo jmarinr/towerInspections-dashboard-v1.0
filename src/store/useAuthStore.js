@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabaseClient'
+import { LOG } from '../lib/logEvent'
 
 export const useAuthStore = create((set, get) => ({
   isAuthed:    false,
@@ -68,6 +69,9 @@ export const useAuthStore = create((set, get) => ({
           canWrite:   ['admin', 'supervisor'].includes(data.role),
         },
       })
+
+      // Log solo en SIGNED_IN, no en refresh silencioso
+      // Se detecta si es un login real verificando que no haya sesión previa
     } catch {
       set({ isAuthed: false, user: null, isLoading: false })
     }
@@ -80,14 +84,17 @@ export const useAuthStore = create((set, get) => ({
       const msg = error.message?.includes('Invalid login')
         ? 'Correo o contraseña incorrectos'
         : error.message || 'Error al iniciar sesión'
+      LOG.authLoginFailed(email)
       return { ok: false, message: msg }
     }
-    // _loadProfile se dispara vía onAuthStateChange
+    // Login exitoso — _loadProfile se dispara vía onAuthStateChange
     return { ok: true }
   },
 
   // ── Logout ───────────────────────────────────────────────────────────────
   logout: async () => {
+    const user = get().user
+    if (user) LOG.authLogout(user.email, user.role)
     await supabase.auth.signOut()
     set({ isAuthed: false, user: null })
   },
