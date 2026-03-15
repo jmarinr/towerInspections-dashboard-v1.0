@@ -83,10 +83,11 @@ export default function Orders() {
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
   useEffect(() => {
     if (!authReady) return
+    useOrdersStore.setState({ error: null }) // limpiar error previo antes de cargar
     load(true)
     const t = setTimeout(() => {
-      if (useOrdersStore.getState().orders.length === 0) load(true)
-    }, 2500)
+      if (useOrdersStore.getState().orders.length === 0 && !useOrdersStore.getState().error) load(true)
+    }, 3000)
     return () => clearTimeout(t)
   }, [authReady])
   const filtered = useMemo(() => getFiltered(), [orders, filterStatus, search])
@@ -136,9 +137,14 @@ export default function Orders() {
         )}
       </div>
 
+      {/* Error — early return visual, no muestra lista vacía debajo */}
       {!isLoading && storeError && (
-        <LoadError message={storeError} onRetry={() => load(true)} />
+        <LoadError message={storeError} onRetry={() => {
+          useOrdersStore.setState({ error: null })
+          load(true)
+        }} />
       )}
+
       {isLoading && <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>}
 
       {!isLoading && filtered.length > 0 && (
@@ -209,7 +215,7 @@ export default function Orders() {
         </div>
       )}
 
-      {!isLoading && filtered.length === 0 && (
+      {!isLoading && !storeError && filtered.length === 0 && (
         <div className="rounded-2xl th-shadow py-20 text-center" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
           <div className="text-[15px] font-semibold th-text-m mb-1">Sin resultados</div>
           <div className="text-[13px] th-text-m">

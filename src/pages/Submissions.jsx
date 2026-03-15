@@ -135,11 +135,12 @@ export default function Submissions() {
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
   useEffect(() => {
     if (!authReady) return
+    useSubmissionsStore.setState({ error: null })
     load(true); loadOrders()
-    // Retry si la data sigue vacía después de 2.5s (sesión tardía o red lenta)
     const t = setTimeout(() => {
-      if (useSubmissionsStore.getState().submissions.length === 0) load(true)
-    }, 2500)
+      if (useSubmissionsStore.getState().submissions.length === 0 &&
+          !useSubmissionsStore.getState().error) load(true)
+    }, 3000)
     return () => clearTimeout(t)
   }, [authReady])
 
@@ -208,7 +209,10 @@ export default function Submissions() {
 
       {/* Error */}
       {!isLoading && storeError && (
-        <LoadError message={storeError} onRetry={() => load(true)} />
+        <LoadError message={storeError} onRetry={() => {
+          useSubmissionsStore.setState({ error: null })
+          load(true)
+        }} />
       )}
 
       {/* Loading */}
@@ -330,7 +334,7 @@ export default function Submissions() {
       )}
 
       {/* Empty */}
-      {!isLoading && filtered.length === 0 && (
+      {!isLoading && !storeError && filtered.length === 0 && (
         <div className="rounded-2xl th-shadow py-20 text-center" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
           <div className="text-[15px] font-semibold th-text-m mb-1">Sin resultados</div>
           <div className="text-[13px] th-text-m">

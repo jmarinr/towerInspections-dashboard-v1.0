@@ -19,7 +19,7 @@ export const useOrdersStore = create((set, get) => ({
       if (get().isLoading) {
         set({ isLoading: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
       }
-    }, 10000)
+    }, 20000)
 
     try {
       const data = await fetchSiteVisits()
