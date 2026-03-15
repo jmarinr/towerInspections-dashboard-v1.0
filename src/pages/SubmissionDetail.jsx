@@ -65,7 +65,7 @@ function StatusDot({ value }) {
   if (v.includes('regular'))  return <span className="w-2.5 h-2.5 rounded-full bg-warn" title="Regular" />
   if (v.includes('malo'))     return <span className="w-2.5 h-2.5 rounded-full bg-bad"  title="Malo" />
   if (v.includes('n/a'))      return <span className="w-2.5 h-2.5 rounded-full bg-slate-300" title="N/A" />
-  if (v.includes('pendiente'))return <span className="w-2.5 h-2.5 rounded-full bg-slate-300 animate-pulse" title="Pendiente" />
+  if (v.includes('pendiente'))return <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-pulse" title="Pendiente" />
   return <span className="w-2 h-2 rounded-full bg-slate-200" />
 }
 
@@ -78,9 +78,9 @@ function StatusBadge({ value }) {
   if (v.includes('malo'))
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-bad/10 text-bad"><XCircle size={10}/>{value}</span>
   if (v.includes('n/a'))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 th-text-m"><Minus size={10}/>N/A</span>
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium th-bg-base th-text-m"><Minus size={10}/>N/A</span>
   if (v.includes('pendiente'))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 th-text-m"><Clock size={10}/>Pendiente</span>
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium th-bg-base th-text-m"><Clock size={10}/>Pendiente</span>
   return <span className="text-[11px] th-text-m">{value || '—'}</span>
 }
 
@@ -95,7 +95,7 @@ function PhotoGallery({ photos, editMode = false, onUpload }) {
       <div className="flex gap-1.5 flex-wrap mt-2">
         {(photos || []).map(p => (
           <button key={p.id} onClick={() => setZoom(p)}
-            className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all bg-slate-100">
+            className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all th-bg-base">
             <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
           </button>
         ))}
@@ -137,7 +137,7 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
   const isLong   = String(current).length > 80
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0 transition-colors
+    <div className={`flex items-start gap-2 py-1.5 border-b th-border-l last:border-0 transition-colors
       ${changed ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}>
       <span className="text-[11px] th-text-m w-36 flex-shrink-0 pt-1.5">{label}</span>
       <div className="flex-1 relative">
@@ -146,7 +146,7 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
               className={`w-full text-[12px] border rounded px-2 py-1 outline-none resize-none transition-all
                 ${changed
                   ? 'border-teal-400 bg-white shadow-sm ring-1 ring-teal-400/20'
-                  : 'border-slate-200 bg-slate-50 focus:border-teal-400 focus:bg-white focus:ring-1 focus:ring-teal-400/20'}`}
+                  : 'border th-border th-bg-base focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20'}`}
               value={current}
               onChange={e => onChange(fieldKey, e.target.value)}
             />
@@ -154,7 +154,7 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
               className={`w-full text-[12px] border rounded px-2 py-1 outline-none transition-all
                 ${changed
                   ? 'border-teal-400 bg-white shadow-sm ring-1 ring-teal-400/20'
-                  : 'border-slate-200 bg-slate-50 focus:border-teal-400 focus:bg-white focus:ring-1 focus:ring-teal-400/20'}`}
+                  : 'border th-border th-bg-base focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20'}`}
               value={current}
               onChange={e => onChange(fieldKey, e.target.value)}
             />
@@ -176,17 +176,15 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
   const isCL  = Array.isArray(data) && data.some(d => d?.['Estado'])
   const isFld = data && typeof data === 'object' && !Array.isArray(data)
 
-  // Non-editable GPS/datetime keys
   const READONLY_KEYS = new Set([
     'lat','lng','startedAt','finishedAt','date','time','created_at','updated_at','_meta',
-    // submitted_by fields — managed by system, not editable
     'Nombre','Rol','Usuario','Fecha de envío','Fecha de envio',
     'name','role','username',
   ])
-  // Entire sections that are never editable
   const READONLY_SECTIONS = new Set(['👤 Enviado por', '📍 Inicio de inspección'])
   const isSectionReadonly = READONLY_SECTIONS.has(title)
 
+  // Checklist stats
   let sGood=0, sReg=0, sBad=0, sTotal=0
   if (isCL) data.forEach(it => {
     if (!it['Estado']) return; sTotal++
@@ -200,37 +198,74 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
   const ho = isCL && data.some(i => i['Observación'])
   const photoCount = photos?.length || 0
 
+  // Score % para checklists
+  const score = sTotal > 0 ? Math.round((sGood / sTotal) * 100) : null
+  const scoreColor = score === null ? '' : score >= 80 ? '#16a34a' : score >= 50 ? '#b45309' : '#dc2626'
+  const scoreBg    = score === null ? '' : score >= 80 ? '#f0fdf4' : score >= 50 ? '#fffbeb' : '#fef2f2'
+
+  // Agrupar campos por pares (label - valor) para layout en grid
+  const fieldEntries = isFld ? Object.entries(data).filter(([k]) => !k.startsWith('__')) : []
+
   return (
-    <div className="rounded-xl th-shadow overflow-hidden"
-      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}
-      style={{ animationDelay: `${index * 40}ms` }}>
+    <div className="rounded-xl overflow-hidden"
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        animationDelay: `${index * 40}ms`,
+      }}>
+
+      {/* ── Header de sección ─────────────────────────────────── */}
       <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/30 transition-colors text-left">
-        <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-semibold th-text-p">{title}</div>
+        className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
+        style={{ borderBottom: open ? '1px solid var(--border-light)' : 'none' }}
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
+        onMouseLeave={e => e.currentTarget.style.background = ''}>
+
+        <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
+          <span className="text-[13px] font-semibold th-text-p">{title}</span>
+
+          {/* Mini score bar para checklists */}
           {isCL && sTotal > 0 && (
-            <div className="flex gap-0.5 mt-1 flex-wrap">
-              {data.slice(0,20).map((it,i) => <StatusDot key={i} value={it['Estado']} />)}
-              {data.length > 20 && <span className="text-[9px] th-text-m ml-1">+{data.length-20}</span>}
+            <div className="flex items-center gap-2">
+              <div className="flex gap-0.5">
+                {data.slice(0,24).map((it,i) => <StatusDot key={i} value={it['Estado']} />)}
+                {data.length > 24 && <span className="text-[9px] th-text-m ml-0.5">+{data.length-24}</span>}
+              </div>
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                style={{ background: scoreBg, color: scoreColor }}>
+                {score}%
+              </span>
             </div>
           )}
+
+          {/* Contador campo normales */}
+          {isFld && fieldEntries.length > 0 && (
+            <span className="text-[10px] th-text-m">
+              {fieldEntries.length} campo{fieldEntries.length !== 1 ? 's' : ''}
+            </span>
+          )}
         </div>
-        <div className="flex items-center gap-2">
+
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {photoCount > 0 && (
-            <span className="flex items-center gap-1 text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded">
+            <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
+              style={{ background: 'var(--accent-light)', color: 'var(--accent-text)' }}>
               <Camera size={9}/>{photoCount}
             </span>
           )}
-          {open ? <ChevronDown size={14} className="th-text-m"/> : <ChevronRight size={14} className="th-text-m"/>}
+          <span className="th-text-m" style={{ transition: 'transform .15s', transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', display:'inline-flex' }}>
+            <ChevronDown size={14}/>
+          </span>
         </div>
       </button>
 
       {open && (
-        <div className="px-4 pb-4 border-t border-slate-100">
-          {/* Field map */}
+        <div className="px-4 pb-4">
+
+          {/* ── Campos en grid 2 columnas ──────────────────────── */}
           {isFld && (
-            <div className="mt-3 space-y-0">
-              {Object.entries(data).map(([k, v]) => {
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+              {fieldEntries.map(([k, v]) => {
                 const isReadonly = isSectionReadonly || READONLY_KEYS.has(k) || k.startsWith('foto') || k.startsWith('__')
                 if (editMode && !isReadonly) {
                   return (
@@ -238,15 +273,21 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
                       pendingEdits={pendingEdits} onChange={onFieldChange} />
                   )
                 }
-                // Read-only row
                 const display = (v === null || v === undefined || v === '') ? '—' : String(v)
                 const isPhoto = k.startsWith('foto') && typeof v === 'string' && v.startsWith('http')
+                const isEmpty = display === '—'
                 return (
-                  <div key={k} className="flex items-start gap-2 py-1.5 border-b border-slate-50 last:border-0">
-                    <span className="text-[11px] th-text-m w-36 flex-shrink-0 pt-0.5">{k}</span>
+                  <div key={k} className="flex flex-col gap-0.5 py-2"
+                    style={{ borderBottom: '1px solid var(--border-light)' }}>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m"
+                      style={{ letterSpacing: '.05em' }}>{k}</span>
                     {isPhoto
-                      ? <a href={v} target="_blank" rel="noopener noreferrer" className="text-[11px] text-accent hover:underline">Ver foto</a>
-                      : <span className="text-[12px] th-text-s flex-1">{display}</span>
+                      ? <a href={v} target="_blank" rel="noopener noreferrer"
+                          className="text-[12px] font-medium"
+                          style={{ color: 'var(--accent)' }}>Ver foto ↗</a>
+                      : <span className={`text-[13px] font-medium ${isEmpty ? 'th-text-m' : 'th-text-p'}`}>
+                          {display}
+                        </span>
                     }
                   </div>
                 )
@@ -254,34 +295,82 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
             </div>
           )}
 
-          {/* Checklist */}
+          {/* ── Checklist ──────────────────────────────────────── */}
           {isCL && (
-            <div className="mt-3 divide-y divide-slate-50">
-              {data.map((it, i) => (
-                <div key={i} className="py-2 flex items-start gap-2">
-                  <StatusDot value={it['Estado']} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[11px] font-medium th-text-s">
-                        {it['Item'] || it['Ítem'] || it['nombre'] || `Ítem ${i+1}`}
-                      </span>
-                      <StatusBadge value={it['Estado']} />
-                      {hv && it['Valor'] && (
-                        <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded">{it['Valor']}</span>
-                      )}
-                    </div>
-                    {ho && it['Observación'] && (
-                      <p className="text-[11px] th-text-m mt-0.5 leading-snug">{it['Observación']}</p>
-                    )}
-                  </div>
+            <>
+              {/* Resumen de estado si hay items */}
+              {sTotal > 0 && (
+                <div className="flex gap-3 mt-3 mb-2 flex-wrap">
+                  {sGood > 0 && (
+                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg"
+                      style={{ background: '#f0fdf4', color: '#16a34a' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"/> {sGood} Bueno
+                    </span>
+                  )}
+                  {sReg > 0 && (
+                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg"
+                      style={{ background: '#fffbeb', color: '#b45309' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/> {sReg} Regular
+                    </span>
+                  )}
+                  {sBad > 0 && (
+                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg"
+                      style={{ background: '#fef2f2', color: '#dc2626' }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/> {sBad} Malo
+                    </span>
+                  )}
+                  {(sTotal - sGood - sReg - sBad) > 0 && (
+                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg th-bg-base th-text-m">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"/> {sTotal - sGood - sReg - sBad} Sin estado
+                    </span>
+                  )}
                 </div>
-              ))}
-            </div>
+              )}
+
+              {/* Items del checklist */}
+              <div className="mt-1 space-y-0">
+                {data.map((it, i) => {
+                  const estado = it['Estado'] || ''
+                  const st = estado.toLowerCase()
+                  const isGood = st.includes('bueno') || st.includes('ejecutada')
+                  const isBad  = st.includes('malo')
+                  const isReg  = st.includes('regular')
+                  const rowBg  = isBad ? 'rgba(239,68,68,.04)' : isReg ? 'rgba(245,158,11,.04)' : ''
+                  return (
+                    <div key={i}
+                      className="flex items-start gap-2.5 py-2 px-2 rounded-lg"
+                      style={{
+                        borderBottom: i < data.length-1 ? '1px solid var(--border-light)' : 'none',
+                        background: rowBg,
+                      }}>
+                      <StatusDot value={estado} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[12px] font-medium th-text-p">
+                            {it['Item'] || it['Ítem'] || it['nombre'] || `Ítem ${i+1}`}
+                          </span>
+                          {estado && <StatusBadge value={estado} />}
+                          {hv && it['Valor'] && (
+                            <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded font-mono">{it['Valor']}</span>
+                          )}
+                        </div>
+                        {ho && it['Observación'] && (
+                          <p className="text-[11px] th-text-m mt-0.5 leading-snug">{it['Observación']}</p>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </>
           )}
 
-          {/* Photos */}
+          {/* ── Fotos ──────────────────────────────────────────── */}
           {(photoCount > 0 || editMode) && (
-            <PhotoGallery photos={photos} editMode={editMode} onUpload={onPhotoUpload} />
+            <div className={fieldEntries.length > 0 || isCL ? 'mt-3 pt-3' : 'mt-3'}
+              style={fieldEntries.length > 0 || isCL ? { borderTop: '1px solid var(--border-light)' } : {}}>
+              <PhotoGallery photos={photos} editMode={editMode} onUpload={onPhotoUpload} />
+            </div>
           )}
         </div>
       )}
@@ -301,12 +390,12 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
       onClick={onCancel}>
       <div className="rounded-2xl shadow-elevated w-full max-w-md" style={{background:"var(--bg-card)"}} onClick={e => e.stopPropagation()}>
         {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-start gap-3">
+        <div className="px-5 pt-5 pb-4 border-b th-border-l flex items-start gap-3">
           <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
             <ShieldCheck size={15} className="text-accent" />
           </div>
           <div>
-            <h2 className="text-[15px] font-bold text-slate-900">Confirmar cambios</h2>
+            <h2 className="text-[15px] font-semibold th-text-p">Confirmar cambios</h2>
             <p className="text-[12px] th-text-m mt-0.5">Quedarán registrados en el historial de auditoría.</p>
           </div>
         </div>
@@ -314,7 +403,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
         {/* Diff list */}
         <div className="px-5 py-3 max-h-48 overflow-y-auto space-y-2">
           {entries.map(([key, { from, to, label }]) => (
-            <div key={key} className="text-[12px] bg-slate-50 rounded-lg px-3 py-2">
+            <div key={key} className="text-[12px] th-bg-base rounded-lg px-3 py-2">
               <div className="font-medium th-text-s mb-1">{label || key}</div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-bad/90 line-through">{String(from ?? '—')}</span>
@@ -326,7 +415,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
         </div>
 
         {/* Note input */}
-        <div className="px-5 pb-5 border-t border-slate-100 pt-4 space-y-3">
+        <div className="px-5 pb-5 border-t th-border-l pt-4 space-y-3">
           <div>
             <label className="text-[11px] font-semibold th-text-s uppercase tracking-wide block mb-1.5">
               Razón del cambio <span className="text-bad">*</span>
@@ -334,7 +423,10 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
             <textarea
               autoFocus
               rows={3}
-              className="w-full text-[13px] border border-slate-200 rounded-lg px-3 py-2 outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 resize-none transition-all"
+              className="w-full text-[13px] rounded-lg px-3 py-2 outline-none resize-none transition-all th-text-p th-bg-input"
+              style={{ border: '1px solid var(--border)' }}
+              onFocus={e  => { e.target.style.borderColor = '#00b4a0'; e.target.style.boxShadow = '0 0 0 3px rgba(0,180,160,0.15)' }}
+              onBlur={e   => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none' }}
               placeholder="Ej: Corrección de tipo de torre según revisión de campo…"
               value={note}
               onChange={e => setNote(e.target.value)}
@@ -342,7 +434,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel}
-              className="flex-1 h-9 text-[13px] font-medium th-text-s bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+              className="flex-1 h-9 text-[13px] font-medium th-text-s th-bg-base rounded-lg transition-colors">
               Cancelar
             </button>
             <button onClick={() => onConfirm(note)}
@@ -377,14 +469,16 @@ function EditHistory({ submissionId }) {
   return (
     <div className="rounded-xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
       <button onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/30 transition-colors text-left">
+        className="w-full flex items-center gap-3 px-4 py-3 transition-colors text-left"
+        onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
+        onMouseLeave={e => e.currentTarget.style.background = ''}>
         <History size={14} className="th-text-m" />
         <span className="text-[13px] font-semibold th-text-s flex-1">Historial de ediciones</span>
         {open ? <ChevronDown size={14} className="th-text-m"/> : <ChevronRight size={14} className="th-text-m"/>}
       </button>
 
       {open && (
-        <div className="border-t border-slate-100 px-4 pb-4">
+        <div className="border-t th-border-l px-4 pb-4">
           {loading && <div className="py-6 flex justify-center"><Spinner size={14} /></div>}
 
           {!loading && edits.length === 0 && (
@@ -392,7 +486,7 @@ function EditHistory({ submissionId }) {
           )}
 
           {!loading && edits.map(edit => (
-            <div key={edit.id} className="py-3 border-b border-slate-50 last:border-0">
+            <div key={edit.id} className="py-3 border-b th-border-l last:border-0">
               {/* Who + when */}
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[11px] font-semibold th-text-p">{edit.edited_by}</span>
@@ -413,7 +507,7 @@ function EditHistory({ submissionId }) {
               </div>
               {/* Note */}
               {edit.note && (
-                <p className="text-[11px] th-text-m italic bg-slate-50 rounded px-2 py-1 mt-1">
+                <p className="text-[11px] th-text-m italic th-bg-base rounded px-2 py-1 mt-1">
                   "{edit.note}"
                 </p>
               )}
@@ -734,7 +828,10 @@ export default function SubmissionDetail() {
             {/* Edit controls */}
             {canWrite && !editMode && (
               <button onClick={() => setEditMode(true)}
-                className="h-8 px-3 text-[12px] font-medium text-accent bg-accent/10 border border-accent/20 rounded-lg hover:bg-accent/20 flex items-center gap-1.5 transition-all">
+                className="h-8 px-3 text-[12px] font-medium rounded-lg flex items-center gap-1.5 transition-all border"
+                style={{ color: 'var(--accent-text)', background: 'var(--accent-light)', borderColor: 'rgba(0,180,160,.2)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,180,160,.18)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--accent-light)'}>
                 <Pencil size={12}/> Editar
               </button>
             )}
@@ -743,11 +840,17 @@ export default function SubmissionDetail() {
                 {pendingCount} campo{pendingCount !== 1 ? 's' : ''} modificado{pendingCount !== 1 ? 's' : ''}
               </span>
               <button onClick={handleEditCancel}
-                className="h-8 px-3 text-[12px] font-medium th-text-s bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 flex items-center gap-1.5 transition-all">
+                className="h-8 px-3 text-[12px] font-medium rounded-lg flex items-center gap-1.5 transition-all"
+                style={{ color: 'var(--text-secondary)', background: 'var(--bg-base)', border: '1px solid var(--border)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-base)'}>
                 <RotateCcw size={12}/> Cancelar
               </button>
               <button onClick={handleEditSave} disabled={pendingCount === 0}
-                className="h-8 px-3 text-[12px] font-semibold text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 flex items-center gap-1.5 transition-all">
+                className="h-8 px-3 text-[12px] font-semibold rounded-lg flex items-center gap-1.5 transition-all disabled:opacity-40"
+                style={{ color: '#fff', background: 'var(--accent)' }}
+                onMouseEnter={e => { if (pendingCount > 0) e.currentTarget.style.background = 'var(--accent-text)' }}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--accent)'}>
                 <Save size={12}/> Guardar cambios
               </button>
             </>}
@@ -755,7 +858,10 @@ export default function SubmissionDetail() {
             {/* Standard actions */}
             {!editMode && totalPhotos > 0 && (
               <button onClick={handleDownloadPhotos} disabled={photosLoading}
-                className="h-8 px-3 text-[12px] font-medium th-text-s th-bg-card border th-border rounded-lg hover:bg-slate-50/40 disabled:opacity-50 flex items-center gap-1.5 transition-all">
+                className="h-8 px-3 text-[12px] font-medium rounded-lg flex items-center gap-1.5 transition-all border disabled:opacity-50"
+                style={{ color: 'var(--text-secondary)', background: 'var(--bg-card)', borderColor: 'var(--border)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}>
                 {photosLoading
                   ? <><Clock size={13} className="animate-spin"/>Descargando…</>
                   : <><Download size={13}/>Fotos ({totalPhotos})</>}
@@ -763,7 +869,10 @@ export default function SubmissionDetail() {
             )}
             {!editMode && (
               <button onClick={handlePdf} disabled={pdfLoading}
-                className="h-8 px-3.5 text-[12px] font-semibold bg-accent text-white rounded-lg hover:bg-accent/90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-[0.97] shadow-card">
+                className="h-8 px-3.5 text-[12px] font-semibold rounded-lg flex items-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-50"
+                style={{ background: '#0d2137', color: '#ffffff' }}
+                onMouseEnter={e => { if (!pdfLoading) e.currentTarget.style.background = '#1a3450' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#0d2137' }}>
                 <Download size={13}/>{pdfLoading ? 'Generando…' : 'PDF'}
               </button>
             )}
@@ -792,7 +901,7 @@ export default function SubmissionDetail() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-lg font-bold text-slate-900">{site.nombreSitio || 'Sin nombre'}</h1>
+                <h1 className="text-lg font-semibold th-text-p">{site.nombreSitio || 'Sin nombre'}</h1>
                 {/* Status — clickable if canWrite */}
                 {canWrite && !editMode
                   ? (
@@ -821,7 +930,7 @@ export default function SubmissionDetail() {
                 </div>
               )}
               {totalItems > 0 && (
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden mt-2 flex">
+                <div className="h-1.5 rounded-full th-bg-base overflow-hidden mt-2 flex">
                   {bueno   > 0 && <div className="h-full bg-good transition-all" style={{ width:`${(bueno/totalItems)*100}%` }}/>}
                   {regular > 0 && <div className="h-full bg-warn transition-all" style={{ width:`${(regular/totalItems)*100}%` }}/>}
                   {malo    > 0 && <div className="h-full bg-bad  transition-all" style={{ width:`${(malo/totalItems)*100}%` }}/>}

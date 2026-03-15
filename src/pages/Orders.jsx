@@ -87,7 +87,7 @@ export default function Orders() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <h1 className="text-[20px] font-bold th-text-p">Visitas</h1>
-        <span className="text-[12px] font-semibold th-text-m bg-slate-100 px-2.5 py-0.5 rounded-full tabular-nums">
+        <span className="text-[12px] font-semibold th-text-m th-bg-base px-2.5 py-0.5 rounded-full tabular-nums">
           {filtered.length}
         </span>
       </div>

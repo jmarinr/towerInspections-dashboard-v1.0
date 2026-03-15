@@ -5,7 +5,7 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    Design System — PTI Admin Panel
    Paleta: Navy #0d2137 (sidebar siempre) · Teal #00b4a0 (acento)
-   Tipografía: Space Grotesk
+   Tipografía: Plus Jakarta Sans
    Filas de actividad: blanco con borde (opción A)
 ───────────────────────────────────────────────────────────────────────────── */
 
@@ -134,7 +134,7 @@ body {
   min-height: 100dvh;
   background: var(--bg-base);
   color: var(--text-primary);
-  font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   margin: 0;
   font-size: 14px;
