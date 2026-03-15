@@ -69,26 +69,25 @@ function UserModal({ user, companies, onSave, onClose }) {
     setSaving(true); setError('')
 
     if (isNew) {
-      // 1. Crear en Supabase Auth vía admin API (solo con service_role — aquí invocamos Edge Function o lo hacemos con inviteUserByEmail)
-      // Por ahora usamos signUp sin auto-confirm
-      const { data: authData, error: authErr } = await supabase.auth.admin
-        ? await supabase.auth.admin.createUser({ email: form.email, password: form.password, email_confirm: true })
-        : await supabase.auth.signUp({ email: form.email, password: form.password })
-
-      if (authErr) { setError(authErr.message); setSaving(false); return }
-      const userId = authData?.user?.id
-      if (!userId) { setError('No se pudo crear el usuario en Auth'); setSaving(false); return }
-
-      const { error: profileErr } = await supabase.from('app_users').insert({
-        id:            userId,
-        email:         form.email.trim(),
-        full_name:     form.full_name.trim(),
-        role:          form.role,
-        company_id:    form.company_id || null,
-        supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
-        active:        form.active,
+      // Llamar a la Edge Function create-user (usa service_role key en el servidor)
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await supabase.functions.invoke('create-user', {
+        body: {
+          email:         form.email.trim(),
+          password:      form.password,
+          full_name:     form.full_name.trim(),
+          role:          form.role,
+          company_id:    form.company_id    || null,
+          supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
+          active:        form.active,
+        },
       })
-      if (profileErr) { setError(profileErr.message); setSaving(false); return }
+
+      if (res.error || res.data?.error) {
+        setError(res.data?.error || res.error?.message || 'Error al crear usuario')
+        setSaving(false)
+        return
+      }
     } else {
       const { error: err } = await supabase.from('app_users').update({
         full_name:     form.full_name.trim(),
