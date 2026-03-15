@@ -1,4 +1,4 @@
-import { ClipboardCheck, Wrench, Camera, Package, Shield, Zap } from 'lucide-react'
+import { ClipboardCheck, Wrench, Camera, Package, Shield, Zap, LayoutList } from 'lucide-react'
 
 export const FORM_TYPES = {
   'inspection-general': {
@@ -15,27 +15,39 @@ export const FORM_TYPES = {
     color: 'bg-orange-500',
     colorLight: 'bg-orange-50 text-orange-700',
   },
+  // Ejecutado → emerald (intercambiado con Inventario v1)
   'executed-maintenance': {
     label: 'Mantenimiento Ejecutado',
     shortLabel: 'Mant. Ejecutado',
     icon: Camera,
-    color: 'bg-teal-500',
-    colorLight: 'bg-teal-50 text-teal-700',
-  },
-  'equipment': {
-    label: 'Inventario de Equipos',
-    shortLabel: 'Inventario',
-    icon: Package,
     color: 'bg-emerald-500',
     colorLight: 'bg-emerald-50 text-emerald-700',
   },
+  // Inventario v1 → rose + LayoutList (intercambiado)
+  'equipment': {
+    label: 'Inventario de Equipos',
+    shortLabel: 'Inventario',
+    icon: LayoutList,
+    color: 'bg-rose-500',
+    colorLight: 'bg-rose-50 text-rose-700',
+  },
+  // Inventario v2 → cyan + Package (intercambiado)
+  'equipment-v2': {
+    label: 'Inventario de Equipos v2',
+    shortLabel: 'Inventario v2',
+    icon: Package,
+    color: 'bg-cyan-400',
+    colorLight: 'bg-cyan-50 text-cyan-700',
+  },
+  // Ascenso → yellow (nuevo)
   'safety-system': {
     label: 'Sistema de Ascenso',
     shortLabel: 'Ascenso',
     icon: Shield,
-    color: 'bg-violet-500',
-    colorLight: 'bg-violet-50 text-violet-700',
+    color: 'bg-yellow-400',
+    colorLight: 'bg-yellow-50 text-yellow-700',
   },
+  // Puesta a Tierra → purple (sin cambio)
   'grounding-system-test': {
     label: 'Prueba de Puesta a Tierra',
     shortLabel: 'Puesta a Tierra',
@@ -43,50 +55,33 @@ export const FORM_TYPES = {
     color: 'bg-purple-500',
     colorLight: 'bg-purple-50 text-purple-700',
   },
-  'equipment-v2': {
-    label: 'Inventario de Equipos v2',
-    shortLabel: 'Inventario v2',
-    icon: Package,
-    color: 'bg-emerald-600',
-    colorLight: 'bg-emerald-50 text-emerald-800',
-  },
 }
 
-/**
- * Map between Spanish DB form codes and English FORM_TYPES keys.
- * The inspector app writes Spanish codes (toFormCode in getSupabasePayloadForForm)
- * but asset uploads use English codes (autosave bucket key).
- */
 const CODE_ALIASES = {
-  // Spanish → English
-  'inspeccion': 'inspection-general',
-  'mantenimiento': 'preventive-maintenance',
-  'mantenimiento-ejecutado': 'executed-maintenance',
-  'inventario': 'equipment',
-  'inventario-v2': 'equipment-v2',
-  'puesta-tierra': 'grounding-system-test',
-  'sistema-ascenso': 'safety-system',
-  // English → English (identity)
-  'inspection-general': 'inspection-general',
-  'preventive-maintenance': 'preventive-maintenance',
-  'executed-maintenance': 'executed-maintenance',
-  'equipment': 'equipment',
-  'equipment-v2': 'equipment-v2',
-  'safety-system': 'safety-system',
+  'inspeccion':            'inspection-general',
+  'mantenimiento':         'preventive-maintenance',
+  'mantenimiento-ejecutado':'executed-maintenance',
+  'inventario':            'equipment',
+  'inventario-v2':         'equipment-v2',
+  'puesta-tierra':         'grounding-system-test',
+  'sistema-ascenso':       'safety-system',
+  'inspection-general':    'inspection-general',
+  'preventive-maintenance':'preventive-maintenance',
+  'executed-maintenance':  'executed-maintenance',
+  'equipment':             'equipment',
+  'equipment-v2':          'equipment-v2',
+  'safety-system':         'safety-system',
   'grounding-system-test': 'grounding-system-test',
 }
 
-/** Normalize any form code (Spanish or English) to the canonical English key. */
 export function normalizeFormCode(code) {
   if (!code) return code
   return CODE_ALIASES[code] || code
 }
 
-/** Get the sibling form code (the other language variant). */
 export function getFormCodeSiblings(code) {
   if (!code) return []
   const canonical = normalizeFormCode(code)
-  // Find all codes that map to the same canonical
   return Object.entries(CODE_ALIASES)
     .filter(([, v]) => v === canonical)
     .map(([k]) => k)
@@ -95,17 +90,14 @@ export function getFormCodeSiblings(code) {
 
 export const FORM_CODES = Object.keys(FORM_TYPES)
 
-/** Form codes that should be hidden from the admin panel */
 export const HIDDEN_FORM_CODES = new Set(['inspection-general', 'inspeccion'])
 
-/** Check if a form code should be visible in admin */
 export function isFormVisible(formCode) {
   const normalized = normalizeFormCode(formCode)
   return !HIDDEN_FORM_CODES.has(normalized) && !HIDDEN_FORM_CODES.has(formCode)
 }
 
 export function getFormMeta(formCode) {
-  // Try direct lookup first, then normalized
   const direct = FORM_TYPES[formCode]
   if (direct) return direct
   const normalized = normalizeFormCode(formCode)

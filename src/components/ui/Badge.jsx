@@ -4,7 +4,7 @@ const tones = {
   success:  { bg: '#f0fdf4',           color: '#166534' },
   warning:  { bg: '#fffbeb',           color: '#92400e' },
   danger:   { bg: '#fef2f2',           color: '#991b1b' },
-  teal:     { bg: '#e6faf8',           color: '#0d7a6d' },
+  teal:     { bg: '#e0f2fe',           color: '#0369a1' },
   info:     { bg: '#eff6ff',           color: '#1d4ed8' },
   blue:     { bg: '#eff6ff',           color: '#1d4ed8' },
   purple:   { bg: '#f5f3ff',           color: '#6d28d9' },

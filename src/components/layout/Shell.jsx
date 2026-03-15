@@ -150,7 +150,7 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
         {/* User card */}
         <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg" style={{ background: 'var(--sidebar-user-bg)' }}>
           <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(0,180,160,0.2)' }}>
+            style={{ background: 'rgba(2,132,199,0.2)' }}>
             <span className="text-[9px] font-bold uppercase" style={{ color: 'var(--accent)' }}>{(user?.name || 'U')[0]}</span>
           </div>
           <div className="min-w-0 flex-1">

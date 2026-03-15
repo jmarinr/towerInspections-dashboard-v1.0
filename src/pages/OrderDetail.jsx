@@ -62,7 +62,7 @@ export default function OrderDetail() {
   if (!order) return (
     <div className="text-center py-20">
       <div className="text-[14px] th-text-m mb-3">Visita no encontrada</div>
-      <button onClick={() => navigate('/orders')} className="text-teal-600 hover:underline text-[13px]">← Volver</button>
+      <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
     </div>
   )
 
@@ -175,7 +175,7 @@ export default function OrderDetail() {
                       : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Borrador
                         </span>}
-                    <ChevronRight size={14} className="th-text-m group-hover:text-teal-500 transition-colors" />
+                    <ChevronRight size={14} className="th-text-m group-hover:text-sky-600 transition-colors" />
                   </div>
                 </Link>
               )

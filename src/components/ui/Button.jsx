@@ -10,7 +10,7 @@ const variants = {
 
 const styles = {
   primary: { background: '#0d2137', color: '#fff' },
-  accent:  { background: '#00b4a0', color: '#fff' },
+  accent:  { background: '#0284C7', color: '#fff' },
   outline: { border: '1px solid var(--border)', color: 'var(--text-primary)', background: 'var(--bg-card)' },
   ghost:   { color: 'var(--text-secondary)', background: 'transparent' },
   danger:  { background: '#ef4444', color: '#fff' },

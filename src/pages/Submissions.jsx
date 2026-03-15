@@ -164,7 +164,7 @@ export default function Submissions() {
             onChange={e => setFilter({ search: e.target.value })}
             placeholder="Buscar por sitio, inspector..."
             className="w-full h-9 pl-9 pr-8 text-[13px] th-bg-card border th-border rounded-lg
-              focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all placeholder:th-text-m"
+              focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all placeholder:th-text-m"
           />
           {search && (
             <button onClick={() => setFilter({ search: '' })}
@@ -178,7 +178,7 @@ export default function Submissions() {
           value={filterFormCode}
           onChange={e => setFilter({ filterFormCode: e.target.value })}
           className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
-            focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all th-text-s">
+            focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all th-text-s">
           <option value="all">Todos los tipos</option>
           {Object.entries(FORM_TYPES).filter(([c]) => isFormVisible(c)).map(([c, m]) =>
             <option key={c} value={c}>{m.label}</option>
@@ -263,7 +263,7 @@ export default function Submissions() {
                     <td className="px-4 py-3.5 hidden md:table-cell">
                       {hasOrder
                         ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()}
-                            className="text-[12px] font-semibold text-teal-600 hover:text-teal-700 hover:underline transition-colors">
+                            className="text-[12px] font-semibold text-sky-600 hover:text-sky-700 hover:underline transition-colors">
                             {orderMap[visitId] || '--'}
                           </Link>
                         : <span className="text-[12px] th-text-m">—</span>}
@@ -302,7 +302,7 @@ export default function Submissions() {
 
                     {/* Arrow */}
                     <td className="pr-3 py-3.5">
-                      <ChevronRight size={15} className="th-text-m group-hover:text-teal-500 transition-colors" />
+                      <ChevronRight size={15} className="th-text-m group-hover:text-sky-600 transition-colors" />
                     </td>
                   </tr>
                 )

@@ -39,8 +39,8 @@ function TelecomAnimation() {
               50%       { opacity: 1; }
             }
             @keyframes tower-glow {
-              0%, 100% { filter: drop-shadow(0 0 2px #00b4a0); }
-              50%       { filter: drop-shadow(0 0 8px #00b4a0); }
+              0%, 100% { filter: drop-shadow(0 0 2px #0284C7); }
+              50%       { filter: drop-shadow(0 0 8px #0284C7); }
             }
             @keyframes signal-arc {
               0%   { stroke-dashoffset: 60; opacity: 0; }
@@ -74,151 +74,151 @@ function TelecomAnimation() {
         {/* ── Torre 1 — izquierda media ─────────────────────────────── */}
         <g className="twr" transform="translate(90, 280)">
           {/* Base */}
-          <line x1="-22" y1="100" x2="0" y2="0" stroke="#00b4a0" strokeWidth="1.5"/>
-          <line x1="22"  y1="100" x2="0" y2="0" stroke="#00b4a0" strokeWidth="1.5"/>
-          <line x1="-22" y1="100" x2="22" y2="100" stroke="#00b4a0" strokeWidth="1.5"/>
+          <line x1="-22" y1="100" x2="0" y2="0" stroke="#0284C7" strokeWidth="1.5"/>
+          <line x1="22"  y1="100" x2="0" y2="0" stroke="#0284C7" strokeWidth="1.5"/>
+          <line x1="-22" y1="100" x2="22" y2="100" stroke="#0284C7" strokeWidth="1.5"/>
           {/* Celosías */}
-          <line x1="-16" y1="75"  x2="16"  y2="55"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="16"  y1="75"  x2="-16" y2="55"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="-10" y1="50"  x2="10"  y2="30"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="10"  y1="50"  x2="-10" y2="30"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
+          <line x1="-16" y1="75"  x2="16"  y2="55"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="16"  y1="75"  x2="-16" y2="55"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="-10" y1="50"  x2="10"  y2="30"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="10"  y1="50"  x2="-10" y2="30"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
           {/* Mástil */}
-          <line x1="0" y1="0" x2="0" y2="-28" stroke="#00b4a0" strokeWidth="2"/>
+          <line x1="0" y1="0" x2="0" y2="-28" stroke="#0284C7" strokeWidth="2"/>
           {/* Antenas laterales */}
-          <line x1="-8" y1="-8" x2="-20" y2="-22" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <line x1="8"  y1="-8" x2="20"  y2="-22" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <circle cx="-20" cy="-22" r="2" fill="#2dd4bf"/>
-          <circle cx="20"  cy="-22" r="2" fill="#2dd4bf"/>
+          <line x1="-8" y1="-8" x2="-20" y2="-22" stroke="#38bdf8" strokeWidth="1.2"/>
+          <line x1="8"  y1="-8" x2="20"  y2="-22" stroke="#38bdf8" strokeWidth="1.2"/>
+          <circle cx="-20" cy="-22" r="2" fill="#38bdf8"/>
+          <circle cx="20"  cy="-22" r="2" fill="#38bdf8"/>
           {/* Punta */}
-          <circle cx="0" cy="-30" r="3" fill="#00b4a0"/>
+          <circle cx="0" cy="-30" r="3" fill="#0284C7"/>
         </g>
 
         {/* Ondas Torre 1 */}
-        <circle className="t1-pulse" cx="90" cy="252" fill="none" stroke="#00b4a0" strokeWidth="0.8"/>
-        <circle className="t1-pulse2" cx="90" cy="252" fill="none" stroke="#00b4a0" strokeWidth="0.8"/>
+        <circle className="t1-pulse" cx="90" cy="252" fill="none" stroke="#0284C7" strokeWidth="0.8"/>
+        <circle className="t1-pulse2" cx="90" cy="252" fill="none" stroke="#0284C7" strokeWidth="0.8"/>
 
         {/* Arcos de señal Torre 1 */}
-        <path className="arc1" d="M 68 238 A 26 26 0 0 1 112 238" fill="none" stroke="#00b4a0" strokeWidth="1.2" strokeLinecap="round"/>
-        <path className="arc2" d="M 56 226 A 40 40 0 0 1 124 226" fill="none" stroke="#00b4a0" strokeWidth="0.9" strokeLinecap="round"/>
+        <path className="arc1" d="M 68 238 A 26 26 0 0 1 112 238" fill="none" stroke="#0284C7" strokeWidth="1.2" strokeLinecap="round"/>
+        <path className="arc2" d="M 56 226 A 40 40 0 0 1 124 226" fill="none" stroke="#0284C7" strokeWidth="0.9" strokeLinecap="round"/>
 
         {/* ── Torre 2 — derecha alta ────────────────────────────────── */}
         <g className="twr" transform="translate(360, 180)">
-          <line x1="-28" y1="130" x2="0" y2="0" stroke="#00b4a0" strokeWidth="1.5"/>
-          <line x1="28"  y1="130" x2="0" y2="0" stroke="#00b4a0" strokeWidth="1.5"/>
-          <line x1="-28" y1="130" x2="28"  y2="130" stroke="#00b4a0" strokeWidth="1.5"/>
+          <line x1="-28" y1="130" x2="0" y2="0" stroke="#0284C7" strokeWidth="1.5"/>
+          <line x1="28"  y1="130" x2="0" y2="0" stroke="#0284C7" strokeWidth="1.5"/>
+          <line x1="-28" y1="130" x2="28"  y2="130" stroke="#0284C7" strokeWidth="1.5"/>
           {/* Celosías */}
-          <line x1="-20" y1="100" x2="20"  y2="75"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="20"  y1="100" x2="-20" y2="75"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="-14" y1="70"  x2="14"  y2="48"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="14"  y1="70"  x2="-14" y2="48"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="-8"  y1="42"  x2="8"   y2="22"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="8"   y1="42"  x2="-8"  y2="22"  stroke="#00b4a0" strokeWidth="0.8" opacity=".6"/>
-          <line x1="0"   y1="0"   x2="0"   y2="-38" stroke="#00b4a0" strokeWidth="2"/>
-          <line x1="-10" y1="-10" x2="-24" y2="-28" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <line x1="10"  y1="-10" x2="24"  y2="-28" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <circle cx="-24" cy="-28" r="2.5" fill="#2dd4bf"/>
-          <circle cx="24"  cy="-28" r="2.5" fill="#2dd4bf"/>
-          <circle cx="0" cy="-40" r="3.5" fill="#00b4a0"/>
+          <line x1="-20" y1="100" x2="20"  y2="75"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="20"  y1="100" x2="-20" y2="75"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="-14" y1="70"  x2="14"  y2="48"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="14"  y1="70"  x2="-14" y2="48"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="-8"  y1="42"  x2="8"   y2="22"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="8"   y1="42"  x2="-8"  y2="22"  stroke="#0284C7" strokeWidth="0.8" opacity=".6"/>
+          <line x1="0"   y1="0"   x2="0"   y2="-38" stroke="#0284C7" strokeWidth="2"/>
+          <line x1="-10" y1="-10" x2="-24" y2="-28" stroke="#38bdf8" strokeWidth="1.2"/>
+          <line x1="10"  y1="-10" x2="24"  y2="-28" stroke="#38bdf8" strokeWidth="1.2"/>
+          <circle cx="-24" cy="-28" r="2.5" fill="#38bdf8"/>
+          <circle cx="24"  cy="-28" r="2.5" fill="#38bdf8"/>
+          <circle cx="0" cy="-40" r="3.5" fill="#0284C7"/>
           {/* Luz de balizamiento */}
           <circle cx="0" cy="-40" r="5" fill="none" stroke="#ef4444" strokeWidth="0.8" opacity=".5"
             style={{ animation: 'node-blink 1.2s ease-in-out infinite' }}/>
         </g>
 
         {/* Ondas Torre 2 */}
-        <circle className="t2-pulse" cx="360" cy="142" fill="none" stroke="#00b4a0" strokeWidth="0.8"/>
-        <circle className="t2-pulse2" cx="360" cy="142" fill="none" stroke="#00b4a0" strokeWidth="0.8"/>
+        <circle className="t2-pulse" cx="360" cy="142" fill="none" stroke="#0284C7" strokeWidth="0.8"/>
+        <circle className="t2-pulse2" cx="360" cy="142" fill="none" stroke="#0284C7" strokeWidth="0.8"/>
 
         {/* Arcos de señal Torre 2 */}
-        <path className="arc3" d="M 326 122 A 40 40 0 0 1 394 122" fill="none" stroke="#00b4a0" strokeWidth="1.2" strokeLinecap="round"/>
-        <path className="arc4" d="M 308 106 A 58 58 0 0 1 412 106" fill="none" stroke="#00b4a0" strokeWidth="0.9" strokeLinecap="round"/>
+        <path className="arc3" d="M 326 122 A 40 40 0 0 1 394 122" fill="none" stroke="#0284C7" strokeWidth="1.2" strokeLinecap="round"/>
+        <path className="arc4" d="M 308 106 A 58 58 0 0 1 412 106" fill="none" stroke="#0284C7" strokeWidth="0.9" strokeLinecap="round"/>
 
         {/* ── Torre 3 — centro baja (monopolo) ─────────────────────── */}
         <g transform="translate(230, 370)">
-          <rect x="-4" y="-80" width="8" height="80" fill="none" stroke="#00b4a0" strokeWidth="1.8"/>
+          <rect x="-4" y="-80" width="8" height="80" fill="none" stroke="#0284C7" strokeWidth="1.8"/>
           {/* Brazos antena */}
-          <line x1="-4" y1="-68" x2="-22" y2="-80" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <line x1="4"  y1="-68" x2="22"  y2="-80" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <line x1="-4" y1="-48" x2="-18" y2="-58" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <line x1="4"  y1="-48" x2="18"  y2="-58" stroke="#2dd4bf" strokeWidth="1.2"/>
-          <circle cx="-22" cy="-80" r="2" fill="#2dd4bf"/>
-          <circle cx="22"  cy="-80" r="2" fill="#2dd4bf"/>
-          <circle cx="-18" cy="-58" r="2" fill="#2dd4bf"/>
-          <circle cx="18"  cy="-58" r="2" fill="#2dd4bf"/>
+          <line x1="-4" y1="-68" x2="-22" y2="-80" stroke="#38bdf8" strokeWidth="1.2"/>
+          <line x1="4"  y1="-68" x2="22"  y2="-80" stroke="#38bdf8" strokeWidth="1.2"/>
+          <line x1="-4" y1="-48" x2="-18" y2="-58" stroke="#38bdf8" strokeWidth="1.2"/>
+          <line x1="4"  y1="-48" x2="18"  y2="-58" stroke="#38bdf8" strokeWidth="1.2"/>
+          <circle cx="-22" cy="-80" r="2" fill="#38bdf8"/>
+          <circle cx="22"  cy="-80" r="2" fill="#38bdf8"/>
+          <circle cx="-18" cy="-58" r="2" fill="#38bdf8"/>
+          <circle cx="18"  cy="-58" r="2" fill="#38bdf8"/>
           {/* Base monopolo */}
-          <rect x="-10" y="0" width="20" height="8" rx="2" fill="none" stroke="#00b4a0" strokeWidth="1.2"/>
+          <rect x="-10" y="0" width="20" height="8" rx="2" fill="none" stroke="#0284C7" strokeWidth="1.2"/>
           {/* Punta */}
-          <line x1="0" y1="-80" x2="0" y2="-94" stroke="#00b4a0" strokeWidth="1.5"/>
-          <circle cx="0" cy="-96" r="2.5" fill="#00b4a0"/>
+          <line x1="0" y1="-80" x2="0" y2="-94" stroke="#0284C7" strokeWidth="1.5"/>
+          <circle cx="0" cy="-96" r="2.5" fill="#0284C7"/>
         </g>
 
         {/* Ondas Torre 3 */}
-        <circle className="t3-pulse" cx="230" cy="275" fill="none" stroke="#2dd4bf" strokeWidth="0.6"/>
-        <circle className="t3-pulse2" cx="230" cy="275" fill="none" stroke="#2dd4bf" strokeWidth="0.6"/>
+        <circle className="t3-pulse" cx="230" cy="275" fill="none" stroke="#38bdf8" strokeWidth="0.6"/>
+        <circle className="t3-pulse2" cx="230" cy="275" fill="none" stroke="#38bdf8" strokeWidth="0.6"/>
 
         {/* Arcos señal Torre 3 */}
-        <path className="arc5" d="M 184 258 A 50 50 0 0 1 276 258" fill="none" stroke="#2dd4bf" strokeWidth="1" strokeLinecap="round"/>
-        <path className="arc6" d="M 164 240 A 70 70 0 0 1 296 240" fill="none" stroke="#2dd4bf" strokeWidth="0.7" strokeLinecap="round"/>
+        <path className="arc5" d="M 184 258 A 50 50 0 0 1 276 258" fill="none" stroke="#38bdf8" strokeWidth="1" strokeLinecap="round"/>
+        <path className="arc6" d="M 164 240 A 70 70 0 0 1 296 240" fill="none" stroke="#38bdf8" strokeWidth="0.7" strokeLinecap="round"/>
 
         {/* ── Líneas de datos entre torres ──────────────────────────── */}
         {/* Torre1 → Torre3 */}
         <line className="line1" x1="108" y1="255" x2="222" y2="278"
-          stroke="#00b4a0" strokeWidth="0.8" strokeDasharray="6 4"/>
+          stroke="#0284C7" strokeWidth="0.8" strokeDasharray="6 4"/>
         {/* Torre3 → Torre2 */}
         <line className="line2" x1="238" y1="276" x2="342" y2="148"
-          stroke="#00b4a0" strokeWidth="0.8" strokeDasharray="6 4"/>
+          stroke="#0284C7" strokeWidth="0.8" strokeDasharray="6 4"/>
         {/* Torre1 → Torre2 diagonal */}
         <line className="line3" x1="108" y1="250" x2="334" y2="148"
-          stroke="#2dd4bf" strokeWidth="0.6" strokeDasharray="4 6"/>
+          stroke="#38bdf8" strokeWidth="0.6" strokeDasharray="4 6"/>
 
         {/* ── Nodos de red (estaciones base, repetidoras) ───────────── */}
         {/* Nodo A */}
         <g className="nd" transform="translate(160, 430)">
-          <rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#2dd4bf" strokeWidth="1"/>
-          <line x1="0" y1="-8" x2="0" y2="-20" stroke="#2dd4bf" strokeWidth="1"/>
-          <circle cx="0" cy="-22" r="2" fill="#2dd4bf"/>
+          <rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#38bdf8" strokeWidth="1"/>
+          <line x1="0" y1="-8" x2="0" y2="-20" stroke="#38bdf8" strokeWidth="1"/>
+          <circle cx="0" cy="-22" r="2" fill="#38bdf8"/>
         </g>
 
         {/* Nodo B */}
         <g className="nd2" transform="translate(310, 420)">
-          <rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#2dd4bf" strokeWidth="1"/>
-          <line x1="0" y1="-8" x2="0" y2="-20" stroke="#2dd4bf" strokeWidth="1"/>
-          <circle cx="0" cy="-22" r="2" fill="#2dd4bf"/>
+          <rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#38bdf8" strokeWidth="1"/>
+          <line x1="0" y1="-8" x2="0" y2="-20" stroke="#38bdf8" strokeWidth="1"/>
+          <circle cx="0" cy="-22" r="2" fill="#38bdf8"/>
         </g>
 
         {/* Nodo C — pequeño relay */}
         <g className="nd3" transform="translate(70, 400)">
-          <circle cx="0" cy="0" r="6" fill="none" stroke="#00b4a0" strokeWidth="1"/>
-          <circle cx="0" cy="0" r="2.5" fill="#00b4a0"/>
+          <circle cx="0" cy="0" r="6" fill="none" stroke="#0284C7" strokeWidth="1"/>
+          <circle cx="0" cy="0" r="2.5" fill="#0284C7"/>
         </g>
 
         {/* Nodo D */}
         <g className="nd" transform="translate(410, 360)">
-          <circle cx="0" cy="0" r="6" fill="none" stroke="#00b4a0" strokeWidth="1"/>
-          <circle cx="0" cy="0" r="2.5" fill="#00b4a0"/>
+          <circle cx="0" cy="0" r="6" fill="none" stroke="#0284C7" strokeWidth="1"/>
+          <circle cx="0" cy="0" r="2.5" fill="#0284C7"/>
         </g>
 
         {/* ── Líneas de conexión a nodos ────────────────────────────── */}
         <line className="line4" x1="100" y1="270" x2="155" y2="415"
-          stroke="#2dd4bf" strokeWidth="0.6" strokeDasharray="4 5"/>
+          stroke="#38bdf8" strokeWidth="0.6" strokeDasharray="4 5"/>
         <line className="line1" x1="222" y1="290" x2="305" y2="408"
-          stroke="#2dd4bf" strokeWidth="0.6" strokeDasharray="4 5"/>
+          stroke="#38bdf8" strokeWidth="0.6" strokeDasharray="4 5"/>
         <line className="line2" x1="350" y1="180" x2="405" y2="350"
-          stroke="#00b4a0" strokeWidth="0.6" strokeDasharray="4 5"/>
+          stroke="#0284C7" strokeWidth="0.6" strokeDasharray="4 5"/>
 
         {/* ── Grid de fondo sutil ───────────────────────────────────── */}
         {[0,60,120,180,240,300,360,420,480].map(x => (
           <line key={`gx${x}`} x1={x} y1="0" x2={x} y2="520"
-            stroke="#2dd4bf" strokeWidth="0.3" opacity=".15"/>
+            stroke="#38bdf8" strokeWidth="0.3" opacity=".15"/>
         ))}
         {[0,60,120,180,240,300,360,420,480,520].map(y => (
           <line key={`gy${y}`} x1="0" y1={y} x2="480" y2={y}
-            stroke="#2dd4bf" strokeWidth="0.3" opacity=".15"/>
+            stroke="#38bdf8" strokeWidth="0.3" opacity=".15"/>
         ))}
 
         {/* ── Puntos de intersección de grid ───────────────────────── */}
         {[0,60,120,180,240,300,360,420,480].map(x =>
           [0,60,120,180,240,300,360,420,480,520].map(y => (
-            <circle key={`gd${x}${y}`} cx={x} cy={y} r="1" fill="#2dd4bf" opacity=".2"/>
+            <circle key={`gd${x}${y}`} cx={x} cy={y} r="1" fill="#38bdf8" opacity=".2"/>
           ))
         )}
       </svg>
@@ -271,7 +271,7 @@ export default function Login() {
             {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: '#00b4a0' }}>
+                style={{ background: '#0284C7' }}>
                 <span className="text-white font-bold text-[11px] tracking-wide">PTI</span>
               </div>
               <div>
@@ -299,7 +299,7 @@ export default function Login() {
                 { num: '6',    lbl: 'Tipos de formulario' },
                 { num: '100%', lbl: 'Auditable' },
               ].map(({ num, lbl }) => (
-                <div key={lbl} style={{ borderTop: '2px solid rgba(0,180,160,0.4)', paddingTop: 10 }}>
+                <div key={lbl} style={{ borderTop: '2px solid rgba(2,132,199,0.4)', paddingTop: 10 }}>
                   <div className="text-white font-semibold text-[20px]">{num}</div>
                   <div className="text-[10px] uppercase tracking-wider mt-0.5"
                     style={{ color: 'rgba(255,255,255,0.35)', letterSpacing: '.06em' }}>{lbl}</div>
@@ -327,7 +327,7 @@ export default function Login() {
           {/* Logo mobile only */}
           <div className="flex items-center gap-2.5 mb-8 md:hidden">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-              style={{ background: '#00b4a0' }}>
+              style={{ background: '#0284C7' }}>
               <span className="text-white font-bold text-[10px]">PTI</span>
             </div>
             <span className="font-semibold text-[15px]" style={{ color: '#0d2137' }}>TeleInspect</span>
@@ -368,7 +368,7 @@ export default function Login() {
                   color: '#0d2137', background: '#f8fafc',
                   outline: 'none', fontFamily: 'inherit', transition: 'border-color .15s',
                 }}
-                onFocus={e => e.target.style.borderColor = '#00b4a0'}
+                onFocus={e => e.target.style.borderColor = '#0284C7'}
                 onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
               />
             </div>
@@ -389,7 +389,7 @@ export default function Login() {
                   color: '#0d2137', background: '#f8fafc',
                   outline: 'none', fontFamily: 'inherit', transition: 'border-color .15s',
                 }}
-                onFocus={e => e.target.style.borderColor = '#00b4a0'}
+                onFocus={e => e.target.style.borderColor = '#0284C7'}
                 onBlur={e  => e.target.style.borderColor = '#e2e8f0'}
               />
             </div>
@@ -399,7 +399,7 @@ export default function Login() {
               disabled={loading}
               style={{
                 height: 40, borderRadius: 8, border: 'none',
-                background: loading ? '#7a8fa0' : '#00b4a0',
+                background: loading ? '#7a8fa0' : '#0284C7',
                 color: '#ffffff', fontWeight: 600, fontSize: 14,
                 fontFamily: 'inherit', cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'background .15s, opacity .15s',

@@ -61,7 +61,7 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
   return (
     <button onClick={handleClick} disabled={loading}
       title="Descargar todos los PDFs"
-      className="p-1.5 rounded-lg th-text-m hover:text-teal-600 hover:bg-teal-50 disabled:opacity-40 transition-colors">
+      className="p-1.5 rounded-lg th-text-m hover:text-sky-600 hover:bg-sky-50 disabled:opacity-40 transition-colors">
       {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
     </button>
   )
@@ -99,7 +99,7 @@ export default function Orders() {
           <input type="text" value={search} onChange={e => setFilter({ search: e.target.value })}
             placeholder="Buscar orden, sitio…"
             className="w-full h-9 pl-9 pr-8 text-[13px] th-bg-card border th-border rounded-lg
-              focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all placeholder:th-text-m" />
+              focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all placeholder:th-text-m" />
           {search && (
             <button onClick={() => setFilter({ search: '' })}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 th-text-m hover:th-text-s">
@@ -110,7 +110,7 @@ export default function Orders() {
 
         <select value={filterStatus} onChange={e => setFilter({ filterStatus: e.target.value })}
           className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
-            focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-400 transition-all th-text-s">
+            focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all th-text-s">
           <option value="all">Todas</option>
           <option value="open">Abiertas</option>
           <option value="closed">Cerradas</option>
@@ -152,7 +152,7 @@ export default function Orders() {
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
 
                     <td className="px-4 py-3.5">
-                      <span className="text-[13px] font-bold text-teal-600">{o.order_number}</span>
+                      <span className="text-[13px] font-bold text-sky-600">{o.order_number}</span>
                     </td>
 
                     <td className="px-4 py-3.5 min-w-0">
@@ -185,7 +185,7 @@ export default function Orders() {
                     </td>
 
                     <td className="pr-3 py-3.5">
-                      <ChevronRight size={15} className="th-text-m group-hover:text-teal-500 transition-colors" />
+                      <ChevronRight size={15} className="th-text-m group-hover:text-sky-600 transition-colors" />
                     </td>
                   </tr>
                 )

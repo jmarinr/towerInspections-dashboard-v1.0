@@ -104,7 +104,7 @@ export default function Dashboard() {
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <span className="text-[13px] font-bold tabular-nums th-text-p">{count}</span>
-                      <ChevronRight size={11} className="th-text-m group-hover:text-teal-500 transition-colors" />
+                      <ChevronRight size={11} className="th-text-m group-hover:text-sky-600 transition-colors" />
                     </div>
                   </Link>
                 )
@@ -168,7 +168,7 @@ export default function Dashboard() {
                         </span>}
                     {date && <span className="text-[10px] th-text-m">{date}</span>}
                   </div>
-                  <ChevronRight size={13} className="th-text-m group-hover:text-teal-500 transition-colors flex-shrink-0" />
+                  <ChevronRight size={13} className="th-text-m group-hover:text-sky-600 transition-colors flex-shrink-0" />
                 </Link>
               )
             })}

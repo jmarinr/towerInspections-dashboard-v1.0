@@ -145,16 +145,16 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
           ? <textarea rows={3}
               className={`w-full text-[12px] border rounded px-2 py-1 outline-none resize-none transition-all
                 ${changed
-                  ? 'border-teal-400 bg-white shadow-sm ring-1 ring-teal-400/20'
-                  : 'border th-border th-bg-base focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20'}`}
+                  ? 'border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20'
+                  : 'border th-border th-bg-base focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20'}`}
               value={current}
               onChange={e => onChange(fieldKey, e.target.value)}
             />
           : <input
               className={`w-full text-[12px] border rounded px-2 py-1 outline-none transition-all
                 ${changed
-                  ? 'border-teal-400 bg-white shadow-sm ring-1 ring-teal-400/20'
-                  : 'border th-border th-bg-base focus:border-teal-400 focus:ring-1 focus:ring-teal-400/20'}`}
+                  ? 'border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20'
+                  : 'border th-border th-bg-base focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20'}`}
               value={current}
               onChange={e => onChange(fieldKey, e.target.value)}
             />
@@ -425,7 +425,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
               rows={3}
               className="w-full text-[13px] rounded-lg px-3 py-2 outline-none resize-none transition-all th-text-p th-bg-input"
               style={{ border: '1px solid var(--border)' }}
-              onFocus={e  => { e.target.style.borderColor = '#00b4a0'; e.target.style.boxShadow = '0 0 0 3px rgba(0,180,160,0.15)' }}
+              onFocus={e  => { e.target.style.borderColor = '#0284C7'; e.target.style.boxShadow = '0 0 0 3px rgba(2,132,199,0.15)' }}
               onBlur={e   => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none' }}
               placeholder="Ej: Corrección de tipo de torre según revisión de campo…"
               value={note}
@@ -829,8 +829,8 @@ export default function SubmissionDetail() {
             {canWrite && !editMode && (
               <button onClick={() => setEditMode(true)}
                 className="h-8 px-3 text-[12px] font-medium rounded-lg flex items-center gap-1.5 transition-all border"
-                style={{ color: 'var(--accent-text)', background: 'var(--accent-light)', borderColor: 'rgba(0,180,160,.2)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(0,180,160,.18)'}
+                style={{ color: 'var(--accent-text)', background: 'var(--accent-light)', borderColor: 'rgba(2,132,199,.2)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(2,132,199,.18)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'var(--accent-light)'}>
                 <Pencil size={12}/> Editar
               </button>
