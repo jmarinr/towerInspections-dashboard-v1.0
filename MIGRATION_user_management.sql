@@ -236,3 +236,16 @@ NOTIFY pgrst, 'reload schema';
 -- 4. Crear las empresas: INSERT INTO companies (name, org_code, country)
 --    VALUES ('PTI Costa Rica', 'PTI-CR', 'CR');
 -- =============================================================================
+
+-- ── 10. POLÍTICA RLS PARA REALTIME ───────────────────────────────────────────
+-- Supabase Realtime necesita política SELECT explícita para postgres_changes
+-- Esto permite que el canal Realtime reciba eventos de submissions y site_visits
+
+-- Admin y supervisor reciben todos los cambios de su empresa
+-- (la política de SELECT ya existente aplica también a Realtime)
+
+-- Habilitar Realtime en ambas tablas (por si no está)
+ALTER PUBLICATION supabase_realtime ADD TABLE submissions;
+ALTER PUBLICATION supabase_realtime ADD TABLE site_visits;
+
+NOTIFY pgrst, 'reload schema';

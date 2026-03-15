@@ -127,8 +127,19 @@ export const useSubmissionsStore = create((set, get) => ({
 
     set({ realtimeStatus: 'connecting' })
 
-    _channel = supabase
-      .channel('submissions_realtime')
+    // Obtener el token de sesión actual para autenticar el canal con RLS
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return // sin sesión no hay canal
+
+      _channel = supabase
+        .channel('submissions_realtime', {
+          config: {
+            // Pasar el JWT para que RLS permita recibir los eventos
+            headers: session?.access_token
+              ? { Authorization: `Bearer ${session.access_token}` }
+              : {},
+          },
+        })
 
       .on('postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'submissions' },
@@ -265,6 +276,7 @@ export const useSubmissionsStore = create((set, get) => ({
           _channel = null
         }
       })
+    }) // cierre del .then(({ data: { session } }) =>
   },
 
   /**
