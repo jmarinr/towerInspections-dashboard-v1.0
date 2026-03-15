@@ -79,7 +79,14 @@ export default function Orders() {
   const navigate     = useNavigate()
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
-  useEffect(() => { if (authReady) load() }, [authReady])
+  useEffect(() => {
+    if (!authReady) return
+    load(true)
+    const t = setTimeout(() => {
+      if (useOrdersStore.getState().orders.length === 0) load(true)
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [authReady])
   const filtered = useMemo(() => getFiltered(), [orders, filterStatus, search])
   const hasFilter = search || filterStatus !== 'all'
 

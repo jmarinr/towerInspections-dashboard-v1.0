@@ -11,7 +11,8 @@ export const useOrdersStore = create((set, get) => ({
 
   load: async (force = false) => {
     const state = get()
-    if (!force && state.lastFetch && Date.now() - state.lastFetch < 10000) return
+    const isEmpty = state.orders.length === 0
+    if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
     set({ isLoading: true, error: null })
     try {
       const data = await fetchSiteVisits()

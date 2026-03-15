@@ -131,7 +131,15 @@ export default function Submissions() {
   const navigate       = useNavigate()
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
-  useEffect(() => { if (authReady) { load(); loadOrders() } }, [authReady])
+  useEffect(() => {
+    if (!authReady) return
+    load(true); loadOrders()
+    // Retry si la data sigue vacía después de 2.5s (sesión tardía o red lenta)
+    const t = setTimeout(() => {
+      if (useSubmissionsStore.getState().submissions.length === 0) load(true)
+    }, 2500)
+    return () => clearTimeout(t)
+  }, [authReady])
 
   const filtered = useMemo(
     () => getFiltered().filter(s => isFormVisible(s.form_code)),

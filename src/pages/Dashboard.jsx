@@ -46,7 +46,7 @@ export default function Dashboard() {
   const isLoading = useSubmissionsStore((s) => s.isLoadingStats)
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
-  useEffect(() => { if (authReady) { load(); loadStats() } }, [authReady])
+  useEffect(() => { if (authReady) { load(true); loadStats() } }, [authReady])
 
   if (isLoading || !stats)
     return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>
