@@ -267,6 +267,16 @@ export default function Shell({ children }) {
             <RealtimeBadge />
             <ThemeToggle />
             <button onClick={refresh} className="p-1.5 th-text-m"><RefreshCw size={13} /></button>
+            {/* Logout visible directo en mobile */}
+            <button
+              onClick={() => { if (window.confirm('¿Cerrar sesión?')) handleLogout() }}
+              className="p-1.5 rounded-md transition-colors"
+              title="Cerrar sesión"
+              style={{ color: 'var(--text-muted)' }}
+              onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}>
+              <LogOut size={15} />
+            </button>
           </div>
         </header>
 
