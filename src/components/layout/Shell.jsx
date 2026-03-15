@@ -82,11 +82,6 @@ function RealtimeBadge() {
   )
 }
 
-  const colors = {
-    connected:    { bg: flash ? 'rgba(34,197,94,.18)' : 'rgba(34,197,94,.10)', color: '#16a34a' },
-    connecting:   { bg: 'rgba(251,191,36,.10)', color: '#b45309' },
-
-
 function SideNavLink({ to, icon: Icon, label, onClick }) {
   return (
     <NavLink
