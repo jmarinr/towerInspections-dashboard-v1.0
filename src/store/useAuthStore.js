@@ -1,41 +1,98 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
-import permissions from '../data/permissions.json'
+import { supabase } from '../lib/supabaseClient'
 
-export const useAuthStore = create(
-  persist(
-    (set) => ({
-      isAuthed: false,
-      user: null,
+export const useAuthStore = create((set, get) => ({
+  isAuthed:    false,
+  user:        null,   // { id, email, full_name, role, company_id, canWrite }
+  isLoading:   true,   // true mientras verifica sesión al arrancar
 
-      login: ({ username, password }) => {
-        const key = String(username).trim().toLowerCase()
-        const userEntry = permissions.users[key]
+  // ── Inicializar — llamar una vez al montar App ────────────────────────────
+  init: async () => {
+    // 1. Verificar sesión existente
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user) {
+      await get()._loadProfile(session.user.id)
+    } else {
+      set({ isLoading: false })
+    }
 
-        if (!userEntry) return { ok: false, message: 'Usuario no encontrado' }
-        if (userEntry.pin !== String(password).trim()) return { ok: false, message: 'PIN incorrecto' }
+    // 2. Escuchar cambios de sesión (refresh, logout externo)
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session?.user) {
+        await get()._loadProfile(session.user.id)
+      } else if (event === 'SIGNED_OUT') {
+        set({ isAuthed: false, user: null, isLoading: false })
+      }
+    })
+  },
 
-        const roleConfig = permissions.roles[userEntry.role]
+  // ── Cargar perfil desde app_users ────────────────────────────────────────
+  _loadProfile: async (authId) => {
+    try {
+      const { data, error } = await supabase
+        .from('app_users')
+        .select('id, email, full_name, role, company_id, active, companies(name, org_code)')
+        .eq('id', authId)
+        .single()
 
-        // Only allow roles with admin access
-        if (roleConfig?.access !== 'admin') {
-          return { ok: false, message: 'Sin acceso al panel de administración' }
-        }
+      if (error || !data) {
+        // Existe en auth pero no en app_users → sin acceso al dashboard
+        await supabase.auth.signOut()
+        set({ isAuthed: false, user: null, isLoading: false })
+        return
+      }
 
-        const user = {
-          username: key,
-          name: userEntry.name,
-          role: userEntry.role,
-          roleLabel: roleConfig?.label || userEntry.role,
-          canWrite: userEntry.canWrite === true,
-        }
+      if (!data.active) {
+        await supabase.auth.signOut()
+        set({ isAuthed: false, user: null, isLoading: false })
+        return
+      }
 
-        set({ isAuthed: true, user })
-        return { ok: true }
-      },
+      // Solo admin y supervisor pueden entrar al dashboard
+      if (!['admin', 'supervisor'].includes(data.role)) {
+        await supabase.auth.signOut()
+        set({ isAuthed: false, user: null, isLoading: false })
+        return
+      }
 
-      logout: () => set({ isAuthed: false, user: null }),
-    }),
-    { name: 'pti_admin_auth_v2' }
-  )
-)
+      set({
+        isAuthed: true,
+        isLoading: false,
+        user: {
+          id:         data.id,
+          email:      data.email,
+          name:       data.full_name,
+          role:       data.role,
+          company_id: data.company_id,
+          company:    data.companies,
+          canWrite:   ['admin', 'supervisor'].includes(data.role),
+        },
+      })
+    } catch {
+      set({ isAuthed: false, user: null, isLoading: false })
+    }
+  },
+
+  // ── Login ────────────────────────────────────────────────────────────────
+  login: async ({ email, password }) => {
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      const msg = error.message?.includes('Invalid login')
+        ? 'Correo o contraseña incorrectos'
+        : error.message || 'Error al iniciar sesión'
+      return { ok: false, message: msg }
+    }
+    // _loadProfile se dispara vía onAuthStateChange
+    return { ok: true }
+  },
+
+  // ── Logout ───────────────────────────────────────────────────────────────
+  logout: async () => {
+    await supabase.auth.signOut()
+    set({ isAuthed: false, user: null })
+  },
+
+  // ── Helpers de permiso ────────────────────────────────────────────────────
+  isAdmin:      () => get().user?.role === 'admin',
+  isSupervisor: () => get().user?.role === 'supervisor',
+}))

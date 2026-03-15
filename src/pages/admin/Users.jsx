@@ -1,0 +1,320 @@
+import { useState, useEffect } from 'react'
+import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight } from 'lucide-react'
+import { supabase } from '../../lib/supabaseClient'
+import { useAuthStore } from '../../store/useAuthStore'
+import Spinner from '../../components/ui/Spinner'
+
+const ROLE_META = {
+  admin:      { label:'Admin',      bg:'#0f172a', color:'#e0f2fe' },
+  supervisor: { label:'Supervisor', bg:'#e0f2fe', color:'#0369a1' },
+  inspector:  { label:'Inspector',  bg:'#f0fdf4', color:'#166534' },
+}
+
+function RoleBadge({ role }) {
+  const m = ROLE_META[role] || { label:role, bg:'#f1f5f9', color:'#64748b' }
+  return (
+    <span className="text-[10px] font-bold px-2 py-1 rounded-full"
+      style={{ background:m.bg, color:m.color }}>{m.label}</span>
+  )
+}
+
+function UserModal({ user, companies, onSave, onClose }) {
+  const isNew = !user?.id
+  const [form, setForm] = useState({
+    email:         user?.email         || '',
+    full_name:     user?.full_name     || '',
+    role:          user?.role          || 'inspector',
+    company_id:    user?.company_id    || '',
+    supervisor_id: user?.supervisor_id || '',
+    active:        user?.active        ?? true,
+    password:      '',
+  })
+  const [supervisors, setSupervisors] = useState([])
+  const [saving,  setSaving]  = useState(false)
+  const [error,   setError]   = useState('')
+
+  // Cargar supervisores de la empresa seleccionada
+  useEffect(() => {
+    if (!form.company_id) { setSupervisors([]); return }
+    supabase.from('app_users')
+      .select('id, full_name')
+      .eq('company_id', form.company_id)
+      .eq('role', 'supervisor')
+      .eq('active', true)
+      .then(({ data }) => setSupervisors(data || []))
+  }, [form.company_id])
+
+  const save = async () => {
+    if (!form.email.trim() || !form.full_name.trim()) { setError('Email y nombre son obligatorios'); return }
+    if (isNew && !form.password) { setError('La contraseña es obligatoria para usuarios nuevos'); return }
+    setSaving(true); setError('')
+
+    if (isNew) {
+      // 1. Crear en Supabase Auth vía admin API (solo con service_role — aquí invocamos Edge Function o lo hacemos con inviteUserByEmail)
+      // Por ahora usamos signUp sin auto-confirm
+      const { data: authData, error: authErr } = await supabase.auth.admin
+        ? await supabase.auth.admin.createUser({ email: form.email, password: form.password, email_confirm: true })
+        : await supabase.auth.signUp({ email: form.email, password: form.password })
+
+      if (authErr) { setError(authErr.message); setSaving(false); return }
+      const userId = authData?.user?.id
+      if (!userId) { setError('No se pudo crear el usuario en Auth'); setSaving(false); return }
+
+      const { error: profileErr } = await supabase.from('app_users').insert({
+        id:            userId,
+        email:         form.email.trim(),
+        full_name:     form.full_name.trim(),
+        role:          form.role,
+        company_id:    form.company_id || null,
+        supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
+        active:        form.active,
+      })
+      if (profileErr) { setError(profileErr.message); setSaving(false); return }
+    } else {
+      const { error: err } = await supabase.from('app_users').update({
+        full_name:     form.full_name.trim(),
+        role:          form.role,
+        company_id:    form.company_id || null,
+        supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
+        active:        form.active,
+      }).eq('id', user.id)
+      if (err) { setError(err.message); setSaving(false); return }
+    }
+    onSave()
+  }
+
+  const F = ({ label, children }) => (
+    <div>
+      <label className="block text-[11px] font-semibold th-text-m uppercase tracking-wide mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+
+  const inputStyle = {
+    border:'1px solid var(--border)', outline:'none',
+    width:'100%', borderRadius:8, padding:'0 12px', height:36,
+    fontSize:13, background:'var(--bg-input)', color:'var(--text-primary)', fontFamily:'inherit'
+  }
+  const focusIn  = e => { e.target.style.borderColor='#0284C7'; e.target.style.boxShadow='0 0 0 3px rgba(2,132,199,.15)' }
+  const focusOut = e => { e.target.style.borderColor='var(--border)'; e.target.style.boxShadow='none' }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="rounded-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto"
+        style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}
+        onClick={e=>e.stopPropagation()}>
+        <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10 rounded-t-2xl"
+          style={{ background:'var(--bg-card)', borderBottom:'1px solid var(--border)' }}>
+          <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nuevo usuario' : 'Editar usuario'}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg th-text-m" style={{ background:'var(--bg-base)' }}><X size={15}/></button>
+        </div>
+        <div className="p-5 space-y-4">
+          {error && <div className="text-[12px] text-bad px-3 py-2 rounded-lg" style={{ background:'#fef2f2', border:'1px solid #fecaca' }}>{error}</div>}
+
+          <F label="Nombre completo">
+            <input value={form.full_name} onChange={e=>setForm(f=>({...f,full_name:e.target.value}))}
+              placeholder="Ej: Juan Pérez" style={inputStyle} onFocus={focusIn} onBlur={focusOut}/>
+          </F>
+
+          <F label="Correo electrónico">
+            <input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}
+              placeholder="usuario@email.com" readOnly={!isNew}
+              style={{ ...inputStyle, opacity: isNew ? 1 : 0.7 }} onFocus={focusIn} onBlur={focusOut}/>
+          </F>
+
+          {isNew && (
+            <F label="Contraseña inicial">
+              <input type="password" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}
+                placeholder="Mínimo 6 caracteres" style={inputStyle} onFocus={focusIn} onBlur={focusOut}/>
+            </F>
+          )}
+
+          <F label="Rol">
+            <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
+              style={{ ...inputStyle, height:36 }}>
+              <option value="supervisor">Supervisor</option>
+              <option value="inspector">Inspector</option>
+              <option value="admin">Admin</option>
+            </select>
+          </F>
+
+          <F label="Empresa">
+            <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,supervisor_id:''}))}
+              style={{ ...inputStyle, height:36 }}>
+              <option value="">— Sin empresa (admin global) —</option>
+              {companies.map(c=><option key={c.id} value={c.id}>{c.name} ({c.org_code})</option>)}
+            </select>
+          </F>
+
+          {form.role === 'inspector' && (
+            <F label="Supervisor asignado">
+              <select value={form.supervisor_id} onChange={e=>setForm(f=>({...f,supervisor_id:e.target.value}))}
+                style={{ ...inputStyle, height:36 }}>
+                <option value="">— Sin supervisor —</option>
+                {supervisors.map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}
+              </select>
+            </F>
+          )}
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[13px] th-text-p">Usuario activo</span>
+            <button onClick={()=>setForm(f=>({...f,active:!f.active}))}>
+              {form.active
+                ? <ToggleRight size={24} style={{ color:'#0284C7' }}/>
+                : <ToggleLeft  size={24} className="th-text-m"/>}
+            </button>
+          </div>
+        </div>
+        <div className="px-5 pb-5 flex gap-2 justify-end" style={{ borderTop:'1px solid var(--border)' }}>
+          <button onClick={onClose} className="h-9 px-4 rounded-lg text-[13px] th-text-s"
+            style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>Cancelar</button>
+          <button onClick={save} disabled={saving}
+            className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50 flex items-center gap-1.5"
+            style={{ background:'#0284C7' }}>
+            {saving ? <><Spinner size={13}/>Guardando…</> : <><Check size={13}/>Guardar</>}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function Users() {
+  const currentUser = useAuthStore(s => s.user)
+  const [users,     setUsers]     = useState([])
+  const [companies, setCompanies] = useState([])
+  const [loading,   setLoading]   = useState(true)
+  const [modal,     setModal]     = useState(null)
+  const [filterRole,    setFilterRole]    = useState('all')
+  const [filterCompany, setFilterCompany] = useState('all')
+
+  const load = async () => {
+    setLoading(true)
+    const [{ data: u }, { data: c }] = await Promise.all([
+      supabase.from('app_users').select('*, companies(name, org_code)').order('full_name'),
+      supabase.from('companies').select('id, name, org_code').eq('active', true).order('name'),
+    ])
+    setUsers(u || [])
+    setCompanies(c || [])
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [])
+
+  const filtered = users.filter(u =>
+    (filterRole    === 'all' || u.role       === filterRole)    &&
+    (filterCompany === 'all' || u.company_id === filterCompany)
+  )
+
+  const initials = name => name?.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase() || '?'
+  const avColors = { admin:['#0f172a','#e0f2fe'], supervisor:['#e0f2fe','#0369a1'], inspector:['#f0fdf4','#166534'] }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-[20px] font-bold th-text-p">Usuarios</h1>
+          <p className="text-[12px] th-text-m mt-0.5">{filtered.length} usuario{filtered.length!==1?'s':''}</p>
+        </div>
+        <button onClick={()=>setModal('new')}
+          className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white flex items-center gap-1.5"
+          style={{ background:'#0284C7' }}>
+          <Plus size={14}/>Nuevo usuario
+        </button>
+      </div>
+
+      {/* Filtros */}
+      <div className="flex gap-2 flex-wrap">
+        <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
+          className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card"
+          style={{ border:'1px solid var(--border)', outline:'none' }}>
+          <option value="all">Todos los roles</option>
+          <option value="admin">Admin</option>
+          <option value="supervisor">Supervisor</option>
+          <option value="inspector">Inspector</option>
+        </select>
+        <select value={filterCompany} onChange={e=>setFilterCompany(e.target.value)}
+          className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card"
+          style={{ border:'1px solid var(--border)', outline:'none' }}>
+          <option value="all">Todas las empresas</option>
+          {companies.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16"><Spinner size={16}/></div>
+      ) : (
+        <div className="rounded-xl overflow-hidden" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+          <table className="w-full text-[13px]" style={{ borderCollapse:'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom:'1px solid var(--border-light)' }}>
+                {['Usuario','Rol','Empresa','Supervisor','Estado',''].map(h=>(
+                  <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold th-text-m uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((u,i)=>{
+                const [avBg, avTxt] = avColors[u.role] || ['#f1f5f9','#64748b']
+                return (
+                  <tr key={u.id}
+                    style={{ borderBottom: i<filtered.length-1?'1px solid var(--border-light)':'none' }}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--row-hover-bg)'}
+                    onMouseLeave={e=>e.currentTarget.style.background=''}>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-[11px] font-bold"
+                          style={{ background:avBg, color:avTxt }}>
+                          {initials(u.full_name)}
+                        </div>
+                        <div>
+                          <div className="font-semibold th-text-p text-[12px]">{u.full_name}</div>
+                          <div className="text-[10px] th-text-m">{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3"><RoleBadge role={u.role}/></td>
+                    <td className="px-4 py-3 text-[12px] th-text-s">{u.companies?.name || <span className="th-text-m">—</span>}</td>
+                    <td className="px-4 py-3 text-[12px] th-text-s">
+                      {u.supervisor_id
+                        ? users.find(x=>x.id===u.supervisor_id)?.full_name || '—'
+                        : <span className="th-text-m">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-[11px] font-semibold px-2 py-1 rounded-full"
+                        style={u.active ? {background:'#f0fdf4',color:'#166534'} : {background:'var(--bg-base)',color:'var(--text-muted)'}}>
+                        {u.active ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      {u.id !== currentUser?.id && (
+                        <button onClick={()=>setModal(u)}
+                          className="p-1.5 rounded-lg th-text-m transition-colors"
+                          style={{ background:'var(--bg-base)' }}
+                          onMouseEnter={e=>e.currentTarget.style.color='#0284C7'}
+                          onMouseLeave={e=>e.currentTarget.style.color=''}>
+                          <Pencil size={13}/>
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
+              {!filtered.length && (
+                <tr><td colSpan="6" className="px-4 py-12 text-center text-[13px] th-text-m">Sin usuarios</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {modal && (
+        <UserModal
+          user={modal === 'new' ? null : modal}
+          companies={companies}
+          onSave={()=>{ setModal(null); load() }}
+          onClose={()=>setModal(null)}
+        />
+      )}
+    </div>
+  )
+}

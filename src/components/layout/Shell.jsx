@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, WifiOff, AlertCircle } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, WifiOff, AlertCircle, Users, Building2, ShieldCheck } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
@@ -10,6 +10,12 @@ const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Inicio' },
   { to: '/orders',      icon: FolderOpen,      label: 'Visitas' },
   { to: '/submissions', icon: ClipboardList,   label: 'Formularios' },
+]
+
+const NAV_ADMIN = [
+  { to: '/admin/users',       icon: Users,       label: 'Usuarios' },
+  { to: '/admin/companies',   icon: Building2,   label: 'Empresas' },
+  { to: '/admin/permissions', icon: ShieldCheck, label: 'Permisos' },
 ]
 
 // ── Theme Toggle ──────────────────────────────────────────────────────────────
@@ -136,12 +142,29 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
 
       <div className="mx-4 h-px mb-3" style={{ background: 'var(--sidebar-divider)' }} />
 
-      {/* Nav */}
+      {/* Nav principal */}
       <nav className="px-3 flex-1 space-y-0.5">
         {NAV.map(n => (
           <SideNavLink key={n.to} to={n.to} icon={n.icon} label={n.label} onClick={onNavClick} />
         ))}
       </nav>
+
+      {/* Nav admin — solo visible para admins */}
+      {user?.role === 'admin' && (
+        <>
+          <div className="mx-4 h-px mt-2 mb-2" style={{ background: 'var(--sidebar-divider)' }} />
+          <div className="px-4 mb-1">
+            <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.25)' }}>
+              Administración
+            </span>
+          </div>
+          <nav className="px-3 space-y-0.5">
+            {NAV_ADMIN.map(n => (
+              <SideNavLink key={n.to} to={n.to} icon={n.icon} label={n.label} onClick={onNavClick} />
+            ))}
+          </nav>
+        </>
+      )}
 
       <div className="mx-4 h-px mt-3 mb-3" style={{ background: 'var(--sidebar-divider)' }} />
 
