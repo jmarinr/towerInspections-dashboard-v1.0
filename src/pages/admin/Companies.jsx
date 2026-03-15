@@ -5,6 +5,10 @@ import Spinner from '../../components/ui/Spinner'
 
 const COUNTRIES = ['CR','PA','MX','CO','PR','GT','SV','HN','NI','DO']
 
+// Handlers fuera del componente — evitan pérdida de foco al tipear
+const onFocusIn  = e => { e.target.style.borderColor='#0284C7'; e.target.style.boxShadow='0 0 0 3px rgba(2,132,199,.15)' }
+const onFocusOut = e => { e.target.style.borderColor='var(--border)'; e.target.style.boxShadow='none' }
+
 function CompanyModal({ company, onSave, onClose }) {
   const [form, setForm] = useState({
     name:     company?.name     || '',
@@ -46,8 +50,8 @@ function CompanyModal({ company, onSave, onClose }) {
                 placeholder={placeholder}
                 className="w-full rounded-lg px-3 py-2 text-[13px] th-text-p th-bg-input"
                 style={{ border:'1px solid var(--border)', fontFamily: mono ? 'var(--font-mono)' : 'inherit', outline:'none' }}
-                onFocus={e=>{e.target.style.borderColor='#0284C7';e.target.style.boxShadow='0 0 0 3px rgba(2,132,199,.15)'}}
-                onBlur={e=>{e.target.style.borderColor='var(--border)';e.target.style.boxShadow='none'}}/>
+                onFocus={onFocusIn}
+                onBlur={onFocusOut}/>
             </div>
           ))}
           <div>

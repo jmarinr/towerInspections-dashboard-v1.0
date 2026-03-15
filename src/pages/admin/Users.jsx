@@ -18,6 +18,25 @@ function RoleBadge({ role }) {
   )
 }
 
+// ── Constantes fuera del componente — evitan recreación en cada render ────────
+const INPUT_STYLE = {
+  border:'1px solid var(--border)', outline:'none',
+  width:'100%', borderRadius:8, padding:'0 12px', height:36,
+  fontSize:13, background:'var(--bg-input)', color:'var(--text-primary)', fontFamily:'inherit'
+}
+const onFocusIn  = e => { e.target.style.borderColor='#0284C7'; e.target.style.boxShadow='0 0 0 3px rgba(2,132,199,.15)' }
+const onFocusOut = e => { e.target.style.borderColor='var(--border)'; e.target.style.boxShadow='none' }
+
+// Componente de campo definido a nivel de módulo — nunca se remonta al tipear
+function FieldLabel({ label, children }) {
+  return (
+    <div>
+      <label className="block text-[11px] font-semibold th-text-m uppercase tracking-wide mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+}
+
 function UserModal({ user, companies, onSave, onClose }) {
   const isNew = !user?.id
   const [form, setForm] = useState({
@@ -83,21 +102,6 @@ function UserModal({ user, companies, onSave, onClose }) {
     onSave()
   }
 
-  const F = ({ label, children }) => (
-    <div>
-      <label className="block text-[11px] font-semibold th-text-m uppercase tracking-wide mb-1.5">{label}</label>
-      {children}
-    </div>
-  )
-
-  const inputStyle = {
-    border:'1px solid var(--border)', outline:'none',
-    width:'100%', borderRadius:8, padding:'0 12px', height:36,
-    fontSize:13, background:'var(--bg-input)', color:'var(--text-primary)', fontFamily:'inherit'
-  }
-  const focusIn  = e => { e.target.style.borderColor='#0284C7'; e.target.style.boxShadow='0 0 0 3px rgba(2,132,199,.15)' }
-  const focusOut = e => { e.target.style.borderColor='var(--border)'; e.target.style.boxShadow='none' }
-
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
       <div className="rounded-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto"
@@ -111,49 +115,49 @@ function UserModal({ user, companies, onSave, onClose }) {
         <div className="p-5 space-y-4">
           {error && <div className="text-[12px] text-bad px-3 py-2 rounded-lg" style={{ background:'#fef2f2', border:'1px solid #fecaca' }}>{error}</div>}
 
-          <F label="Nombre completo">
+          <FieldLabel label="Nombre completo">
             <input value={form.full_name} onChange={e=>setForm(f=>({...f,full_name:e.target.value}))}
-              placeholder="Ej: Juan Pérez" style={inputStyle} onFocus={focusIn} onBlur={focusOut}/>
-          </F>
+              placeholder="Ej: Juan Pérez" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onFocusOut}/>
+          </FieldLabel>
 
-          <F label="Correo electrónico">
+          <FieldLabel label="Correo electrónico">
             <input type="email" value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}
               placeholder="usuario@email.com" readOnly={!isNew}
-              style={{ ...inputStyle, opacity: isNew ? 1 : 0.7 }} onFocus={focusIn} onBlur={focusOut}/>
-          </F>
+              style={{ ...INPUT_STYLE, opacity: isNew ? 1 : 0.7 }} onFocus={onFocusIn} onBlur={onFocusOut}/>
+          </FieldLabel>
 
           {isNew && (
-            <F label="Contraseña inicial">
+            <FieldLabel label="Contraseña inicial">
               <input type="password" value={form.password} onChange={e=>setForm(f=>({...f,password:e.target.value}))}
-                placeholder="Mínimo 6 caracteres" style={inputStyle} onFocus={focusIn} onBlur={focusOut}/>
-            </F>
+                placeholder="Mínimo 6 caracteres" style={INPUT_STYLE} onFocus={onFocusIn} onBlur={onFocusOut}/>
+            </FieldLabel>
           )}
 
-          <F label="Rol">
+          <FieldLabel label="Rol">
             <select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}
-              style={{ ...inputStyle, height:36 }}>
+              style={{ ...INPUT_STYLE, height:36 }}>
               <option value="supervisor">Supervisor</option>
               <option value="inspector">Inspector</option>
               <option value="admin">Admin</option>
             </select>
-          </F>
+          </FieldLabel>
 
-          <F label="Empresa">
+          <FieldLabel label="Empresa">
             <select value={form.company_id} onChange={e=>setForm(f=>({...f,company_id:e.target.value,supervisor_id:''}))}
-              style={{ ...inputStyle, height:36 }}>
+              style={{ ...INPUT_STYLE, height:36 }}>
               <option value="">— Sin empresa (admin global) —</option>
               {companies.map(c=><option key={c.id} value={c.id}>{c.name} ({c.org_code})</option>)}
             </select>
-          </F>
+          </FieldLabel>
 
           {form.role === 'inspector' && (
-            <F label="Supervisor asignado">
+            <FieldLabel label="Supervisor asignado">
               <select value={form.supervisor_id} onChange={e=>setForm(f=>({...f,supervisor_id:e.target.value}))}
-                style={{ ...inputStyle, height:36 }}>
+                style={{ ...INPUT_STYLE, height:36 }}>
                 <option value="">— Sin supervisor —</option>
                 {supervisors.map(s=><option key={s.id} value={s.id}>{s.full_name}</option>)}
               </select>
-            </F>
+            </FieldLabel>
           )}
 
           <div className="flex items-center justify-between pt-1">

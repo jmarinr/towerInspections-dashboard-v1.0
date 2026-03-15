@@ -81,6 +81,22 @@ ALTER TABLE submissions
   ADD COLUMN IF NOT EXISTS submitted_by_user_id uuid
   REFERENCES app_users(id) ON DELETE SET NULL;
 
+-- ── 4b. CREAR submission_edits SI NO EXISTE ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS submission_edits (
+  id             uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  submission_id  uuid NOT NULL,
+  edited_by      text NOT NULL,
+  edited_at      timestamptz DEFAULT now(),
+  changes        jsonb NOT NULL,
+  note           text NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_submission_edits_submission_id
+  ON submission_edits(submission_id);
+
+CREATE INDEX IF NOT EXISTS idx_submission_edits_edited_by
+  ON submission_edits(edited_by);
+
 -- ── 5. TRIGGER: updated_at en app_users ───────────────────────────────────────
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
@@ -184,11 +200,18 @@ CREATE POLICY "assets_insert" ON submission_assets FOR INSERT WITH CHECK (
   get_my_role() IN ('admin','inspector')
 );
 
--- site_visits: igual que submissions
+-- site_visits: igual que submissions (asume que tiene org_code, si no ajustar)
 DROP POLICY IF EXISTS "visits_select" ON site_visits;
 CREATE POLICY "visits_select" ON site_visits FOR SELECT USING (
   get_my_role() = 'admin'
-  OR org_code IN (SELECT org_code FROM companies WHERE id = get_my_company_id())
+  OR EXISTS (
+    SELECT 1 FROM companies
+    WHERE companies.id = get_my_company_id()
+    AND (
+      -- si site_visits tiene org_code directo
+      site_visits.org_code = companies.org_code
+    )
+  )
 );
 
 -- submission_edits: admin y supervisor de la empresa
