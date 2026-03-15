@@ -47,7 +47,6 @@ export default function Dashboard() {
   const isLoading = useSubmissionsStore((s) => s.isLoadingStats)
   const storeError = useSubmissionsStore((s) => s.error)
 
-  const [timedOut, setTimedOut] = useState(false)
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
   useEffect(() => {
