@@ -40,6 +40,7 @@ function ThemeToggle() {
 function RealtimeBadge() {
   const status = useSubmissionsStore((s) => s.realtimeStatus)
   const lastEvent = useSubmissionsStore((s) => s.lastRealtimeEvent)
+  const subscribeRealtime = useSubmissionsStore((s) => s.subscribeRealtime)
   const [flash, setFlash] = useState(false)
 
   // Parpadear brevemente cuando llega un evento nuevo
@@ -70,13 +71,17 @@ function RealtimeBadge() {
     error:        { bg: 'rgba(239,68,68,.10)',   color: '#dc2626' },
   }[status] ?? {}
 
+  const isClickable = status === 'error' || status === 'disconnected'
+
   return (
     <div
-      title={`Realtime: ${label}`}
+      onClick={isClickable ? () => subscribeRealtime() : undefined}
+      title={isClickable ? `Realtime: ${label} — clic para reconectar` : `Realtime: ${label}`}
       style={{
         display: 'flex', alignItems: 'center', gap: 4,
         fontSize: 10, fontWeight: 600, padding: '2px 7px',
         borderRadius: 100, transition: 'background .4s',
+        cursor: isClickable ? 'pointer' : 'default',
         ...colors,
       }}
     >
@@ -227,7 +232,19 @@ export default function Shell({ children }) {
   // Iniciar Realtime al montar el shell (usuario ya autenticado)
   useEffect(() => {
     subscribeRealtime()
-    return () => { unsubscribeRealtime() }
+
+    // Auto-reconexión: si el canal cae, reintentar cada 5s hasta reconectar
+    const interval = setInterval(() => {
+      const status = useSubmissionsStore.getState().realtimeStatus
+      if (status === 'error' || status === 'disconnected') {
+        subscribeRealtime()
+      }
+    }, 5000)
+
+    return () => {
+      clearInterval(interval)
+      unsubscribeRealtime()
+    }
   }, [])
 
   const refresh     = useCallback(() => load(true), [load])
