@@ -256,16 +256,13 @@ export const useSubmissionsStore = create((set, get) => ({
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {
           set({ realtimeStatus: 'connected' })
-          // Si había un error de fetch previo, limpiar para permitir retry automático
           if (get().error) set({ error: null })
         } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           set({ realtimeStatus: 'error' })
-          _channel = null // permite reintentar
-          // NO tocar state.error — ese es solo para errores de fetch
+          _channel = null
         } else if (status === 'CLOSED') {
           set({ realtimeStatus: 'disconnected' })
           _channel = null
-        }
         }
       })
   },
