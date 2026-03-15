@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight, Download, Loader2, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useOrdersStore } from '../store/useOrdersStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { normalizeFormCode, isFormVisible } from '../data/formTypes'
 import { generateMaintenancePdf } from '../utils/pdf/maintenancePdf'
@@ -77,7 +78,8 @@ export default function Orders() {
   const getFiltered  = useOrdersStore((s) => s.getFiltered)
   const navigate     = useNavigate()
 
-  useEffect(() => { load() }, [])
+  const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
+  useEffect(() => { if (authReady) load() }, [authReady])
   const filtered = useMemo(() => getFiltered(), [orders, filterStatus, search])
   const hasFilter = search || filterStatus !== 'all'
 

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useAuthStore } from '../store/useAuthStore'
 import { Link } from 'react-router-dom'
 import { ChevronRight, ArrowUpRight, TrendingUp, ClipboardList, FolderOpen, Camera, Activity } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
@@ -44,7 +45,8 @@ export default function Dashboard() {
   const stats     = useSubmissionsStore((s) => s.stats)
   const isLoading = useSubmissionsStore((s) => s.isLoadingStats)
 
-  useEffect(() => { load(); loadStats() }, [])
+  const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
+  useEffect(() => { if (authReady) { load(); loadStats() } }, [authReady])
 
   if (isLoading || !stats)
     return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
+import { useAuthStore } from '../store/useAuthStore'
 import { useOrdersStore } from '../store/useOrdersStore'
 import { FORM_TYPES, getFormMeta, isFormVisible, normalizeFormCode } from '../data/formTypes'
 import { extractSiteInfo, extractMeta, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
@@ -129,7 +130,8 @@ export default function Submissions() {
   const orders         = useOrdersStore((s) => s.orders)
   const navigate       = useNavigate()
 
-  useEffect(() => { load(); loadOrders() }, [])
+  const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
+  useEffect(() => { if (authReady) { load(); loadOrders() } }, [authReady])
 
   const filtered = useMemo(
     () => getFiltered().filter(s => isFormVisible(s.form_code)),

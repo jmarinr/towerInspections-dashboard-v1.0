@@ -20,7 +20,7 @@ export const useAuthStore = create((set, get) => ({
     // 2. Escuchar cambios de sesión (refresh, logout externo)
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        await get()._loadProfile(session.user.id)
+        await get()._loadProfile(session.user.id, true) // true = login real, registrar log
       } else if (event === 'SIGNED_OUT') {
         set({ isAuthed: false, user: null, isLoading: false })
       }
@@ -28,7 +28,7 @@ export const useAuthStore = create((set, get) => ({
   },
 
   // ── Cargar perfil desde app_users ────────────────────────────────────────
-  _loadProfile: async (authId) => {
+  _loadProfile: async (authId, isRealLogin = false) => {
     try {
       const { data, error } = await supabase
         .from('app_users')
@@ -37,7 +37,6 @@ export const useAuthStore = create((set, get) => ({
         .single()
 
       if (error || !data) {
-        // Existe en auth pero no en app_users → sin acceso al dashboard
         await supabase.auth.signOut()
         set({ isAuthed: false, user: null, isLoading: false })
         return
@@ -70,8 +69,11 @@ export const useAuthStore = create((set, get) => ({
         },
       })
 
-      // Log solo en SIGNED_IN, no en refresh silencioso
-      // Se detecta si es un login real verificando que no haya sesión previa
+      // Registrar log solo en login real, no en refresh silencioso de sesión
+      if (isRealLogin) {
+        LOG.authLogin(data.email, data.role, data.company_id)
+      }
+
     } catch {
       set({ isAuthed: false, user: null, isLoading: false })
     }
