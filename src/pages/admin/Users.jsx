@@ -69,9 +69,8 @@ function UserModal({ user, companies, onSave, onClose }) {
     setSaving(true); setError('')
 
     if (isNew) {
-      // Llamar a la Edge Function create-user (usa service_role key en el servidor)
-      const { data: { session } } = await supabase.auth.getSession()
-      const res = await supabase.functions.invoke('create-user', {
+      // Llamar a la Edge Function create-user con timeout de 15s
+      const invokePromise = supabase.functions.invoke('create-user', {
         body: {
           email:         form.email.trim(),
           password:      form.password,
@@ -82,6 +81,18 @@ function UserModal({ user, companies, onSave, onClose }) {
           active:        form.active,
         },
       })
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Tiempo de espera agotado (15s)')), 15000)
+      )
+
+      let res
+      try {
+        res = await Promise.race([invokePromise, timeoutPromise])
+      } catch (e) {
+        setError(e.message || 'Error al conectar con el servidor')
+        setSaving(false)
+        return
+      }
 
       if (res.error || res.data?.error) {
         setError(res.data?.error || res.error?.message || 'Error al crear usuario')
