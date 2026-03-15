@@ -41,12 +41,16 @@ NOTIFY pgrst, 'reload schema';
 
 -- =============================================================================
 -- Tipos de eventos registrados:
---   auth.login          — Login exitoso
---   auth.login_failed   — Intento de login fallido
---   auth.logout         — Logout
---   user.created        — Nuevo usuario creado
---   user.updated        — Usuario modificado
---   user.deactivated    — Usuario desactivado
---   submission.edited   — Formulario editado con auditoría
---   system.error        — Error del sistema
+--   auth.login            — Login exitoso
+--   auth.login_failed     — Intento de login fallido
+--   auth.logout           — Logout
+--   user.created          — Nuevo usuario creado
+--   user.updated          — Usuario modificado
+--   user.deactivated      — Usuario desactivado
+--   submission.received   — Nuevo formulario recibido desde la app (Realtime)
+--   submission.finalized  — Formulario marcado como finalizado (Realtime)
+--   submission.edited     — Formulario editado con auditoría desde el dashboard
+--   visit.received        — Nueva visita/orden recibida desde la app (Realtime)
+--   visit.status_changed  — Estado de visita cambiado (Realtime)
+--   system.error          — Error del sistema
 -- =============================================================================

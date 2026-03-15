@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { fetchSubmissions, fetchSubmissionWithAssets, fetchDashboardStats, fetchSubmissionById } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
+import { logEvent } from '../lib/logEvent'
 
 // Realtime channel singleton — fuera del store para que no se serialice ni se recree
 let _channel = null
@@ -115,7 +116,6 @@ export const useSubmissionsStore = create((set, get) => ({
         { event: 'INSERT', schema: 'public', table: 'submissions' },
         async (payload) => {
           try {
-            // Traer la fila completa normalizada (igual que fetchSubmissions)
             const newSub = await fetchSubmissionById(payload.new.id)
             if (!newSub) return
             set((state) => ({
@@ -123,7 +123,24 @@ export const useSubmissionsStore = create((set, get) => ({
               lastRealtimeEvent: { type: 'INSERT', id: newSub.id, ts: Date.now() },
             }))
             get().loadStats()
-          } catch { /* silencioso — el próximo refresh manual lo corrige */ }
+            // Log entrada de nuevo formulario
+            const site = newSub.site || {}
+            const formMeta = newSub.formMeta || {}
+            logEvent({
+              event_type: 'submission.received',
+              message: `Nuevo formulario recibido: ${formMeta.label || newSub.form_code} — ${site.nombreSitio || site.idSitio || 'Sin sitio'}`,
+              severity: 'info',
+              metadata: {
+                submission_id: newSub.id,
+                form_code:     newSub.form_code,
+                site_name:     site.nombreSitio,
+                site_id:       site.idSitio,
+                org_code:      payload.new.org_code,
+                inspector:     newSub.submittedBy?.name || newSub.device_id,
+                finalized:     payload.new.finalized,
+              },
+            })
+          } catch { /* silencioso */ }
         }
       )
 
@@ -137,13 +154,27 @@ export const useSubmissionsStore = create((set, get) => ({
               submissions: state.submissions.map((s) =>
                 s.id === updatedSub.id ? updatedSub : s
               ),
-              // Si el detalle de esta submission está abierto, actualízalo también
               activeSubmission:
                 state.activeSubmission?.id === updatedSub.id
                   ? updatedSub
                   : state.activeSubmission,
               lastRealtimeEvent: { type: 'UPDATE', id: updatedSub.id, ts: Date.now() },
             }))
+            // Log solo si cambió a finalizado
+            if (payload.new.finalized && !payload.old.finalized) {
+              const site = updatedSub.site || {}
+              logEvent({
+                event_type: 'submission.finalized',
+                message: `Formulario finalizado: ${updatedSub.formMeta?.label || updatedSub.form_code} — ${site.nombreSitio || site.idSitio || 'Sin sitio'}`,
+                severity: 'info',
+                metadata: {
+                  submission_id: updatedSub.id,
+                  form_code:     updatedSub.form_code,
+                  site_name:     site.nombreSitio,
+                  org_code:      payload.new.org_code,
+                },
+              })
+            }
           } catch { /* silencioso */ }
         }
       )
@@ -157,6 +188,50 @@ export const useSubmissionsStore = create((set, get) => ({
             lastRealtimeEvent: { type: 'DELETE', id: deletedId, ts: Date.now() },
           }))
           get().loadStats()
+        }
+      )
+
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'site_visits' },
+        (payload) => {
+          try {
+            logEvent({
+              event_type: 'visit.received',
+              message: `Nueva visita recibida: Orden ${payload.new.order_number || payload.new.id?.slice(0,8)} — Sitio ${payload.new.site_name || payload.new.site_id || ''}`,
+              severity: 'info',
+              metadata: {
+                visit_id:     payload.new.id,
+                order_number: payload.new.order_number,
+                site_id:      payload.new.site_id,
+                site_name:    payload.new.site_name,
+                org_code:     payload.new.org_code,
+                inspector:    payload.new.inspector_name || payload.new.inspector_username,
+              },
+            })
+          } catch { /* silencioso */ }
+        }
+      )
+
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'site_visits' },
+        (payload) => {
+          try {
+            // Loggear solo si cambió el status
+            if (payload.new.status !== payload.old.status) {
+              logEvent({
+                event_type: 'visit.status_changed',
+                message: `Visita actualizada: Orden ${payload.new.order_number || payload.new.id?.slice(0,8)} → ${payload.new.status}`,
+                severity: 'info',
+                metadata: {
+                  visit_id:     payload.new.id,
+                  order_number: payload.new.order_number,
+                  old_status:   payload.old.status,
+                  new_status:   payload.new.status,
+                  org_code:     payload.new.org_code,
+                },
+              })
+            }
+          } catch { /* silencioso */ }
         }
       )
 

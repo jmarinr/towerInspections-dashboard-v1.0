@@ -5,14 +5,18 @@ import Spinner from '../../components/ui/Spinner'
 
 // ── Configuración de tipos de evento ─────────────────────────────────────────
 const EVENT_META = {
-  'auth.login':        { label:'Login',              icon: LogIn,       color:'#16a34a', bg:'#f0fdf4' },
-  'auth.login_failed': { label:'Login fallido',      icon: ShieldAlert, color:'#dc2626', bg:'#fef2f2' },
-  'auth.logout':       { label:'Logout',             icon: LogOut,      color:'#7a8fa0', bg:'#f1f5f9' },
-  'user.created':      { label:'Usuario creado',     icon: UserPlus,    color:'#0284C7', bg:'#e0f2fe' },
-  'user.updated':      { label:'Usuario modificado', icon: UserCog,     color:'#d97706', bg:'#fef3c7' },
-  'user.deactivated':  { label:'Usuario desactivado',icon: UserCog,     color:'#dc2626', bg:'#fef2f2' },
-  'submission.edited': { label:'Formulario editado', icon: FileEdit,    color:'#7c3aed', bg:'#f5f3ff' },
-  'system.error':      { label:'Error del sistema',  icon: AlertCircle, color:'#dc2626', bg:'#fef2f2' },
+  'auth.login':            { label:'Login',                icon: LogIn,       color:'#16a34a', bg:'#f0fdf4' },
+  'auth.login_failed':     { label:'Login fallido',        icon: ShieldAlert, color:'#dc2626', bg:'#fef2f2' },
+  'auth.logout':           { label:'Logout',               icon: LogOut,      color:'#7a8fa0', bg:'#f1f5f9' },
+  'user.created':          { label:'Usuario creado',       icon: UserPlus,    color:'#0284C7', bg:'#e0f2fe' },
+  'user.updated':          { label:'Usuario modificado',   icon: UserCog,     color:'#d97706', bg:'#fef3c7' },
+  'user.deactivated':      { label:'Usuario desactivado',  icon: UserCog,     color:'#dc2626', bg:'#fef2f2' },
+  'submission.received':   { label:'Formulario recibido',  icon: FileEdit,    color:'#7c3aed', bg:'#f5f3ff' },
+  'submission.finalized':  { label:'Formulario finalizado',icon: FileEdit,    color:'#16a34a', bg:'#f0fdf4' },
+  'submission.edited':     { label:'Formulario editado',   icon: FileEdit,    color:'#d97706', bg:'#fef3c7' },
+  'visit.received':        { label:'Visita recibida',      icon: AlertCircle, color:'#0284C7', bg:'#e0f2fe' },
+  'visit.status_changed':  { label:'Visita actualizada',   icon: AlertCircle, color:'#7a8fa0', bg:'#f1f5f9' },
+  'system.error':          { label:'Error del sistema',    icon: AlertCircle, color:'#dc2626', bg:'#fef2f2' },
 }
 
 const SEVERITY_META = {
