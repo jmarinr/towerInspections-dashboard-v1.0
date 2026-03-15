@@ -207,8 +207,8 @@ export default function Submissions() {
         )}
       </div>
 
-      {/* Error */}
-      {!isLoading && storeError && (
+      {/* Error solo si no hay datos cargados — si hay datos el error de polling no los reemplaza */}
+      {!isLoading && storeError && filtered.length === 0 && (
         <LoadError message={storeError} onRetry={() => {
           useSubmissionsStore.setState({ error: null })
           load(true)

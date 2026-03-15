@@ -137,8 +137,8 @@ export default function Orders() {
         )}
       </div>
 
-      {/* Error — early return visual, no muestra lista vacía debajo */}
-      {!isLoading && storeError && (
+      {/* Error solo si no hay datos */}
+      {!isLoading && storeError && filtered.length === 0 && (
         <LoadError message={storeError} onRetry={() => {
           useOrdersStore.setState({ error: null })
           load(true)

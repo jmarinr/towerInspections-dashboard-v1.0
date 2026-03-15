@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useAuthStore } from '../store/useAuthStore'
 import { Link } from 'react-router-dom'
 import { ChevronRight, ArrowUpRight, TrendingUp, ClipboardList, FolderOpen, Camera, Activity } from 'lucide-react'
@@ -52,19 +52,22 @@ export default function Dashboard() {
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
   useEffect(() => {
     if (!authReady) return
-    setTimedOut(false)
+    useSubmissionsStore.setState({ error: null })
     load(true); loadStats()
-    const t = setTimeout(() => setTimedOut(true), 10000)
-    return () => clearTimeout(t)
   }, [authReady])
 
-  if (storeError || timedOut)
+  // Solo mostrar error si no hay datos aún (stats === null)
+  // Si hay datos, ignorar errores de polling — los datos siguen siendo válidos
+  if (!stats && storeError)
     return <LoadError
-      message={storeError || 'Tiempo de espera agotado. Verifica tu conexión.'}
-      onRetry={() => { setTimedOut(false); load(true); loadStats() }}
+      message={storeError}
+      onRetry={() => { useSubmissionsStore.setState({ error: null }); load(true); loadStats() }}
     />
 
-  if (isLoading || !stats)
+  if (!stats && isLoading)
+    return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>
+
+  if (!stats)
     return <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>
 
   const { total, recentCount, byFormCode, recent, totalVisits, openVisits } = stats
