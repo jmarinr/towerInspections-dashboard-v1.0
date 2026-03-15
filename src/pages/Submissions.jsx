@@ -209,12 +209,14 @@ export default function Submissions() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b th-border-l">
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[170px]">Tipo</th>
+                <th className="px-3 sm:px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[140px] sm:w-[170px]">Tipo</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Sitio</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[90px] hidden md:table-cell">Orden</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[130px] hidden md:table-cell">Inspector</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[120px] hidden lg:table-cell">Fecha</th>
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[120px]">Estado</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[32px] sm:w-[120px]">
+                  <span className="hidden sm:inline">Estado</span>
+                </th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[70px] hidden sm:table-cell text-center">Score</th>
                 <th className="w-8"></th>
               </tr>
@@ -243,7 +245,7 @@ export default function Submissions() {
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
 
                     {/* Tipo */}
-                    <td className="px-4 py-3.5">
+                    <td className="px-3 sm:px-4 py-3.5">
                       <TypeBadge meta={meta} />
                     </td>
 
@@ -281,8 +283,16 @@ export default function Submissions() {
                     </td>
 
                     {/* Estado */}
-                    <td className="px-4 py-3.5">
-                      <StatusPill fin={fin} />
+                    <td className="px-2 sm:px-4 py-3.5">
+                      {/* Móvil: solo dot */}
+                      <span className="sm:hidden flex items-center justify-center">
+                        <span className={`w-2.5 h-2.5 rounded-full ${fin ? 'bg-emerald-500' : 'bg-amber-400'}`}
+                          title={fin ? 'Completado' : 'Borrador'} />
+                      </span>
+                      {/* Desktop: badge completo */}
+                      <span className="hidden sm:inline">
+                        <StatusPill fin={fin} />
+                      </span>
                     </td>
 
                     {/* Score */}
