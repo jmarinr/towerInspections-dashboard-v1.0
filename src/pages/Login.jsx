@@ -308,10 +308,16 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Version */}
-          <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.18)', position: 'relative', zIndex: 1 }}>
-            v{APP_VERSION}
-          </p>
+          {/* Version + HenkanCX */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+            <p style={{ color: 'rgba(255,255,255,0.18)', fontSize: 10 }}>v{APP_VERSION}</p>
+            <a href="https://henkancx.com" target="_blank" rel="noopener noreferrer"
+              style={{ color: 'rgba(255,255,255,0.25)', fontSize: 10, textDecoration: 'none', transition: 'color .15s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.55)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.25)'}>
+              by HenkanCX
+            </a>
+          </div>
         </div>
 
         {/* ── Panel derecho — formulario ──────────────────────────────── */}
