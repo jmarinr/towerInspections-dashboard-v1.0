@@ -229,35 +229,10 @@ export default function Shell({ children }) {
 
   useEffect(() => { init() }, [])
 
-  // Realtime: conectar al montar, reconectar al volver al tab
+  // Realtime: crear canal una vez al montar. Supabase reconecta automáticamente.
   useEffect(() => {
     subscribeRealtime()
-
-    // Reconectar cuando el usuario vuelve al tab/ventana
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        const status = useSubmissionsStore.getState().realtimeStatus
-        if (status !== 'connected' && status !== 'connecting') {
-          subscribeRealtime()
-        }
-        // Si había error de fetch, recargar datos también
-        if (useSubmissionsStore.getState().error) {
-          useSubmissionsStore.getState().load(true)
-        }
-      }
-    }
-
-    // Reconectar si la conexión de red se restaura
-    const handleOnline = () => subscribeRealtime()
-
-    document.addEventListener('visibilitychange', handleVisibility)
-    window.addEventListener('online', handleOnline)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-      window.removeEventListener('online', handleOnline)
-      unsubscribeRealtime()
-    }
+    return () => { unsubscribeRealtime() }
   }, [])
 
   const refresh     = useCallback(() => load(true), [load])
