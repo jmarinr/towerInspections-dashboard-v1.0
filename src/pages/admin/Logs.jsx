@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Search, RefreshCw, Filter, X, ShieldAlert, LogIn, LogOut, UserPlus, UserCog, FileEdit, AlertCircle, Info } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
+import { useAdminStore } from '../../store/useAdminStore'
 
 // ── Configuración de tipos de evento ─────────────────────────────────────────
 const EVENT_META = {
@@ -107,9 +108,10 @@ function MetaDrawer({ log, onClose }) {
 const PAGE_SIZE = 50
 
 export default function Logs() {
-  const [logs,      setLogs]      = useState([])
-  const [loading,   setLoading]   = useState(false)
-  const [total,     setTotal]     = useState(0)
+  const logs       = useAdminStore(s => s.logs)
+  const loading    = useAdminStore(s => s.logsLoading)
+  const total      = useAdminStore(s => s.logsTotal)
+  const loadLogs   = useAdminStore(s => s.loadLogs)
   const [page,      setPage]      = useState(0)
   const [selected,  setSelected]  = useState(null)
 
@@ -119,29 +121,9 @@ export default function Logs() {
   const [filterSev,    setFilterSev]    = useState('all')
   const [filterUser,   setFilterUser]   = useState('')
 
-  const load = useCallback(async (pg = 0) => {
-    setLoading(true)
-    const t = setTimeout(() => setLoading(false), 15000)
-    try {
-      let q = supabase
-        .from('system_logs')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(pg * PAGE_SIZE, pg * PAGE_SIZE + PAGE_SIZE - 1)
-
-      if (filterType !== 'all') q = q.eq('event_type', filterType)
-      if (filterSev  !== 'all') q = q.eq('severity', filterSev)
-      if (filterUser)           q = q.ilike('user_email', `%${filterUser}%`)
-      if (search)               q = q.ilike('message', `%${search}%`)
-
-      const { data, count } = await q
-      setLogs(data || [])
-      setTotal(count || 0)
-    } catch { /* silencioso */ } finally {
-      clearTimeout(t)
-      setLoading(false)
-    }
-  }, [filterType, filterSev, filterUser, search])
+  const load = useCallback((pg = 0) => {
+    loadLogs({ page: pg, filterType, filterSev, filterUser, search, pageSize: PAGE_SIZE })
+  }, [filterType, filterSev, filterUser, search, loadLogs])
 
   useEffect(() => { setPage(0); load(0) }, [filterType, filterSev, filterUser])
 

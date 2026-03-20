@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Save, Info } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
+import { useAdminStore } from '../../store/useAdminStore'
 
 // Definición de permisos agrupados por categoría
 const PERMISSION_GROUPS = [
@@ -91,26 +92,15 @@ function Checkbox({ checked, locked, onChange }) {
 
 export default function Permissions() {
   // { 'admin:dashboard.view': true, 'supervisor:submissions.edit': false, ... }
-  const [matrix,  setMatrix]  = useState({})
-  const [loading, setLoading] = useState(false)
+  const matrix          = useAdminStore(s => s.permMatrix)
+  const loading         = useAdminStore(s => s.permLoading)
+  const setMatrix       = useAdminStore(s => s.setPermMatrix)
+  const loadPermissions = useAdminStore(s => s.loadPermissions)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
-  const [tooltip, setTooltip] = useState(null) // key del permiso con tooltip visible
+  const [tooltip, setTooltip] = useState(null)
 
-  const load = async () => {
-    setLoading(true)
-    const t = setTimeout(() => setLoading(false), 15000)
-    try {
-      const { data } = await supabase.from('role_permissions').select('role, permission, enabled')
-      const m = {}
-      ;(data || []).forEach(r => { m[`${r.role}:${r.permission}`] = r.enabled })
-      setMatrix(m)
-    } catch { /* silencioso */ } finally {
-      clearTimeout(t)
-      setLoading(false)
-    }
-  }
-  useEffect(() => { load() }, [])
+  useEffect(() => { loadPermissions() }, [])
 
   const toggle = (role, perm) => {
     const k = `${role}:${perm}`

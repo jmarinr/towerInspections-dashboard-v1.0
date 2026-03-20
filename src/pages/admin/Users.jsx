@@ -3,6 +3,7 @@ import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight } from 'luc
 import { supabase } from '../../lib/supabaseClient'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LOG } from '../../lib/logEvent'
+import { useAdminStore } from '../../store/useAdminStore'
 import Spinner from '../../components/ui/Spinner'
 
 const ROLE_META = {
@@ -205,29 +206,19 @@ function UserModal({ user, companies, onSave, onClose }) {
 
 export default function Users() {
   const currentUser = useAuthStore(s => s.user)
-  const [users,     setUsers]     = useState([])
-  const [companies, setCompanies] = useState([])
-  const [loading,   setLoading]   = useState(false)
+  const users        = useAdminStore(s => s.users)
+  const companies    = useAdminStore(s => s.companies)
+  const loading      = useAdminStore(s => s.usersLoading || s.companiesLoading)
+  const loadUsers    = useAdminStore(s => s.loadUsers)
+  const loadCompanies = useAdminStore(s => s.loadCompanies)
+  const invalidateUsers = useAdminStore(s => s.invalidateUsers)
+  const invalidateCompanies = useAdminStore(s => s.invalidateCompanies)
+
   const [modal,     setModal]     = useState(null)
   const [filterRole,    setFilterRole]    = useState('all')
   const [filterCompany, setFilterCompany] = useState('all')
 
-  const load = async () => {
-    setLoading(true)
-    const t = setTimeout(() => setLoading(false), 15000)
-    try {
-      const [{ data: u }, { data: c }] = await Promise.all([
-        supabase.from('app_users').select('*, companies(name, org_code)').order('full_name'),
-        supabase.from('companies').select('id, name, org_code').eq('active', true).order('name'),
-      ])
-      setUsers(u || [])
-      setCompanies(c || [])
-    } catch { /* silencioso */ } finally {
-      clearTimeout(t)
-      setLoading(false)
-    }
-  }
-  useEffect(() => { load() }, [])
+  useEffect(() => { loadUsers(); loadCompanies() }, [])
 
   const filtered = users.filter(u =>
     (filterRole    === 'all' || u.role       === filterRole)    &&
@@ -340,7 +331,7 @@ export default function Users() {
         <UserModal
           user={modal === 'new' ? null : modal}
           companies={companies}
-          onSave={()=>{ setModal(null); load() }}
+          onSave={()=>{ setModal(null); invalidateUsers(); invalidateCompanies(); loadUsers(true); loadCompanies(true) }}
           onClose={()=>setModal(null)}
         />
       )}

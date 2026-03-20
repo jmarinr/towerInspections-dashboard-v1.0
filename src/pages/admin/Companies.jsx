@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
+import { useAdminStore } from '../../store/useAdminStore'
 
 const COUNTRIES = ['CR','PA','MX','CO','PR','GT','SV','HN','NI','DO']
 
@@ -83,22 +84,13 @@ function CompanyModal({ company, onSave, onClose }) {
 }
 
 export default function Companies() {
-  const [companies, setCompanies] = useState([])
-  const [loading,   setLoading]   = useState(false)
-  const [modal,     setModal]     = useState(null) // null | 'new' | company-object
+  const companies          = useAdminStore(s => s.companies)
+  const loading            = useAdminStore(s => s.companiesLoading)
+  const loadCompanies      = useAdminStore(s => s.loadCompanies)
+  const invalidateCompanies = useAdminStore(s => s.invalidateCompanies)
+  const [modal, setModal]  = useState(null)
 
-  const load = async () => {
-    setLoading(true)
-    const t = setTimeout(() => setLoading(false), 15000)
-    try {
-      const { data } = await supabase.from('companies').select('*').order('name')
-      setCompanies(data || [])
-    } catch { /* silencioso */ } finally {
-      clearTimeout(t)
-      setLoading(false)
-    }
-  }
-  useEffect(() => { load() }, [])
+  useEffect(() => { loadCompanies() }, [])
 
   return (
     <div className="space-y-4">
@@ -173,7 +165,7 @@ export default function Companies() {
       {modal && (
         <CompanyModal
           company={modal === 'new' ? null : modal}
-          onSave={() => { setModal(null); load() }}
+          onSave={() => { setModal(null); invalidateCompanies(); loadCompanies(true) }}
           onClose={() => setModal(null)}
         />
       )}
