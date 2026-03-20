@@ -92,7 +92,7 @@ function Checkbox({ checked, locked, onChange }) {
 export default function Permissions() {
   // { 'admin:dashboard.view': true, 'supervisor:submissions.edit': false, ... }
   const [matrix,  setMatrix]  = useState({})
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [saving,  setSaving]  = useState(false)
   const [saved,   setSaved]   = useState(false)
   const [tooltip, setTooltip] = useState(null) // key del permiso con tooltip visible
@@ -101,8 +101,6 @@ export default function Permissions() {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setLoading(false); clearTimeout(t); return }
       const { data } = await supabase.from('role_permissions').select('role, permission, enabled')
       const m = {}
       ;(data || []).forEach(r => { m[`${r.role}:${r.permission}`] = r.enabled })
@@ -137,7 +135,7 @@ export default function Permissions() {
   const get = (role, perm) => matrix[`${role}:${perm}`] ?? false
   const isLocked = (role, perm) => LOCKED.has(`${role}:${perm}`)
 
-  if (loading) return <div className="flex justify-center py-20"><Spinner size={16}/></div>
+  if (loading && Object.keys(matrix).length === 0) return <div className="flex justify-center py-20"><Spinner size={16}/></div>
 
   return (
     <div className="space-y-5">

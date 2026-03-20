@@ -84,15 +84,13 @@ function CompanyModal({ company, onSave, onClose }) {
 
 export default function Companies() {
   const [companies, setCompanies] = useState([])
-  const [loading,   setLoading]   = useState(true)
+  const [loading,   setLoading]   = useState(false)
   const [modal,     setModal]     = useState(null) // null | 'new' | company-object
 
   const load = async () => {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setLoading(false); clearTimeout(t); return }
       const { data } = await supabase.from('companies').select('*').order('name')
       setCompanies(data || [])
     } catch { /* silencioso */ } finally {

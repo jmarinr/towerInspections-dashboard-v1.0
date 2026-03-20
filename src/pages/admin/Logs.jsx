@@ -108,7 +108,7 @@ const PAGE_SIZE = 50
 
 export default function Logs() {
   const [logs,      setLogs]      = useState([])
-  const [loading,   setLoading]   = useState(true)
+  const [loading,   setLoading]   = useState(false)
   const [total,     setTotal]     = useState(0)
   const [page,      setPage]      = useState(0)
   const [selected,  setSelected]  = useState(null)
@@ -123,9 +123,6 @@ export default function Logs() {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { setLoading(false); clearTimeout(t); return }
-
       let q = supabase
         .from('system_logs')
         .select('*', { count: 'exact' })
