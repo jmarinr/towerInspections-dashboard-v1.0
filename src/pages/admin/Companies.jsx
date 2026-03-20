@@ -91,6 +91,8 @@ export default function Companies() {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setLoading(false); clearTimeout(t); return }
       const { data } = await supabase.from('companies').select('*').order('name')
       setCompanies(data || [])
     } catch { /* silencioso */ } finally {

@@ -123,6 +123,9 @@ export default function Logs() {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setLoading(false); clearTimeout(t); return }
+
       let q = supabase
         .from('system_logs')
         .select('*', { count: 'exact' })

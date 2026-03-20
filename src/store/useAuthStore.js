@@ -20,7 +20,12 @@ export const useAuthStore = create((set, get) => ({
     // 2. Escuchar cambios de sesión (refresh, logout externo)
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        await get()._loadProfile(session.user.id, true) // true = login real, registrar log
+        // Solo registrar log en login real, no en token refresh automático
+        const wasAuthed = get().isAuthed
+        await get()._loadProfile(session.user.id, !wasAuthed)
+      } else if (event === 'TOKEN_REFRESHED') {
+        // Token refrescado automáticamente — no hacer nada, la sesión sigue activa
+        // No desmontar componentes, no cambiar isAuthed
       } else if (event === 'SIGNED_OUT') {
         set({ isAuthed: false, user: null, isLoading: false })
       }

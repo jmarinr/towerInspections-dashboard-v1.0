@@ -101,6 +101,8 @@ export default function Permissions() {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setLoading(false); clearTimeout(t); return }
       const { data } = await supabase.from('role_permissions').select('role, permission, enabled')
       const m = {}
       ;(data || []).forEach(r => { m[`${r.role}:${r.permission}`] = r.enabled })

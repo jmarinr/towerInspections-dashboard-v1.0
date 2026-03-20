@@ -216,6 +216,8 @@ export default function Users() {
     setLoading(true)
     const t = setTimeout(() => setLoading(false), 15000)
     try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) { setLoading(false); clearTimeout(t); return }
       const [{ data: u }, { data: c }] = await Promise.all([
         supabase.from('app_users').select('*, companies(name, org_code)').order('full_name'),
         supabase.from('companies').select('id, name, org_code').eq('active', true).order('name'),
