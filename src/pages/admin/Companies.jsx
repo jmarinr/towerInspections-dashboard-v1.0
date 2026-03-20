@@ -93,10 +93,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
                         style={{ border:sel?'2px solid #0284C7':'2px solid var(--border)', background:sel?'#0284C7':'transparent' }}>
                         {sel && <Check size={10} color="white" strokeWidth={3}/>}
                       </div>
-                      <span className="font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded flex-shrink-0"
-                        style={{ background:'#0284C714', color:'#0284C7' }}>{r.site_id}</span>
-                      <span className="text-[12px] th-text-p truncate">{r.name}</span>
-                      {r.lat && r.lng && <MapPin size={11} className="flex-shrink-0 th-text-m ml-auto"/>}
+                      <span className="text-[13px] th-text-p">{r.name}</span>
                     </button>
                   )
                 })}
@@ -192,7 +189,7 @@ export default function Companies() {
                         {c.company_regions.slice(0,3).map(cr=>(
                           <span key={cr.region_id} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold"
                             style={{ background:'#0284C714', color:'#0284C7' }}>
-                            <MapPin size={9}/>{cr.regions?.site_id}
+                            <MapPin size={9}/>{cr.regions?.name}
                           </span>
                         ))}
                         {c.company_regions.length>3 && <span className="text-[10px] th-text-m self-center">+{c.company_regions.length-3}</span>}

@@ -19,10 +19,7 @@ export const useAdminStore = create((set, get) => ({
         .select('*, companies(name, org_code)')
         .order('full_name')
       set({ users: data || [], usersLoaded: true })
-    } catch { } finally {
-      clearTimeout(t)
-      set({ usersLoading: false })
-    }
+    } catch { } finally { clearTimeout(t); set({ usersLoading: false }) }
   },
 
   // ── Companies ──────────────────────────────────────────────────────────────
@@ -38,16 +35,14 @@ export const useAdminStore = create((set, get) => ({
     try {
       const { data } = await supabase
         .from('companies')
-        .select('*, company_regions(region_id, regions(id, site_id, name))')
+        .select('*, company_regions(region_id, regions(id, name))')
         .order('name')
       set({ companies: data || [], companiesLoaded: true })
-    } catch { } finally {
-      clearTimeout(t)
-      set({ companiesLoading: false })
-    }
+    } catch { } finally { clearTimeout(t); set({ companiesLoading: false }) }
   },
 
   // ── Regions ────────────────────────────────────────────────────────────────
+  // Cada región trae sus sites y sus company_regions
   regions:        [],
   regionsLoading: false,
   regionsLoaded:  false,
@@ -60,19 +55,20 @@ export const useAdminStore = create((set, get) => ({
     try {
       const { data } = await supabase
         .from('regions')
-        .select('*, company_regions(company_id, companies(id, name, org_code))')
-        .order('site_id')
+        .select(`
+          *,
+          sites(id, site_id, name, lat, lng, height_m, province, active),
+          company_regions(company_id, companies(id, name, org_code))
+        `)
+        .order('name')
       set({ regions: data || [], regionsLoaded: true })
-    } catch { } finally {
-      clearTimeout(t)
-      set({ regionsLoading: false })
-    }
+    } catch { } finally { clearTimeout(t); set({ regionsLoading: false }) }
   },
 
   // ── Permissions ────────────────────────────────────────────────────────────
-  permMatrix:        {},
-  permLoading:       false,
-  permLoaded:        false,
+  permMatrix:  {},
+  permLoading: false,
+  permLoaded:  false,
 
   loadPermissions: async (force = false) => {
     if (get().permLoading) return
@@ -86,10 +82,7 @@ export const useAdminStore = create((set, get) => ({
       const m = {}
       ;(data || []).forEach(r => { m[`${r.role}:${r.permission}`] = r.enabled })
       set({ permMatrix: m, permLoaded: true })
-    } catch { } finally {
-      clearTimeout(t)
-      set({ permLoading: false })
-    }
+    } catch { } finally { clearTimeout(t); set({ permLoading: false }) }
   },
 
   setPermMatrix: (m) => set({ permMatrix: m }),
@@ -115,10 +108,7 @@ export const useAdminStore = create((set, get) => ({
       if (search)               q = q.ilike('message', `%${search}%`)
       const { data, count } = await q
       set({ logs: data || [], logsTotal: count || 0 })
-    } catch { } finally {
-      clearTimeout(t)
-      set({ logsLoading: false })
-    }
+    } catch { } finally { clearTimeout(t); set({ logsLoading: false }) }
   },
 
   // ── Invalidar cache ────────────────────────────────────────────────────────
