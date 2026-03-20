@@ -1,0 +1,198 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Design System — PTI Admin Panel
+   Paleta: Navy #0d2137 (sidebar siempre) · Sky Blue #0284C7 (acento)
+   Tipografía: Plus Jakarta Sans
+   Filas de actividad: blanco con borde (opción A)
+───────────────────────────────────────────────────────────────────────────── */
+
+/* ── Light theme ─────────────────────────────────────────────────────────── */
+:root, [data-theme="light"] {
+  --bg-base:        #f0f4f8;
+  --bg-card:        #ffffff;
+  --bg-input:       #ffffff;
+
+  --border:         #e2e8f0;
+  --border-light:   #f1f5f9;
+
+  --text-primary:   #0d2137;
+  --text-secondary: #4a6a8a;
+  --text-muted:     #7a8fa0;
+
+  /* Teal como acento principal */
+  --accent:         #0284C7;
+  --accent-light:   #e0f2fe;
+  --accent-text:    #0369a1;
+
+  --header-bg:      #ffffff;
+  --header-border:  #e2e8f0;
+
+  /* KPI card de acento — teal */
+  --stat-accent-bg:   #0284C7;
+  --stat-accent-text: #ffffff;
+  --stat-accent-sub:  rgba(255,255,255,0.65);
+
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+
+  /* ── Sidebar — SIEMPRE navy, independiente del tema ── */
+  --sidebar-bg:             #0d2137;
+  --sidebar-border:         transparent;
+  --sidebar-title:          #ffffff;
+  --sidebar-sub:            rgba(255,255,255,0.35);
+  --sidebar-divider:        rgba(255,255,255,0.08);
+  --sidebar-user-bg:        rgba(255,255,255,0.06);
+  --sidebar-user-name:      rgba(255,255,255,0.85);
+  --sidebar-user-role:      rgba(255,255,255,0.35);
+  --sidebar-nav-text:       rgba(255,255,255,0.45);
+  --sidebar-nav-active-bg:  rgba(2,132,199,0.15);
+  --sidebar-nav-active-text:#ffffff;
+  --sidebar-nav-hover-bg:   rgba(255,255,255,0.07);
+  --sidebar-action-text:    rgba(255,255,255,0.35);
+  --sidebar-action-hover:   rgba(255,255,255,0.75);
+  --sidebar-action-red:     #f87171;
+  --sidebar-version:        rgba(255,255,255,0.18);
+
+  /* ── Filas de actividad — blanco con borde (opción A) ── */
+  --row-bg:         #ffffff;
+  --row-border:     #e2e8f0;
+  --row-hover-bg:   #f8fafc;
+  --row-hover-border:#cbd5e1;
+
+  /* ── Section headers en vistas de detalle ── */
+  --section-hdr-bg:         #f1f5f9;
+  --section-hdr-text:       #0d2137;
+  --section-hdr-red-bg:     #fef2f2;
+  --section-hdr-red-text:   #b91c1c;
+  --section-hdr-slate-bg:   #f8fafc;
+  --section-hdr-slate-text: #334155;
+}
+
+/* ── Dark theme ──────────────────────────────────────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:        #0a1628;
+  --bg-card:        #111f33;
+  --bg-input:       #111f33;
+
+  --border:         #1e3350;
+  --border-light:   #162840;
+
+  --text-primary:   #e8eef5;
+  --text-secondary: #7a9ab8;
+  --text-muted:     #4a6a8a;
+
+  --accent:         #0284C7;
+  --accent-light:   rgba(2,132,199,0.12);
+  --accent-text:    #38bdf8;
+
+  --header-bg:      #0d2137;
+  --header-border:  #1e3350;
+
+  --stat-accent-bg:   #0369a1;
+  --stat-accent-text: #e0f2fe;
+  --stat-accent-sub:  rgba(230,250,248,0.6);
+
+  --shadow-card:    0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4);
+
+  /* Sidebar — mismo navy, algo más oscuro en dark */
+  --sidebar-bg:             #071525;
+  --sidebar-border:         transparent;
+  --sidebar-title:          #ffffff;
+  --sidebar-sub:            rgba(255,255,255,0.28);
+  --sidebar-divider:        rgba(255,255,255,0.06);
+  --sidebar-user-bg:        rgba(255,255,255,0.04);
+  --sidebar-user-name:      rgba(255,255,255,0.8);
+  --sidebar-user-role:      rgba(255,255,255,0.28);
+  --sidebar-nav-text:       rgba(255,255,255,0.38);
+  --sidebar-nav-active-bg:  rgba(2,132,199,0.18);
+  --sidebar-nav-active-text:#ffffff;
+  --sidebar-nav-hover-bg:   rgba(255,255,255,0.06);
+  --sidebar-action-text:    rgba(255,255,255,0.28);
+  --sidebar-action-hover:   rgba(255,255,255,0.65);
+  --sidebar-action-red:     #f87171;
+  --sidebar-version:        rgba(255,255,255,0.12);
+
+  /* Filas dark: card oscura con borde sutil */
+  --row-bg:          #111f33;
+  --row-border:      #1e3350;
+  --row-hover-bg:    #162840;
+  --row-hover-border:#2e4a6a;
+
+  --section-hdr-bg:         #162840;
+  --section-hdr-text:       #e8eef5;
+  --section-hdr-red-bg:     #7f1d1d;
+  --section-hdr-red-text:   #fecaca;
+  --section-hdr-slate-bg:   #1e3350;
+  --section-hdr-slate-text: #e8eef5;
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+html { height: 100dvh; }
+body {
+  min-height: 100dvh;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+  font-size: 14px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+#root { min-height: 100dvh; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+::selection { background: rgba(2,132,199,0.2); }
+:focus-visible { outline: 2px solid rgba(2,132,199,0.5); outline-offset: 1px; border-radius: 4px; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+.scrollbar-thin { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.08) transparent; }
+.scrollbar-thin::-webkit-scrollbar { height: 4px; width: 4px; }
+.scrollbar-thin::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.1); border-radius: 99px; }
+
+/* ── Theme-aware utility classes ─────────────────────────────────────────── */
+.th-bg-base  { background: var(--bg-base); }
+.th-bg-card  { background: var(--bg-card); }
+.th-bg-input { background: var(--bg-input); }
+.th-border   { border-color: var(--border); }
+.th-border-l { border-color: var(--border-light); }
+.th-text-p   { color: var(--text-primary); }
+.th-text-s   { color: var(--text-secondary); }
+.th-text-m   { color: var(--text-muted); }
+.th-divide > * + * { border-top: 1px solid var(--border-light); }
+.th-shadow   { box-shadow: var(--shadow-card); }
+
+/* ── Activity row (Opción A: blanco con borde) ───────────────────────────── */
+.activity-row {
+  background: var(--row-bg);
+  border: 1px solid var(--row-border);
+  border-radius: 8px;
+  padding: 10px 13px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.activity-row:hover {
+  background: var(--row-hover-bg);
+  border-color: var(--row-hover-border);
+}
+
+/* ── Sidebar nav active indicator ────────────────────────────────────────── */
+/* El borde derecho del item activo en la sidebar */
+a[aria-current="page"].sidebar-nav-link {
+  border-right: 2px solid var(--accent);
+}
+
+/* ── Score ring animation ────────────────────────────────────────────────── */
+.score-ring { transition: stroke-dashoffset 0.6s cubic-bezier(0.34,1.56,0.64,1); }
+
+/* ── Animations ──────────────────────────────────────────────────────────── */
+@keyframes fade-in  { from { opacity: 0 }                            to { opacity: 1 } }
+@keyframes slide-up { from { opacity: 0; transform: translateY(8px)} to { opacity: 1; transform: translateY(0) } }
+@keyframes slide-in { from { transform: translateX(-100%) }          to { transform: translateX(0) } }
+.animate-fade-in  { animation: fade-in  0.2s ease both; }
+.animate-slide-up { animation: slide-up 0.25s ease both; }
+.animate-slide-in { animation: slide-in 0.22s cubic-bezier(0.22,1,0.36,1) both; }
