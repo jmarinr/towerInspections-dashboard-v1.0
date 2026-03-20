@@ -246,7 +246,7 @@ export default function Shell({ children }) {
     }
   }, [])
 
-  const refresh     = useCallback(() => load(true), [load])
+  const refresh      = useCallback(() => load(true), [load])
   const handleLogout = useCallback(async () => {
     await logout()
     navigate('/login')
@@ -308,7 +308,7 @@ export default function Shell({ children }) {
             <button onClick={refresh} className="p-1.5 th-text-m"><RefreshCw size={13} /></button>
             {/* Logout visible directo en mobile */}
             <button
-              onClick={() => { if (window.confirm('¿Cerrar sesión?')) handleLogout() }}
+              onClick={handleLogout}
               className="p-1.5 rounded-md transition-colors"
               title="Cerrar sesión"
               style={{ color: 'var(--text-muted)' }}
