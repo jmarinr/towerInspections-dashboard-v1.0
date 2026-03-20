@@ -19,7 +19,7 @@ export const useAdminStore = create((set, get) => ({
         .select('*, companies(name, org_code)')
         .order('full_name')
       set({ users: data || [], usersLoaded: true })
-    } catch { /* silencioso */ } finally {
+    } catch { } finally {
       clearTimeout(t)
       set({ usersLoading: false })
     }
@@ -38,12 +38,34 @@ export const useAdminStore = create((set, get) => ({
     try {
       const { data } = await supabase
         .from('companies')
-        .select('*')
+        .select('*, company_regions(region_id, regions(id, site_id, name))')
         .order('name')
       set({ companies: data || [], companiesLoaded: true })
-    } catch { /* silencioso */ } finally {
+    } catch { } finally {
       clearTimeout(t)
       set({ companiesLoading: false })
+    }
+  },
+
+  // ── Regions ────────────────────────────────────────────────────────────────
+  regions:        [],
+  regionsLoading: false,
+  regionsLoaded:  false,
+
+  loadRegions: async (force = false) => {
+    if (get().regionsLoading) return
+    if (!force && get().regionsLoaded) return
+    set({ regionsLoading: true })
+    const t = setTimeout(() => set({ regionsLoading: false }), 15000)
+    try {
+      const { data } = await supabase
+        .from('regions')
+        .select('*, company_regions(company_id, companies(id, name, org_code))')
+        .order('site_id')
+      set({ regions: data || [], regionsLoaded: true })
+    } catch { } finally {
+      clearTimeout(t)
+      set({ regionsLoading: false })
     }
   },
 
@@ -64,7 +86,7 @@ export const useAdminStore = create((set, get) => ({
       const m = {}
       ;(data || []).forEach(r => { m[`${r.role}:${r.permission}`] = r.enabled })
       set({ permMatrix: m, permLoaded: true })
-    } catch { /* silencioso */ } finally {
+    } catch { } finally {
       clearTimeout(t)
       set({ permLoading: false })
     }
@@ -87,21 +109,20 @@ export const useAdminStore = create((set, get) => ({
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(page * pageSize, page * pageSize + pageSize - 1)
-
       if (filterType !== 'all') q = q.eq('event_type', filterType)
       if (filterSev  !== 'all') q = q.eq('severity', filterSev)
       if (filterUser)           q = q.ilike('user_email', `%${filterUser}%`)
       if (search)               q = q.ilike('message', `%${search}%`)
-
       const { data, count } = await q
       set({ logs: data || [], logsTotal: count || 0 })
-    } catch { /* silencioso */ } finally {
+    } catch { } finally {
       clearTimeout(t)
       set({ logsLoading: false })
     }
   },
 
-  // ── Invalidar cache (llamar después de mutaciones) ─────────────────────────
-  invalidateUsers:    () => set({ usersLoaded: false }),
+  // ── Invalidar cache ────────────────────────────────────────────────────────
+  invalidateUsers:     () => set({ usersLoaded: false }),
   invalidateCompanies: () => set({ companiesLoaded: false }),
+  invalidateRegions:   () => set({ regionsLoaded: false }),
 }))

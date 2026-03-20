@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, AlertCircle, Users, Building2, ShieldCheck, ScrollText } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, AlertCircle, Users, Building2, ShieldCheck, ScrollText, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
@@ -15,6 +15,7 @@ const NAV = [
 const NAV_ADMIN = [
   { to: '/admin/users',       icon: Users,       label: 'Usuarios' },
   { to: '/admin/companies',   icon: Building2,   label: 'Empresas' },
+  { to: '/admin/regions',     icon: MapPin,      label: 'Regiones' },
   { to: '/admin/permissions', icon: ShieldCheck, label: 'Permisos' },
   { to: '/admin/logs',        icon: ScrollText,  label: 'Logs' },
 ]

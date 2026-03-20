@@ -9,6 +9,7 @@ import SubmissionDetail from './pages/SubmissionDetail'
 import Companies from './pages/admin/Companies'
 import Users from './pages/admin/Users'
 import Permissions from './pages/admin/Permissions'
+import Regions from './pages/admin/Regions'
 import Logs from './pages/admin/Logs'
 import { useAuthStore } from './store/useAuthStore'
 import { useThemeStore } from './store/useThemeStore'
@@ -71,6 +72,7 @@ export default function App() {
       {/* Rutas de administración — solo admin */}
       <Route path="/admin/users"                  element={<AdminPage><Users /></AdminPage>} />
       <Route path="/admin/companies"              element={<AdminPage><Companies /></AdminPage>} />
+      <Route path="/admin/regions"                element={<AdminPage><Regions /></AdminPage>} />
       <Route path="/admin/permissions"            element={<AdminPage><Permissions /></AdminPage>} />
       <Route path="/admin/logs"                   element={<AdminPage><Logs /></AdminPage>} />
 
