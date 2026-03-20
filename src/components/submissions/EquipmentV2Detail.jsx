@@ -44,15 +44,16 @@ function Panel({ icon: Icon, title, badge, accent = '#0284C7', ghostNum, childre
 // ── Site info grid ────────────────────────────────────────────────────────────
 function SiteInfoGrid({ info }) {
   if (!info) return null
-  const mono = ['Latitud','Longitud','Altura Torre','Fecha Inicio','Fecha Término']
+  const mono = ['Latitud','Longitud','Altura (m)','Fecha Inicio','Fecha Término']
   const fields = [
+    ['N° Orden',        v(info.numeroOrden)],
     ['ID Sitio',        v(info.idSitio)],
     ['Nombre Sitio',    v(info.nombreSitio)],
-    ['Tipo de Visita',  v(info.tipoVisita || info.tipoSitio)],
+    ['Tipo de Visita',  v(info.tipoVisita)],
     ['Proveedor',       v(info.proveedor)],
     ['Fecha Inicio',    v(info.fechaInicio || info.fecha)],
     ['Fecha Término',   v(info.fechaTermino)],
-    ['Altura Torre',    v(info.alturaTorre || info.altura)],
+    ['Altura (m)',      v(info.alturaMts || info.alturaTorre || info.altura)],
     ['Tipo Sitio',      v(info.tipoSitio)],
     ['Tipo Estructura', v(info.tipoEstructura || info.tipoTorre)],
     ['Dirección',       v(info.direccion)],
@@ -75,45 +76,79 @@ function SiteInfoGrid({ info }) {
 // ── Inventory table ───────────────────────────────────────────────────────────
 function InventoryTable({ items, accent = '#DC2626' }) {
   const empty = !items || items.length === 0
-  const area = (a, b) => { const x = parseFloat(a), y = parseFloat(b); return Number.isFinite(x) && Number.isFinite(y) ? (x*y).toFixed(4) : '—' }
+
+  // Fix 5: cálculo de área correcto según tipo de equipo
+  const calcArea = (alto, ancho, tipoEquipo) => {
+    if (tipoEquipo === 'MW') {
+      const d = parseFloat(alto)
+      if (Number.isFinite(d) && d > 0) return (Math.PI * Math.pow(d / 2, 2)).toFixed(4)
+      return '—'
+    }
+    const a = parseFloat(alto), b = parseFloat(ancho)
+    return Number.isFinite(a) && Number.isFinite(b) ? (a * b).toFixed(4) : '—'
+  }
+
   const TH = ({ children, center }) => (
     <th className={`px-3 py-2.5 text-[9.5px] font-bold uppercase tracking-[0.07em] whitespace-nowrap ${center ? 'text-center' : 'text-left'}`}
       style={{ color: 'var(--text-muted)', borderBottom: `2px solid ${accent}`, background: 'var(--bg-base)' }}>
       {children}
     </th>
   )
+  const dash = <span style={{ color: 'var(--text-muted)' }}>—</span>
+
   return (
     <div className="overflow-x-auto rounded-xl" style={{ border: '1px solid var(--border)' }}>
-      <table className="min-w-[800px] w-full text-[12px] border-collapse">
+      <table className="min-w-[900px] w-full text-[12px] border-collapse">
         <thead>
           <tr>
+            {/* Fix 2: columnas correctas igual que el inspector */}
             <TH>Altura (m)</TH><TH>Orientación</TH><TH>Tipo Antena / Equipo</TH>
-            <TH center>Cant.</TH><TH center>Alto</TH><TH center>Ancho</TH><TH center>Profund.</TH>
+            <TH center>Cant.</TH><TH center>Alto</TH><TH center>Diám.</TH>
+            <TH center>Ancho</TH><TH center>Prof.</TH>
             <TH center>Área M²</TH><TH>Carrier</TH><TH>Comentario</TH>
           </tr>
         </thead>
         <tbody>
           {empty ? (
-            <tr><td colSpan={10} className="px-4 py-8 text-center text-[12px] italic" style={{ color: 'var(--text-muted)' }}>Sin equipos registrados</td></tr>
-          ) : items.map((row, i) => (
-            <tr key={i} style={{ background: i%2===0 ? 'var(--bg-card)' : 'var(--bg-base)', borderTop: '1px solid var(--border-light)' }}>
-              <td className="px-3 py-2.5 font-mono font-bold text-[12px]" style={{ color: accent }}>{vd(row.alturaMts)}</td>
-              <td className="px-3 py-2.5" style={{ color: 'var(--text-secondary)' }}>{vd(row.orientacion)}</td>
-              <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>{vd(row.tipoEquipo)}</td>
-              <td className="px-3 py-2.5 text-center font-mono" style={{ color: 'var(--text-secondary)' }}>{vd(row.cantidad)}</td>
-              <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{vd(row.alto)}</td>
-              <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{vd(row.ancho)}</td>
-              <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>{vd(row.profundidad)}</td>
-              <td className="px-3 py-2.5 text-center font-mono text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{area(row.alto,row.ancho)}</td>
-              <td className="px-3 py-2.5">
-                {v(row.carrier) && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold"
-                    style={{ background: `${accent}12`, color: accent }}>{row.carrier}</span>
-                )}
-              </td>
-              <td className="px-3 py-2.5 text-[11px] max-w-[120px] truncate" style={{ color: 'var(--text-muted)' }}>{vd(row.comentario)}</td>
-            </tr>
-          ))}
+            <tr><td colSpan={11} className="px-4 py-8 text-center text-[12px] italic" style={{ color: 'var(--text-muted)' }}>Sin equipos registrados</td></tr>
+          ) : items.map((row, i) => {
+            const isMW = row.tipoEquipo === 'MW'
+            return (
+              <tr key={i} style={{ background: i%2===0 ? 'var(--bg-card)' : 'var(--bg-base)', borderTop: '1px solid var(--border-light)' }}>
+                <td className="px-3 py-2.5 font-mono font-bold text-[12px]" style={{ color: accent }}>{vd(row.alturaMts)}</td>
+                <td className="px-3 py-2.5" style={{ color: 'var(--text-secondary)' }}>{vd(row.orientacion)}</td>
+                <td className="px-3 py-2.5 font-medium" style={{ color: 'var(--text-primary)' }}>{vd(row.tipoEquipo)}</td>
+                <td className="px-3 py-2.5 text-center font-mono" style={{ color: 'var(--text-secondary)' }}>{vd(row.cantidad)}</td>
+                {/* Fix 3: Alto solo para no-MW */}
+                <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  {isMW ? dash : vd(row.alto)}
+                </td>
+                {/* Fix 3: Diám. solo para MW (usa campo alto) */}
+                <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  {isMW ? vd(row.alto) : dash}
+                </td>
+                {/* Ancho solo para no-MW */}
+                <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  {isMW ? dash : vd(row.ancho)}
+                </td>
+                {/* Prof. solo para no-MW */}
+                <td className="px-3 py-2.5 text-center font-mono text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+                  {isMW ? dash : vd(row.profundidad)}
+                </td>
+                {/* Fix 5: área con cálculo correcto */}
+                <td className="px-3 py-2.5 text-center font-mono text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  {calcArea(row.alto, row.ancho, row.tipoEquipo)}
+                </td>
+                <td className="px-3 py-2.5">
+                  {v(row.carrier) && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold"
+                      style={{ background: `${accent}12`, color: accent }}>{row.carrier}</span>
+                  )}
+                </td>
+                <td className="px-3 py-2.5 text-[11px] max-w-[120px] truncate" style={{ color: 'var(--text-muted)' }}>{vd(row.comentario)}</td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

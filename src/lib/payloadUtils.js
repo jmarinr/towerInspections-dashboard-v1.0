@@ -349,7 +349,7 @@ function buildEquipmentPayload(data) {
 
   const siteLabels = {
     proveedor: 'Proveedor', tipoVisita: 'Tipo de Visita', idSitio: 'ID del Sitio',
-    nombreSitio: 'Nombre del Sitio', fechaInicio: 'Fecha de Inicio', direccion: 'Dirección',
+    nombreSitio: 'Nombre del Sitio', direccion: 'Dirección',
     alturaMts: 'Altura (m)', tipoSitio: 'Tipo de Sitio', tipoEstructura: 'Tipo de Estructura',
     latitud: 'Latitud', longitud: 'Longitud',
   }

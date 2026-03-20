@@ -75,6 +75,8 @@ export const groundingSystemTestConfig = {
         { id: 'equipoModelo', label: 'Modelo', type: 'text', placeholder: 'Ej: 1625-2' },
         { id: 'equipoSerial', label: 'Serial', type: 'text', placeholder: 'Número de serie' },
         { id: 'equipoCalibracion', label: 'Fecha de calibración', type: 'date' },
+        { id: 'fotoConexionTelurometro', label: 'Foto - Conexión telurómetro al sistema de tierra', type: 'photo' },
+        { id: 'fotoElectrodoCorriente', label: 'Foto - Conexión del electrodo de corriente', type: 'photo' },
       ],
     },
     {
@@ -100,8 +102,6 @@ export const groundingSystemTestConfig = {
       title: 'Evidencia fotográfica',
       description: 'Tome fotos por punto de medición.',
       fields: [
-        { id: 'fotoConexionTelurometro', label: 'Foto - Conexión telurómetro al sistema de tierra', type: 'photo' },
-        { id: 'fotoElectrodoCorriente', label: 'Foto - Conexión del electrodo de corriente', type: 'photo' },
         { id: 'fotoObservaciones', label: 'Foto - Observaciones', type: 'photo' },
         { id: 'fotoPataTorre', label: 'Foto - Pata de la torre', type: 'photo' },
         { id: 'fotoCerramiento', label: 'Foto - Cerramiento', type: 'photo' },
