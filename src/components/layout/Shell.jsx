@@ -247,9 +247,12 @@ export default function Shell({ children }) {
   }, [])
 
   const refresh      = useCallback(() => load(true), [load])
-  const handleLogout = useCallback(async () => {
-    await logout()
+  const handleLogout = useCallback(() => {
+    // Limpiar estado local inmediatamente — no esperar a Supabase
+    useAuthStore.setState({ isAuthed: false, user: null, isLoading: false })
     navigate('/login')
+    // signOut en background — no bloqueamos la navegación
+    logout().catch(() => {})
   }, [logout, navigate])
 
   const pageTitle = NAV.find(n => location.pathname.startsWith(n.to))?.label || ''
