@@ -145,9 +145,10 @@ export default function Orders() {
         }} />
       )}
 
-      {isLoading && <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>}
+      {/* Loading — solo si no hay datos todavía */}
+      {isLoading && filtered.length === 0 && <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>}
 
-      {!isLoading && filtered.length > 0 && (
+      {filtered.length > 0 && (
         <div className="rounded-2xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
           <table className="w-full text-left border-collapse">
             <thead>

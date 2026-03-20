@@ -223,10 +223,12 @@ export default function Shell({ children }) {
 
     const interval = setInterval(poll, 30000)
 
-    // Re-pollear al volver al tab si pasaron más de 15s
+    // Re-pollear al volver al tab si pasaron más de 15s y no hay carga en curso
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        const last = useSubmissionsStore.getState().lastFetch
+        const s = useSubmissionsStore.getState()
+        if (s.isLoading) return  // ya hay una carga en curso, no interferir
+        const last = s.lastFetch
         if (!last || Date.now() - last > 15000) poll()
       }
     }

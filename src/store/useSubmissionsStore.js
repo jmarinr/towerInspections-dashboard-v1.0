@@ -21,12 +21,17 @@ export const useSubmissionsStore = create((set, get) => ({
   load: async (force = false) => {
     const state = get()
     const isEmpty = state.submissions.length === 0
+    // Guard: no iniciar si ya hay una carga en curso
+    if (state.isLoading) return
     if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
-    set({ isLoading: true, error: null })
+
+    // Si ya hay datos, no mostrar spinner — refrescar en background silenciosamente
+    const showSpinner = isEmpty
+    set({ isLoading: showSpinner, error: null })
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {
-        set({ isLoading: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+        set({ isLoading: false, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
       }
     }, 20000)
 
@@ -99,10 +104,13 @@ export const useSubmissionsStore = create((set, get) => ({
   isLoadingStats:  false,
 
   loadStats: async () => {
-    set({ isLoadingStats: true })
+    // Guard: no iniciar si ya hay una carga en curso
+    if (get().isLoadingStats) return
+    const hasStats = !!get().stats
+    set({ isLoadingStats: !hasStats }) // spinner solo si no hay stats previas
     const timeout = setTimeout(() => {
       if (get().isLoadingStats) {
-        set({ isLoadingStats: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+        set({ isLoadingStats: false })
       }
     }, 20000)
     try {

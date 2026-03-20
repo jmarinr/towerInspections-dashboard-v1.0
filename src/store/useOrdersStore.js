@@ -12,12 +12,15 @@ export const useOrdersStore = create((set, get) => ({
   load: async (force = false) => {
     const state = get()
     const isEmpty = state.orders.length === 0
+    if (state.isLoading) return
     if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
-    set({ isLoading: true, error: null })
+
+    const showSpinner = isEmpty
+    set({ isLoading: showSpinner, error: null })
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {
-        set({ isLoading: false, error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+        set({ isLoading: false, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
       }
     }, 20000)
 
