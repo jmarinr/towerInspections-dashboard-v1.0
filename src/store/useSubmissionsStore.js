@@ -45,7 +45,6 @@ export const useSubmissionsStore = create((set, get) => ({
       const newItems = data.filter(s => !prevIds.has(s.id))
       if (newItems.length > 0) {
         set({ lastRealtimeEvent: { type: 'INSERT', id: newItems[0].id, ts: Date.now() } })
-        // Loggear nuevos formularios detectados por polling
         newItems.forEach(s => {
           const site = s.site || {}
           logEvent({
@@ -55,6 +54,13 @@ export const useSubmissionsStore = create((set, get) => ({
             metadata: { submission_id: s.id, form_code: s.form_code, site_name: site.nombreSitio, org_code: s.org_code },
           })
         })
+      }
+
+      // Detectar cambios de estado finalized en submissions existentes
+      const prevMap = Object.fromEntries(prev.map(s => [s.id, s]))
+      const finalized = data.filter(s => prevMap[s.id] && !prevMap[s.id].finalized && s.finalized)
+      if (finalized.length > 0) {
+        set({ lastRealtimeEvent: { type: 'UPDATE', id: finalized[0].id, ts: Date.now() } })
       }
 
       set({ submissions: data, isLoading: false, lastFetch: Date.now(), error: null })

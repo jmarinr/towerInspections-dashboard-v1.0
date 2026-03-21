@@ -3,7 +3,7 @@ import { useNavigate, useParams, Link } from 'react-router-dom'
 import {
   ArrowLeft, Download, ExternalLink, X, ChevronDown, ChevronRight,
   Camera, MapPin, Calendar, User2, CheckCircle2, AlertTriangle, XCircle,
-  Minus, Clock, Eye, Pencil, Save, RotateCcw, History, ShieldCheck, Upload,
+  Minus, Clock, Eye, Pencil, Save, RotateCcw, History, ShieldCheck, Upload, RefreshCw,
 } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
@@ -550,7 +550,10 @@ export default function SubmissionDetail() {
     if (!submissionId) return
     setTimedOut(false)
     loadDetail(submissionId)
-    const t = setTimeout(() => setTimedOut(true), 10000)
+    // Forzar refresh de la lista en background para que al volver el estado sea actual
+    useSubmissionsStore.getState().load(true)
+    useSubmissionsStore.setState({ error: null })
+    const t = setTimeout(() => setTimedOut(true), 20000)
     return () => { clearDetail(); clearTimeout(t) }
   }, [submissionId])
 
@@ -832,6 +835,15 @@ export default function SubmissionDetail() {
           <button onClick={() => navigate(-1)}
             className="text-[13px] th-text-m hover:th-text-p flex items-center gap-1 transition-colors">
             <ArrowLeft size={15}/> Volver
+          </button>
+
+          {/* Botón para forzar reload del submission desde Supabase */}
+          <button
+            onClick={() => { useSubmissionsStore.getState().load(true); loadDetail(submissionId) }}
+            className="h-7 px-2.5 text-[11px] rounded-lg flex items-center gap-1 transition-colors th-text-m"
+            style={{ border: '1px solid var(--border)', background: 'var(--bg-base)' }}
+            title="Actualizar datos desde el servidor">
+            <RefreshCw size={11}/> Actualizar
           </button>
 
           <div className="flex items-center gap-2 flex-wrap">
