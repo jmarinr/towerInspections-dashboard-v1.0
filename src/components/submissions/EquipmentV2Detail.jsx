@@ -45,6 +45,16 @@ function Panel({ icon: Icon, title, badge, accent = '#0284C7', ghostNum, childre
 function SiteInfoGrid({ info }) {
   if (!info) return null
   const mono = ['Latitud','Longitud','Altura (m)','Fecha Inicio','Fecha Término']
+
+  // Parsear coordenadas si vienen como string "lat, lng"
+  let lat = v(info.latitud)
+  let lng = v(info.longitud)
+  if (!lat && info.coordenadas) {
+    const parts = String(info.coordenadas).split(',').map(p => p.trim())
+    if (parts.length >= 2) { lat = parts[0]; lng = parts[1] }
+    else lat = info.coordenadas
+  }
+
   const fields = [
     ['N° Orden',        v(info.numeroOrden)],
     ['ID Sitio',        v(info.idSitio)],
@@ -57,8 +67,8 @@ function SiteInfoGrid({ info }) {
     ['Tipo Sitio',      v(info.tipoSitio)],
     ['Tipo Estructura', v(info.tipoEstructura || info.tipoTorre)],
     ['Dirección',       v(info.direccion)],
-    ['Latitud',         v(info.latitud || info.coordenadas)],
-    ['Longitud',        v(info.longitud)],
+    ['Latitud',         lat],
+    ['Longitud',        lng],
   ].filter(([, val]) => val)
 
   return (

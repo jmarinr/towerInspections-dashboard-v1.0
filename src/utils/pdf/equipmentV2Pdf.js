@@ -236,11 +236,12 @@ class PageBuilder {
   // ── Info block (Datos del Sitio, 2-col layout) ────────────────────────────
   drawSiteInfoBlock(data) {
     const rows = [
-      ['ID Sitio:',       s(data.idSitio),      'Altura (Mts):',     s(data.alturaTorre)],
-      ['Nombre Sitio:',   s(data.nombreSitio),   'Tipo Sitio:',       s(data.tipoSitio)],
-      ['Fecha Inicio:',   s(data.fechaInicio),   'Tipo Estructura:',  s(data.tipoEstructura || data.tipoTorre)],
-      ['Fecha Termino:',  s(data.fechaTermino),  'Latitud:',          s(data.latitud || data.coordenadas)],
-      ['Direccion:',      s(data.direccion),     'Longitud:',         s(data.longitud)],
+      ['N. Orden:',      s(data.numeroOrden),   'Altura (Mts):',     s(data.alturaTorre)],
+      ['ID Sitio:',      s(data.idSitio),        'Tipo Sitio:',       s(data.tipoSitio)],
+      ['Nombre Sitio:',  s(data.nombreSitio),    'Tipo Estructura:',  s(data.tipoEstructura || data.tipoTorre)],
+      ['Fecha Inicio:',  s(data.fechaInicio),    'Latitud:',          s(data.latitud)],
+      ['Fecha Termino:', s(data.fechaTermino),   'Longitud:',         s(data.longitud)],
+      ['Direccion:',     s(data.direccion),      '',                  ''],
     ]
     const h = 13, half = CW / 2
     const LBL = 70, VAL_MAX = half - LBL - 6
@@ -314,17 +315,25 @@ class PageBuilder {
     // Data rows
     const rowH = 16
     const list = items && items.length ? items : []
-    const areaFn = (alto, ancho) => {
+    const areaFn = (alto, ancho, tipoEquipo) => {
+      if (tipoEquipo === 'MW') {
+        const d = parseFloat(alto)
+        if (Number.isFinite(d) && d > 0) return (Math.PI * Math.pow(d / 2, 2)).toFixed(4)
+        return ''
+      }
       const a = parseFloat(alto), b = parseFloat(ancho)
       return Number.isFinite(a) && Number.isFinite(b) ? (a * b).toFixed(4) : ''
     }
 
     for (const row of list) {
       this.checkSpace(rowH)
+      const isMW = row.tipoEquipo === 'MW'
       const rowValues = [
         s(row.alturaMts), s(row.orientacion), s(row.tipoEquipo), s(row.cantidad),
-        s(row.alto), s(row.ancho), s(row.profundidad),
-        areaFn(row.alto, row.ancho),
+        isMW ? ''         : s(row.alto),       // Alto — vacío para MW
+        isMW ? s(row.alto): '',                // Diám/Ancho col — muestra alto como diámetro para MW
+        isMW ? ''         : s(row.profundidad),
+        areaFn(row.alto, row.ancho, row.tipoEquipo),
         s(row.carrier), s(row.comentario),
       ]
       this.page.drawRectangle({ x: ML, y: this.y - rowH, width: CW, height: rowH, borderColor: C.border, borderWidth: 0.3 })
@@ -728,19 +737,29 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
 
   ])
 
+  // Parsear coordenadas si vienen como string "lat, lng"
+  let _lat = siteInfo.latitud || ''
+  let _lng = siteInfo.longitud || ''
+  if (!_lat && siteInfo.coordenadas) {
+    const parts = String(siteInfo.coordenadas).split(',').map(p => p.trim())
+    if (parts.length >= 2) { _lat = parts[0]; _lng = parts[1] }
+    else _lat = siteInfo.coordenadas
+  }
+
   const p = new PageBuilder(doc, font, fontBold, logo)
   const siteHeaderData = {
+    numeroOrden:    siteInfo.numeroOrden    || '',
     proveedor:      siteInfo.proveedor      || '',
     tipoVisita:     siteInfo.tipoVisita     || siteInfo.tipoSitio || '',
     idSitio:        siteInfo.idSitio        || '',
     nombreSitio:    siteInfo.nombreSitio    || '',
     fechaInicio:    siteInfo.fechaInicio    || siteInfo.fecha || '',
     fechaTermino:   siteInfo.fechaTermino   || '',
-    alturaTorre:    siteInfo.alturaTorre    || siteInfo.altura || '',
+    alturaTorre:    siteInfo.alturaMts      || siteInfo.alturaTorre || siteInfo.altura || '',
     tipoSitio:      siteInfo.tipoSitio      || '',
     tipoEstructura: siteInfo.tipoEstructura || siteInfo.tipoTorre || '',
-    latitud:        siteInfo.latitud        || '',
-    longitud:       siteInfo.longitud       || '',
+    latitud:        _lat,
+    longitud:       _lng,
     direccion:      siteInfo.direccion      || '',
     coordenadas:    siteInfo.coordenadas    || '',
   }
@@ -825,6 +844,52 @@ export async function generateEquipmentV2Pdf(submission, photoMap = {}) {
 
 
   // ── Finalize ──────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGES — Carriers (uno por sección, tabla + 3 fotos c/u)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (carriers.length > 0) {
+    // Prefetch fotos de carriers
+    const carrierImgs = []
+    for (let ci = 0; ci < carriers.length; ci++) {
+      const f1 = allPhotos[`carrier:${ci}:foto1`]
+      const f2 = allPhotos[`carrier:${ci}:foto2`]
+      const f3 = allPhotos[`carrier:${ci}:foto3`]
+      carrierImgs.push([
+        f1 ? await fetchImg(doc, f1) : null,
+        f2 ? await fetchImg(doc, f2) : null,
+        f3 ? await fetchImg(doc, f3) : null,
+      ])
+    }
+
+    for (let ci = 0; ci < carriers.length; ci++) {
+      const carrier = carriers[ci]
+      const nombre  = s(carrier.nombre || `Carrier ${ci + 1}`)
+
+      p._drawFooter()
+      p.page = doc.addPage([PW, PH])
+      p.pageNum++
+      p.y = PH - MT
+      p._miniHeader(siteHeaderData)
+
+      p.darkSubheader(`CARRIER: ${nombre}`)
+
+      // Tabla de items del carrier (misma estructura que torre)
+      p.redSubheader('INVENTARIO DE EQUIPOS EN TORRE')
+      p.drawTorreTable(carrier.items || [])
+
+      // 3 fotos del carrier
+      const [img1, img2, img3] = carrierImgs[ci]
+      if (img1 || img2 || img3) {
+        p.checkSpace(120)
+        await p.drawPhotoRow(
+          [img1, img2, img3],
+          [`Foto 1 — ${nombre}`, `Foto 2 — ${nombre}`, `Foto 3 — ${nombre}`],
+          Math.min(p.y - MB - 20, 140)
+        )
+      }
+    }
+  }
+
   p._drawFooter()
   const bytes = await doc.save()
   return new Blob([bytes], { type: 'application/pdf' })
