@@ -541,9 +541,13 @@ export function groupAssetsBySection(assets, formCode) {
     let label = type
 
     // ── Mantenimiento Preventivo ──
-    if (fc === 'mantenimiento' || fc.includes('preventive-maintenance')) {
-      const itemId = parts[1] || ''
-      const photoType = parts[2] || 'photo'
+    if (fc === 'mantenimiento' || fc === 'preventive-maintenance' || fc.includes('preventive-maintenance')) {
+      // asset_type puede venir de dos formas:
+      //   Sin prefijo:  'fotoTorre' | 'fotoGPS' | 'fotoCandado' | 'firmaProveedor'  (DynamicForm)
+      //   Con prefijo:  'maintenance:itemId:before|after'  (InspectionChecklist)
+      const hasMaintPrefix = parts[0] === 'maintenance'
+      const itemId   = hasMaintPrefix ? (parts[1] || '') : (parts.length === 1 ? parts[0] : (parts[1] || ''))
+      const photoType = hasMaintPrefix ? (parts[2] || 'photo') : 'photo'
 
       if (itemId === 'fotoTorre') {
         sectionTitle = '🗼 Información de la Torre'; label = 'Foto de la Torre'

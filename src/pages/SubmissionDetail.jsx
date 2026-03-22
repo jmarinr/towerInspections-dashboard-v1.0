@@ -172,7 +172,7 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
 // ─────────────────────────────────────────────────────────────
 // SECTION CARD  (read + edit modes)
 // ─────────────────────────────────────────────────────────────
-function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload }) {
+function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload, allowUpload = false }) {
   const [open, setOpen] = useState(true)
 
   const isCL  = Array.isArray(data) && data.some(d => d?.['Estado'])
@@ -368,10 +368,10 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
           )}
 
           {/* ── Fotos ──────────────────────────────────────────── */}
-          {(photoCount > 0 || editMode) && (
+          {(photoCount > 0 || (editMode && allowUpload)) && (
             <div className={fieldEntries.length > 0 || isCL ? 'mt-3 pt-3' : 'mt-3'}
               style={fieldEntries.length > 0 || isCL ? { borderTop: '1px solid var(--border-light)' } : {}}>
-              <PhotoGallery photos={photos} editMode={editMode} onUpload={onPhotoUpload} />
+              <PhotoGallery photos={photos} editMode={editMode && allowUpload} onUpload={onPhotoUpload} />
             </div>
           )}
         </div>
@@ -777,6 +777,60 @@ export default function SubmissionDetail() {
     }
   }
 
+  // Secciones que realmente tienen fotos por tipo de formulario
+  // (basado en los campos type:'photo' de cada config del inspector)
+  const PHOTO_SECTIONS = {
+    // Mantenimiento Preventivo — secciones con fotos del app
+    'preventive-maintenance': [
+      // DynamicForm (sin prefijo)
+      '🗼 información de la torre',
+      '🔑 acceso al sitio',
+      '📝 cierre',
+      // InspectionChecklist (11 pasos — títulos exactos del config)
+      '🚪 inspección - acceso',
+      '🔒 inspección - seguridad',
+      '⚡ inspección - sistema de tierras',
+      '🔌 inspección - sistema eléctrico',
+      '🏗️ inspección - sitio en general',
+      '🔩 inspección - miembros de torre',
+      '🎨 inspección - acabado',
+      '💡 inspección - luces de torre',
+      '⚡ inspección - tierras en torre',
+      '🔗 inspección - retenidas',
+      '🧱 inspección - cimentación',
+    ],
+    // Inspección General — solo dos secciones tienen fotos
+    'inspection-general': ['🚪 acceso', '🔒 seguridad'],
+    // Puesta a Tierra
+    'grounding-system-test': ['⚡ equipo de medición', '⚡ evidencia fotográfica'],
+    // Sistema de Ascenso — platinas NO tiene fotos en el app
+    'safety-system': [
+      '🧗 herrajes y cable',
+      '🧗 prensacables y carro',
+      '🧗 tramos (escaleras)',
+      '🧗 certificación',
+    ],
+    // PM Ejecutado — todas las actividades tienen fotos antes/después
+    'executed-maintenance': null,
+    // Inventario v1
+    'equipment': null,
+    // equipment-v2 usa componente propio (EquipmentV2Detail), no pasa por SectionCard
+  }
+
+  const fc = normalizeFormCode(submission?.form_code || '')
+  const allowedSections = PHOTO_SECTIONS[fc] // undefined = no mapeado, null = todas
+
+  const sectionAllowsUpload = (title) => {
+    if (allowedSections === null) return true   // todas las secciones
+    if (!allowedSections) {
+      // No mapeado — permitir solo si ya tiene fotos
+      return false
+    }
+    const t = title.replace(/^[^\w]*/, '').trim().toLowerCase()
+    return allowedSections.some(s => t.includes(s.replace(/^[^\w]*/, '').trim().toLowerCase()) ||
+                                     s.replace(/^[^\w]*/, '').trim().toLowerCase().includes(t))
+  }
+
   // Photo matching
   const findPhotos = (title) => {
     if (photosBySection[title]) return photosBySection[title]
@@ -1002,6 +1056,7 @@ export default function SubmissionDetail() {
                 pendingEdits={pendingEdits}
                 onFieldChange={handleFieldChange}
                 onPhotoUpload={(file) => handlePhotoUpload(file, t)}
+                allowUpload={sectionAllowsUpload(t)}
               />
             ))}
 
