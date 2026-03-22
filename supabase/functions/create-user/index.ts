@@ -1,7 +1,4 @@
 // supabase/functions/create-user/index.ts
-// Edge Function — corre en el servidor de Supabase con acceso a service_role
-// Desplegar con: supabase functions deploy create-user
-
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -11,48 +8,50 @@ const corsHeaders = {
 }
 
 Deno.serve(async (req) => {
-  // Preflight CORS
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    // 1. Verificar que quien llama es admin
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
+    // Admin client con service role
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
+
+    // Verificar que quien llama es admin via JWT
+    const authHeader = req.headers.get('Authorization') ?? ''
+    const token = authHeader.replace('Bearer ', '').trim()
+
+    if (!token) {
       return new Response(JSON.stringify({ error: 'No autorizado' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Cliente con anon key para verificar la sesión del llamador
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
-    )
+    // Obtener usuario del token usando service role
+    const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
 
-    // Verificar que el usuario llamador existe y es admin
-    const { data: { user: caller } } = await supabaseClient.auth.getUser()
-    if (!caller) {
-      return new Response(JSON.stringify({ error: 'Sesión inválida' }), {
+    if (authError || !caller) {
+      return new Response(JSON.stringify({ error: 'Token inválido' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    const { data: callerProfile } = await supabaseClient
+    // Verificar rol admin en app_users
+    const { data: callerProfile } = await supabaseAdmin
       .from('app_users')
       .select('role')
       .eq('id', caller.id)
       .single()
 
-    if (callerProfile?.role !== 'admin') {
+    if (!callerProfile || callerProfile.role !== 'admin') {
       return new Response(JSON.stringify({ error: 'Solo admins pueden crear usuarios' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // 2. Leer datos del nuevo usuario
+    // Leer datos del nuevo usuario
     const { email, password, full_name, role, company_id, supervisor_id, active } = await req.json()
 
     if (!email || !password || !full_name) {
@@ -61,25 +60,20 @@ Deno.serve(async (req) => {
       })
     }
 
-    // 3. Crear usuario en Auth con service_role key
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
-
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+    // Crear en Auth
+    const { data: authData, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // no requiere confirmar email
+      email_confirm: true,
     })
 
-    if (authError) {
-      return new Response(JSON.stringify({ error: authError.message }), {
+    if (authCreateError) {
+      return new Response(JSON.stringify({ error: authCreateError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // 4. Crear perfil en app_users
+    // Crear perfil en app_users
     const { error: profileError } = await supabaseAdmin.from('app_users').insert({
       id:            authData.user.id,
       email:         email.trim(),
@@ -91,7 +85,6 @@ Deno.serve(async (req) => {
     })
 
     if (profileError) {
-      // Si falla el perfil, eliminar el usuario de Auth para no dejar inconsistencia
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
       return new Response(JSON.stringify({ error: profileError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight } from 'lucide-react'
+import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LOG } from '../../lib/logEvent'
@@ -41,6 +41,7 @@ function FieldLabel({ label, children }) {
 
 function UserModal({ user, companies, onSave, onClose }) {
   const isNew = !user?.id
+  const currentUser = useAuthStore(s => s.user)
   const [form, setForm] = useState({
     email:         user?.email         || '',
     full_name:     user?.full_name     || '',
@@ -129,6 +130,25 @@ function UserModal({ user, companies, onSave, onClose }) {
         LOG.userUpdated(user.email, { role: form.role, active: form.active }, currentUser?.email)
       }
     }
+    setSaving(false)
+    onSave()
+  }
+
+  const handleDelete = async () => {
+    if (!user?.id) return
+    if (!window.confirm(`¿Eliminar a ${user.full_name}? Esta acción no se puede deshacer.`)) return
+    setSaving(true)
+    try {
+      // Eliminar de app_users (la eliminación de auth.users requiere service role)
+      const { error: err } = await supabase.from('app_users').delete().eq('id', user.id)
+      if (err) { setError(err.message); setSaving(false); return }
+      LOG.userUpdated(user.email, { deleted: true }, currentUser?.email)
+    } catch (e) {
+      setError(e.message)
+      setSaving(false)
+      return
+    }
+    setSaving(false)
     onSave()
   }
 
@@ -200,6 +220,14 @@ function UserModal({ user, companies, onSave, onClose }) {
           </div>
         </div>
         <div className="px-5 pb-5 flex gap-2 justify-end" style={{ borderTop:'1px solid var(--border)' }}>
+          {!isNew && (
+            <button onClick={handleDelete} disabled={saving}
+              className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50 transition-colors"
+              style={{ color:'#dc2626', background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.2)' }}
+              title="Eliminar usuario">
+              <Trash2 size={13}/>Eliminar
+            </button>
+          )}
           <button onClick={onClose} className="h-9 px-4 rounded-lg text-[13px] th-text-s"
             style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>Cancelar</button>
           <button onClick={save} disabled={saving}
