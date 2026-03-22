@@ -1,466 +1,263 @@
 /**
- * additionalPhotoPdf.js
- * Genera el PDF del Reporte Adicional de Fotografías
- * Mantiene la misma estética que equipmentV2Pdf.js
+ * PTI TeleInspect — Reporte Adicional de Fotografias PDF
+ * Usa pdf-lib (igual que equipmentV2Pdf.js)
  */
-import jsPDF from 'jspdf'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { PHOTO_CATEGORIES } from '../../data/additionalPhotoConfig'
 
-// ── Colores de marca (igual que los otros PDFs) ───────────────────────────────
 const C = {
-  navy:        [13,  33,  55],
-  white:       [255, 255, 255],
-  accent:      [2,   132, 199],
-  accentLight: [224, 242, 254],
-  green:       [22,  163, 74],
-  greenLight:  [240, 253, 244],
-  amber:       [180, 83,  9],
-  amberLight:  [255, 251, 235],
-  gray100:     [248, 250, 252],
-  gray200:     [226, 232, 240],
-  gray400:     [148, 163, 184],
-  gray600:     [71,  85,  105],
-  gray800:     [30,  41,  59],
-  pink:        [219, 39,  119],
-  pinkLight:   [253, 242, 248],
+  black:     rgb(0.10, 0.10, 0.10),
+  navy:      rgb(0.05, 0.13, 0.22),
+  accent:    rgb(0.01, 0.52, 0.78),
+  pink:      rgb(0.86, 0.15, 0.47),
+  white:     rgb(1,    1,    1),
+  gray:      rgb(0.93, 0.93, 0.93),
+  grayMid:   rgb(0.75, 0.75, 0.75),
+  darkGray:  rgb(0.20, 0.20, 0.20),
+  green:     rgb(0.09, 0.64, 0.29),
+  amber:     rgb(0.71, 0.33, 0.04),
+  text:      rgb(0.10, 0.10, 0.10),
+  textLight: rgb(0.50, 0.50, 0.50),
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const rgb = (doc, color) => { doc.setTextColor(...color) }
-const fill = (doc, color) => { doc.setFillColor(...color) }
-const stroke = (doc, color) => { doc.setDrawColor(...color) }
+const PW = 612, PH = 792
+const ML = 36, MR = 36, MT = 36
+const CW = PW - ML - MR
 
-function addPage(doc, meta) {
-  doc.addPage()
-  addPageFooter(doc, meta)
+const s = (val) => {
+  if (val == null) return ''
+  return String(val)
+    .replace(/[\x00-\x1F\x7F]/g, ' ')
+    .replace(/[\u0100-\uFFFF]/g, (c) => {
+      const map = {
+        'a\u0301':'a','e\u0301':'e','i\u0301':'i','o\u0301':'o','u\u0301':'u',
+        '\u00e1':'a','\u00e9':'e','\u00ed':'i','\u00f3':'o','\u00fa':'u',
+        '\u00fc':'u','\u00f1':'n','\u00e4':'a','\u00f6':'o',
+        '\u00c1':'A','\u00c9':'E','\u00cd':'I','\u00d3':'O','\u00da':'U',
+        '\u00dc':'U','\u00d1':'N',
+        '\u2019':"'",'–':'-','\u2014':'-','\u201C':'"','\u201D':'"','\u2026':'...',
+      }
+      return map[c] || ''
+    })
+    .trim()
 }
 
-function addPageFooter(doc, meta) {
-  const { pageWidth, margin } = meta
-  const y = 282
-  doc.setLineWidth(0.3)
-  stroke(doc, C.gray200)
-  doc.line(margin, y - 2, pageWidth - margin, y - 2)
-  doc.setFontSize(7)
-  rgb(doc, C.gray400)
-  doc.text('PTI TeleInspect — Reporte Adicional de Fotografías', margin, y + 2)
-  doc.text(`Pág. ${doc.internal.getNumberOfPages()}`, pageWidth - margin, y + 2, { align: 'right' })
-}
-
-function checkY(doc, y, meta, needed = 20) {
-  if (y + needed > 272) {
-    addPage(doc, meta)
-    return meta.margin + 5
-  }
-  return y
-}
-
-async function loadImage(url) {
+async function fetchImg(doc, url) {
   if (!url) return null
   try {
-    const res = await fetch(url)
-    const blob = await res.blob()
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
+    const r = await fetch(url)
+    if (!r.ok) return null
+    const b = new Uint8Array(await r.arrayBuffer())
+    if (b[0] === 0xFF && b[1] === 0xD8) return await doc.embedJpg(b)
+    if (b[0] === 0x89 && b[1] === 0x50) return await doc.embedPng(b)
+    try { return await doc.embedJpg(b) } catch { try { return await doc.embedPng(b) } catch { return null } }
+  } catch { return null }
+}
+
+class PB {
+  constructor(doc, fonts) { this.doc = doc; this.fonts = fonts; this.page = null; this.y = 0 }
+  newPage() { this.page = this.doc.addPage([PW, PH]); this.y = PH - MT; return this }
+  need(n)   { if (this.y - n < 40) this.newPage(); return this }
+
+  txt(t, x, y, { font, size = 10, color = C.text, mw } = {}) {
+    const f = this.fonts[font] || this.fonts.r
+    const clean = s(t); if (!clean) return this
+    if (mw) {
+      const words = clean.split(' '); let line = ''; let cy = y
+      for (const w of words) {
+        const test = line ? line + ' ' + w : w
+        if (f.widthOfTextAtSize(test, size) > mw && line) {
+          this.page.drawText(line, { x, y: cy, size, font: f, color }); cy -= size * 1.35; line = w
+        } else line = test
+      }
+      if (line) this.page.drawText(line, { x, y: cy, size, font: f, color })
+      return this
+    }
+    this.page.drawText(clean, { x, y, size, font: f, color }); return this
+  }
+
+  box(x, y, w, h, { fill, stroke, sw = 0.5 } = {}) {
+    if (fill)   this.page.drawRectangle({ x, y, width: w, height: h, color: fill })
+    if (stroke) this.page.drawRectangle({ x, y, width: w, height: h, borderColor: stroke, borderWidth: sw })
+    return this
+  }
+
+  ln(x1, y1, x2, y2, { color = C.grayMid, thickness = 0.5 } = {}) {
+    this.page.drawLine({ start:{x:x1,y:y1}, end:{x:x2,y:y2}, color, thickness }); return this
+  }
+
+  img(image, x, y, w, h) {
+    if (!image) return this
+    try {
+      const d = image.scale(1), sc = Math.min(w/d.width, h/d.height)
+      const iw = d.width*sc, ih = d.height*sc
+      this.page.drawImage(image, { x: x+(w-iw)/2, y: y+(h-ih)/2, width: iw, height: ih })
+    } catch {}
+    return this
   }
 }
 
-// ── Cover page ────────────────────────────────────────────────────────────────
-function drawCover(doc, siteInfo, submission, meta) {
-  const { pageWidth, pageHeight } = meta
-
-  // Fondo navy
-  fill(doc, C.navy)
-  doc.rect(0, 0, pageWidth, pageHeight, 'F')
-
-  // Banda accent
-  fill(doc, C.pink)
-  doc.rect(0, 0, pageWidth, 4, 'F')
-
-  // Logo area
-  doc.setFontSize(9)
-  rgb(doc, [100, 180, 230])
-  doc.setFont('helvetica', 'bold')
-  doc.text('PTI TELEINSPECT', pageWidth / 2, 28, { align: 'center' })
-
-  // Icono central (representación tipográfica)
-  doc.setFontSize(32)
-  rgb(doc, C.pink)
-  doc.text('📸', pageWidth / 2, 65, { align: 'center' })
-
-  // Título
-  doc.setFontSize(22)
-  rgb(doc, C.white)
-  doc.setFont('helvetica', 'bold')
-  doc.text('REPORTE ADICIONAL', pageWidth / 2, 90, { align: 'center' })
-  doc.setFontSize(16)
-  rgb(doc, [200, 210, 230])
-  doc.text('DE FOTOGRAFÍAS', pageWidth / 2, 100, { align: 'center' })
-
-  // Línea decorativa
-  fill(doc, C.pink)
-  doc.rect(pageWidth / 2 - 30, 106, 60, 1.5, 'F')
-
-  // Datos del sitio
-  const siteName  = siteInfo.nombreSitio || siteInfo.nombre_sitio || '—'
-  const siteId    = siteInfo.idSitio     || siteInfo.id_sitio     || '—'
-  const date      = siteInfo.fecha       || siteInfo.fechaInicio  || ''
-  const provider  = siteInfo.proveedor   || ''
-
-  doc.setFontSize(14)
-  rgb(doc, C.white)
-  doc.setFont('helvetica', 'bold')
-  doc.text(siteName, pageWidth / 2, 120, { align: 'center' })
-
-  doc.setFontSize(10)
-  rgb(doc, [160, 190, 220])
-  doc.setFont('helvetica', 'normal')
-  doc.text(siteId, pageWidth / 2, 128, { align: 'center' })
+function cover(pb, si, total, done) {
+  pb.newPage()
+  pb.box(0, 0, PW, PH, { fill: C.navy })
+  pb.box(0, PH-5, PW, 5, { fill: C.pink })
+  pb.txt('PTI TELEINSPECT', ML, PH-48, { font:'b', size:9, color:rgb(0.4,0.7,0.9) })
+  pb.txt('REPORTE ADICIONAL', ML, PH-86, { font:'b', size:24, color:C.white })
+  pb.txt('DE FOTOGRAFIAS', ML, PH-112, { font:'b', size:16, color:rgb(0.78,0.82,0.90) })
+  pb.box(ML, PH-121, 76, 2, { fill: C.pink })
 
   // Info box
-  const bx = 30, by = 140, bw = pageWidth - 60, bh = 40
-  fill(doc, [255, 255, 255, 15])
-  doc.setFillColor(255, 255, 255)
-  doc.setGState(new doc.GState({ opacity: 0.08 }))
-  doc.rect(bx, by, bw, bh, 'F')
-  doc.setGState(new doc.GState({ opacity: 1 }))
-  stroke(doc, [255, 255, 255, 30])
-  doc.setLineWidth(0.3)
-  doc.rect(bx, by, bw, bh, 'S')
+  pb.box(ML, PH-215, CW, 66, { fill: rgb(0.08,0.18,0.30) })
+  pb.ln(ML, PH-149, ML+CW, PH-149, { color: C.pink, thickness: 1 })
+  pb.txt(s(si.nombreSitio||si.nombre_sitio||'—'), ML+14, PH-169, { font:'b', size:13, color:C.white })
+  pb.txt(s(si.idSitio||si.id_sitio||'—'), ML+14, PH-184, { size:9, color:rgb(0.6,0.75,0.9) })
+  if (si.fecha||si.fechaInicio)
+    pb.txt('Fecha: '+s(si.fecha||si.fechaInicio), ML+14, PH-198, { size:8, color:C.textLight })
+  if (si.proveedor)
+    pb.txt('Proveedor: '+s(si.proveedor), ML+180, PH-198, { size:8, color:C.textLight })
 
-  const pairs = [
-    ['Proveedor', provider || '—'],
-    ['Fecha', date || '—'],
-    ['ID Sitio', siteId],
-  ]
-  const colW = bw / pairs.length
-  pairs.forEach(([label, value], i) => {
-    const cx = bx + i * colW + colW / 2
-    doc.setFontSize(7)
-    rgb(doc, [140, 170, 200])
-    doc.setFont('helvetica', 'bold')
-    doc.text(label.toUpperCase(), cx, by + 12, { align: 'center' })
-    doc.setFontSize(9)
-    rgb(doc, C.white)
-    doc.setFont('helvetica', 'bold')
-    doc.text(String(value), cx, by + 22, { align: 'center' })
-  })
-
-  // Total categorías
-  doc.setFontSize(9)
-  rgb(doc, [140, 170, 200])
-  doc.setFont('helvetica', 'normal')
-  doc.text(`${PHOTO_CATEGORIES.length} categorías fotográficas`, pageWidth / 2, 198, { align: 'center' })
-
-  // Footer cover
-  doc.setFontSize(7)
-  rgb(doc, [80, 110, 150])
-  doc.text('Generado con PTI TeleInspect Admin Panel', pageWidth / 2, pageHeight - 10, { align: 'center' })
+  pb.txt(`${total} categorias fotograficas`, ML, PH-232, { size:8, color:rgb(0.55,0.65,0.75) })
+  pb.txt(`${done} completadas`, ML, PH-245, { size:8, color: done===total ? C.green : C.amber })
+  pb.txt('Generado con PTI TeleInspect Admin Panel', ML, 18, { size:7, color:rgb(0.3,0.4,0.5) })
 }
 
-// ── Index page ────────────────────────────────────────────────────────────────
-function drawIndex(doc, assetMap, rawPhotos, meta) {
-  const { pageWidth, margin } = meta
-  let y = margin
+function index(pb, assetMap, rawPhotos) {
+  pb.newPage()
+  pb.box(0, PH-MT-20, PW, 24, { fill: C.navy })
+  pb.box(0, PH-MT-20, 4, 24, { fill: C.pink })
+  pb.txt('INDICE DE CATEGORIAS', ML+8, PH-MT-9, { font:'b', size:11, color:C.white })
+  pb.y = PH-MT-36
 
-  // Header
-  fill(doc, C.navy)
-  doc.rect(0, 0, pageWidth, 18, 'F')
-  fill(doc, C.pink)
-  doc.rect(0, 0, pageWidth, 2, 'F')
-  doc.setFontSize(10)
-  rgb(doc, C.white)
-  doc.setFont('helvetica', 'bold')
-  doc.text('ÍNDICE DE CATEGORÍAS', margin, 12)
-  y = 26
-
-  for (const cat of PHOTO_CATEGORIES) {
-    y = checkY(doc, y, meta, 9)
-    const catPhotos = assetMap[cat.id] || []
-    const fromData  = (rawPhotos[cat.id] || []).filter(Boolean)
-    const count     = Math.max(catPhotos.filter(p => p).length, fromData.length)
-    const ok        = count >= cat.minPhotos
-
-    // Row bg alternado
-    if (PHOTO_CATEGORIES.indexOf(cat) % 2 === 0) {
-      fill(doc, C.gray100)
-      doc.rect(margin - 2, y - 4, pageWidth - margin * 2 + 4, 8, 'F')
-    }
-
-    // Status dot
-    fill(doc, ok ? C.green : count > 0 ? [180, 83, 9] : C.gray400)
-    doc.circle(margin + 2, y - 0.5, 1.5, 'F')
-
-    doc.setFontSize(8.5)
-    rgb(doc, C.gray800)
-    doc.setFont('helvetica', 'normal')
-    doc.text(`${cat.emoji} ${cat.title}`, margin + 7, y)
-
-    // Código
-    doc.setFontSize(7)
-    rgb(doc, C.gray400)
-    doc.setFont('helvetica', 'bold')
-    doc.text(cat.id, pageWidth / 2, y)
-
-    // Conteo
-    const countText = ok ? `${count} fotos ✓` : `${count}/${cat.minPhotos} fotos`
-    doc.setFontSize(7.5)
-    rgb(doc, ok ? C.green : count > 0 ? C.amber : C.gray400)
-    doc.text(countText, pageWidth - margin, y, { align: 'right' })
-
-    y += 8.5
+  for (let i = 0; i < PHOTO_CATEGORIES.length; i++) {
+    const cat = PHOTO_CATEGORIES[i]
+    pb.need(14)
+    const count = Math.max(
+      (assetMap[cat.id]||[]).filter(p=>p?.public_url).length,
+      (rawPhotos[cat.id]||[]).filter(Boolean).length
+    )
+    const ok = count >= cat.minPhotos
+    if (i%2===0) pb.box(ML-4, pb.y-10, CW+8, 14, { fill: C.gray })
+    pb.page.drawCircle({ x:ML+4, y:pb.y-3, size:3.5, color: ok ? C.green : count>0 ? C.amber : C.grayMid })
+    pb.txt(`${cat.id}  ${s(cat.title)}`, ML+12, pb.y, { size:9, color:C.text })
+    pb.txt(`${count}/${cat.minPhotos}`, PW-MR-38, pb.y, { size:9, color: ok ? C.green : count>0 ? C.amber : C.grayMid })
+    pb.y -= 14
   }
-
-  addPageFooter(doc, meta)
 }
 
-// ── Section header ────────────────────────────────────────────────────────────
-function drawSectionHeader(doc, cat, y, meta) {
-  const { pageWidth, margin } = meta
+async function catSection(pb, cat, photos) {
+  pb.newPage()
+  pb.box(0, PH-MT-20, PW, 24, { fill: C.navy })
+  pb.box(0, PH-MT-20, 4, 24, { fill: C.pink })
+  const badge = s(cat.id); const bw = badge.length*6+8
+  pb.box(PW-MR-bw, PH-MT-18, bw, 18, { fill: C.pink })
+  pb.txt(badge, PW-MR-bw+4, PH-MT-6, { font:'b', size:8, color:C.white })
+  pb.txt(s(cat.title), ML+8, PH-MT-9, { font:'b', size:11, color:C.white })
+  pb.y = PH-MT-34
 
-  fill(doc, C.navy)
-  doc.rect(0, y, pageWidth, 14, 'F')
-  fill(doc, C.pink)
-  doc.rect(0, y, 3, 14, 'F')
+  const descLines = Math.min(Math.ceil(s(cat.description).length/95)+1, 5)
+  pb.need(descLines*12+30)
+  pb.txt(s(cat.description), ML, pb.y, { size:8, color:C.textLight, mw:CW })
+  pb.y -= descLines*11+6
 
-  // Emoji + Título
-  doc.setFontSize(11)
-  rgb(doc, C.white)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`${cat.emoji}  ${cat.title}`, margin + 5, y + 9)
+  pb.txt(`Min. ${cat.minPhotos} foto${cat.minPhotos!==1?'s':''}`, ML, pb.y, { size:8, color:C.accent })
+  pb.txt(s(cat.quality), ML+65, pb.y, { size:8, color:C.textLight })
+  if (cat.variable) pb.txt('Cantidad variable', ML+140, pb.y, { size:8, color:C.amber })
+  pb.y -= 14
 
-  // Acronym badge
-  fill(doc, C.pink)
-  doc.roundedRect(pageWidth - margin - 18, y + 3, 14, 8, 1, 1, 'F')
-  doc.setFontSize(7)
-  rgb(doc, C.white)
-  doc.setFont('helvetica', 'bold')
-  doc.text(cat.id, pageWidth - margin - 18 + 7, y + 8.5, { align: 'center' })
+  pb.ln(ML, pb.y, PW-MR, pb.y)
+  pb.y -= 10
 
-  return y + 18
-}
-
-// ── Photo grid (2 cols) ───────────────────────────────────────────────────────
-async function drawPhotoGrid(doc, cat, photos, meta) {
-  const { pageWidth, margin } = meta
-  const cols     = 2
-  const gutter   = 6
-  const cellW    = (pageWidth - margin * 2 - gutter * (cols - 1)) / cols
-  const imgH     = cellW * 0.7
-  const labelH   = 10
-  const cellH    = imgH + labelH + 4
-  let y          = meta.margin + 5
-
-  // Nueva página para la sección
-  addPage(doc, meta)
-  y = drawSectionHeader(doc, cat, meta.margin - 5, meta) + 2
-
-  // Descripción
-  doc.setFontSize(7.5)
-  rgb(doc, C.gray600)
-  doc.setFont('helvetica', 'normal')
-  const lines = doc.splitTextToSize(cat.description, pageWidth - margin * 2)
-  doc.text(lines, margin, y)
-  y += lines.length * 4 + 2
-
-  // Info pills en línea
-  doc.setFontSize(7)
-  rgb(doc, C.accent)
-  doc.setFont('helvetica', 'bold')
-  doc.text(`📷 Mín. ${cat.minPhotos} foto${cat.minPhotos !== 1 ? 's' : ''}`, margin, y)
-  doc.setFontSize(7)
-  rgb(doc, C.gray400)
-  doc.setFont('helvetica', 'normal')
-  doc.text(`  ·  ${cat.quality}`, margin + 28, y)
-  if (cat.variable) {
-    rgb(doc, C.amber)
-    doc.text('  ·  Cantidad variable', margin + 65, y)
-  }
-  y += 6
-
-  // Sub-groups si existen
-  if (cat.subGroups) {
-    doc.setFontSize(6.5)
-    rgb(doc, C.gray400)
-    doc.setFont('helvetica', 'bold')
-    doc.text('VISTAS SUGERIDAS:', margin, y)
-    y += 4
-    const sgLine = cat.subGroups.map(sg => `${cat.id}_${sg.key} · ${sg.label}`).join('  |  ')
-    doc.setFont('helvetica', 'normal')
-    doc.setFontSize(6.5)
-    const sgLines = doc.splitTextToSize(sgLine, pageWidth - margin * 2)
-    doc.text(sgLines, margin, y)
-    y += sgLines.length * 3.5 + 2
-  }
-
-  y += 3
-  // Separador
-  stroke(doc, C.gray200)
-  doc.setLineWidth(0.2)
-  doc.line(margin, y, pageWidth - margin, y)
-  y += 4
-
-  if (photos.length === 0) {
-    // Placeholder vacío
-    fill(doc, C.gray100)
-    doc.rect(margin, y, pageWidth - margin * 2, 30, 'F')
-    stroke(doc, C.gray200)
-    doc.rect(margin, y, pageWidth - margin * 2, 30, 'S')
-    doc.setFontSize(9)
-    rgb(doc, C.gray400)
-    doc.text('Sin fotos capturadas', pageWidth / 2, y + 18, { align: 'center' })
+  if (!photos.length) {
+    pb.box(ML, pb.y-26, CW, 28, { fill:C.gray })
+    pb.txt('Sin fotos capturadas', ML+CW/2-45, pb.y-9, { size:9, color:C.textLight })
     return
   }
 
-  let col = 0
-  for (let i = 0; i < photos.length; i++) {
-    const photo = photos[i]
-    if (!photo) continue
-    const x = margin + col * (cellW + gutter)
+  const cols=2, gut=10, cw=(CW-gut)/cols, ih=cw*0.65, lh=16, ch=ih+lh+8
+  let col=0
 
-    y = checkY(doc, y, meta, cellH + 4)
+  for (let i=0; i<photos.length; i++) {
+    const ph = photos[i]; if (!ph) continue
+    const url = ph.public_url||ph.storage_url||ph.url||null
+    const sub = cat.subLabels?.[i] ?? `Foto ${i+1}`
+    const code = `${cat.id}_${String(i+1).padStart(2,'0')}`
 
-    const url       = photo.public_url || photo.storage_url || photo.url || null
-    const subLabel  = cat.subLabels?.[i] ?? (cat.subGroups ? `Foto ${i + 1}` : `Foto ${i + 1}`)
-    const code      = `${cat.id}_${String(i + 1).padStart(2, '0')}`
+    pb.need(ch+10)
+    const x = ML + col*(cw+gut)
 
-    // Frame de la imagen
-    fill(doc, C.gray100)
-    doc.rect(x, y, cellW, imgH, 'F')
-    stroke(doc, C.gray200)
-    doc.setLineWidth(0.3)
-    doc.rect(x, y, cellW, imgH, 'S')
+    pb.box(x, pb.y-ih, cw, ih, { fill:C.gray, stroke:C.grayMid })
+    if (url) { const img = await fetchImg(pb.doc, url); if (img) pb.img(img, x, pb.y-ih, cw, ih) }
 
-    // Imagen
-    if (url) {
-      try {
-        const imgData = await loadImage(url)
-        if (imgData) {
-          doc.addImage(imgData, 'JPEG', x, y, cellW, imgH, undefined, 'FAST')
-        }
-      } catch {}
-    } else {
-      // Placeholder
-      doc.setFontSize(8)
-      rgb(doc, C.gray400)
-      doc.text('Sin imagen', x + cellW / 2, y + imgH / 2, { align: 'center' })
-    }
+    const codew = code.length*4.5+6
+    pb.box(x+2, pb.y-12, codew, 10, { fill:C.navy })
+    pb.txt(code, x+4, pb.y-10, { font:'b', size:5.5, color:C.white })
 
-    // Código badge sobre la imagen
-    fill(doc, [0, 0, 0])
-    doc.setFillColor(0, 0, 0)
-    doc.setGState(new doc.GState({ opacity: 0.5 }))
-    doc.rect(x + 2, y + 2, 16, 5, 'F')
-    doc.setGState(new doc.GState({ opacity: 1 }))
-    doc.setFontSize(5.5)
-    rgb(doc, C.white)
-    doc.setFont('helvetica', 'bold')
-    doc.text(code, x + 10, y + 5.5, { align: 'center' })
-
-    // Label bajo la imagen
-    fill(doc, C.navy)
-    doc.rect(x, y + imgH, cellW, labelH, 'F')
-    doc.setFontSize(7)
-    rgb(doc, C.white)
-    doc.setFont('helvetica', 'bold')
-    const labelText = doc.splitTextToSize(subLabel, cellW - 4)
-    doc.text(labelText[0], x + cellW / 2, y + imgH + 6, { align: 'center' })
+    pb.box(x, pb.y-ih-lh, cw, lh, { fill:C.navy })
+    pb.txt(s(sub), x+4, pb.y-ih-lh+5, { font:'b', size:7, color:C.white })
 
     col++
-    if (col >= cols) {
-      col = 0
-      y += cellH + 4
-    }
+    if (col>=cols) { col=0; pb.y -= ch+8 }
   }
-
-  // Completar fila incompleta
-  if (col > 0) y += cellH + 4
+  if (col>0) pb.y -= ch+8
 }
 
-// ── Main export ───────────────────────────────────────────────────────────────
 export async function generateAdditionalPhotoPdf(submission, assets) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const doc = await PDFDocument.create()
+  const [r, b] = await Promise.all([
+    doc.embedFont(StandardFonts.Helvetica),
+    doc.embedFont(StandardFonts.HelveticaBold),
+  ])
+  const pb = new PB(doc, { r, b, regular:r, bold:b })
 
-  const pageWidth  = doc.internal.pageSize.getWidth()
-  const pageHeight = doc.internal.pageSize.getHeight()
-  const margin     = 12
-  const meta       = { pageWidth, pageHeight, margin }
-
-  // Extraer datos
   const raw      = submission?.payload?.payload?.data || submission?.payload?.data || {}
   const siteInfo = raw.siteInfo || {}
   const photos   = raw.photos  || {}
   const notes    = raw.notes   || ''
 
-  // Mapear assets de Supabase
   const assetMap = {}
   if (assets) {
     for (const a of assets) {
-      const type  = a.asset_type || a.type || ''
-      const parts = type.split(':')
-      if (parts[0] === 'photos' && parts[1]) {
-        const acronym = parts[1]
-        const idx     = parseInt(parts[2] ?? '0')
-        if (!assetMap[acronym]) assetMap[acronym] = []
-        assetMap[acronym][idx] = a
+      const parts = (a.asset_type||a.type||'').split(':')
+      if (parts[0]==='photos' && parts[1]) {
+        const ac=parts[1], idx=parseInt(parts[2]??'0')
+        if (!assetMap[ac]) assetMap[ac]=[]
+        assetMap[ac][idx]=a
       }
     }
   }
 
-  // Portada
-  drawCover(doc, siteInfo, submission, meta)
+  const done = PHOTO_CATEGORIES.filter(cat => {
+    const n = Math.max((assetMap[cat.id]||[]).filter(p=>p?.public_url).length, (photos[cat.id]||[]).filter(Boolean).length)
+    return n >= cat.minPhotos
+  }).length
 
-  // Índice
-  addPage(doc, meta)
-  drawIndex(doc, assetMap, photos, meta)
+  cover(pb, siteInfo, PHOTO_CATEGORIES.length, done)
+  index(pb, assetMap, photos)
 
-  // Una sección por categoría
   for (const cat of PHOTO_CATEGORIES) {
-    const fromSupabase = assetMap[cat.id] || []
-    const fromPayload  = (photos[cat.id] || [])
-      .filter(Boolean)
-      .map(url => ({ public_url: url }))
-    const merged = fromSupabase.length > 0 ? fromSupabase : fromPayload
-    if (merged.length > 0) {
-      await drawPhotoGrid(doc, cat, merged, meta)
-    }
+    const merged = (assetMap[cat.id]||[]).filter(Boolean).length > 0
+      ? (assetMap[cat.id]||[]).filter(Boolean)
+      : (photos[cat.id]||[]).filter(Boolean).map(u=>({public_url:u}))
+    if (merged.length > 0) await catSection(pb, cat, merged)
   }
 
-  // Observaciones (si hay)
   if (notes) {
-    addPage(doc, meta)
-    let y = meta.margin
-    fill(doc, C.navy)
-    doc.rect(0, y, pageWidth, 14, 'F')
-    fill(doc, C.pink)
-    doc.rect(0, y, 3, 14, 'F')
-    doc.setFontSize(10)
-    rgb(doc, C.white)
-    doc.setFont('helvetica', 'bold')
-    doc.text('📝  OBSERVACIONES', margin + 5, y + 9)
-    y += 22
-
-    fill(doc, C.gray100)
-    const notesLines = doc.splitTextToSize(notes, pageWidth - margin * 2 - 8)
-    doc.rect(margin, y, pageWidth - margin * 2, notesLines.length * 5 + 10, 'F')
-    stroke(doc, C.gray200)
-    doc.rect(margin, y, pageWidth - margin * 2, notesLines.length * 5 + 10, 'S')
-    doc.setFontSize(9)
-    rgb(doc, C.gray800)
-    doc.setFont('helvetica', 'normal')
-    doc.text(notesLines, margin + 4, y + 8)
+    pb.newPage()
+    pb.box(0, PH-MT-20, PW, 24, { fill:C.navy })
+    pb.box(0, PH-MT-20, 4, 24, { fill:C.pink })
+    pb.txt('OBSERVACIONES', ML+8, PH-MT-9, { font:'b', size:11, color:C.white })
+    pb.y = PH-MT-44
+    pb.box(ML, pb.y-60, CW, 64, { fill:C.gray })
+    pb.txt(s(notes), ML+8, pb.y-12, { size:9, color:C.text, mw:CW-16 })
   }
 
-  // Nombre del archivo
-  const siteName = siteInfo.idSitio || siteInfo.id_sitio || 'sitio'
-  const fecha    = siteInfo.fecha   || siteInfo.fechaInicio || new Date().toISOString().slice(0, 10)
-  const fileName = `PTI_ReporteFotos_${siteName}_${fecha}.pdf`.replace(/[^a-zA-Z0-9_\-.]/g, '_')
-
-  doc.save(fileName)
+  const bytes = await doc.save()
+  const blob  = new Blob([bytes], { type:'application/pdf' })
+  const url   = URL.createObjectURL(blob)
+  const a     = document.createElement('a')
+  a.href = url
+  a.download = `PTI_ReporteFotos_${s(siteInfo.idSitio||'sitio')}_${s(siteInfo.fecha||new Date().toISOString().slice(0,10))}.pdf`
+    .replace(/[^a-zA-Z0-9_\-.]/g,'_')
+  document.body.appendChild(a); a.click(); document.body.removeChild(a)
+  URL.revokeObjectURL(url)
 }
