@@ -902,6 +902,7 @@ export default function SubmissionDetail() {
     // equipment-v2 usa componente propio (EquipmentV2Detail), no pasa por SectionCard
     // additional-photo-report usa componente propio (AdditionalPhotoDetail)
     'additional-photo-report': null,
+  }
 
   const fc = normalizeFormCode(submission?.form_code || '')
   const allowedSections = PHOTO_SECTIONS[fc] // undefined = no mapeado, null = todas
