@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/useAuthStore'
-import { AlertCircle, Shield } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { APP_VERSION } from '../version'
 
 function TelecomAnimation() {
@@ -154,12 +154,12 @@ export default function Login() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-4"
       style={{ background: '#f0f4f8' }}>
-      <div className="w-full max-w-[820px] rounded-2xl overflow-hidden flex shadow-elevated"
+      <div className="w-full max-w-[820px] rounded-2xl overflow-hidden flex flex-col md:flex-row shadow-elevated"
         style={{ minHeight: 480 }}>
 
         {/* Panel izquierdo navy */}
-        <div className="hidden md:flex flex-col justify-between p-10 flex-1"
-          style={{ background: '#0d2137', position: 'relative' }}>
+        <div className="flex flex-col justify-between p-6 md:p-10 flex-1 md:flex-1"
+          style={{ background: '#0d2137', position: 'relative', minHeight: 180 }}>
           <TelecomAnimation />
 
           <div style={{ position:'relative', zIndex:1 }}>
@@ -176,13 +176,13 @@ export default function Login() {
           </div>
 
           <div style={{ position:'relative', zIndex:1 }}>
-            <h1 className="text-white font-semibold text-[22px] leading-snug mb-2">
+            <h1 className="text-white font-semibold text-[16px] md:text-[22px] leading-snug mb-1 md:mb-2">
               Inspecciones de campo,<br />centralizadas y en tiempo real
             </h1>
-            <p className="text-[13px]" style={{ color:'rgba(255,255,255,0.45)' }}>
+            <p className="hidden md:block text-[13px]" style={{ color:'rgba(255,255,255,0.45)' }}>
               Plataforma de gestión y auditoría para supervisores de Phoenix Tower International
             </p>
-            <div className="flex gap-6 mt-8">
+            <div className="hidden md:flex gap-6 mt-8">
               {[{num:'5',lbl:'Países activos'},{num:'6',lbl:'Tipos de formulario'},{num:'100%',lbl:'Auditable'}].map(({num,lbl})=>(
                 <div key={lbl} style={{ borderTop:'2px solid rgba(2,132,199,0.4)', paddingTop:10 }}>
                   <div className="text-white font-semibold text-[20px]">{num}</div>
@@ -205,15 +205,9 @@ export default function Login() {
         </div>
 
         {/* Panel derecho */}
-        <div className="flex flex-col justify-center p-8 md:p-10 w-full md:w-[340px] flex-shrink-0"
+        <div className="flex flex-col justify-center p-6 md:p-10 w-full md:w-[340px] flex-shrink-0"
           style={{ background:'#ffffff' }}>
 
-          <div className="flex items-center gap-2.5 mb-8 md:hidden">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background:'#0284C7' }}>
-              <span className="text-white font-bold text-[10px]">PTI</span>
-            </div>
-            <span className="font-semibold text-[15px]" style={{ color:'#0d2137' }}>TeleInspect</span>
-          </div>
 
           <h2 className="font-semibold text-[20px] mb-1" style={{ color:'#0d2137' }}>Bienvenido</h2>
           <p className="text-[13px] mb-7" style={{ color:'#7a8fa0' }}>Ingresa tus credenciales para continuar</p>
@@ -263,11 +257,6 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="flex items-center justify-center gap-1.5 mt-6"
-            style={{ fontSize:10, color:'#7a8fa0' }}>
-            <Shield size={11}/>
-            Sesión cifrada · Supabase Auth
-          </div>
         </div>
       </div>
     </div>
