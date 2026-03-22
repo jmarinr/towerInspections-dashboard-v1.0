@@ -298,23 +298,31 @@ export default function Shell({ children }) {
 
       {/* ── MOBILE ──────────────────────────────────────────────────────────── */}
       <div className="lg:hidden flex flex-col min-h-[100dvh]">
-        <header className="h-12 px-4 flex items-center justify-between sticky top-0 z-50"
+
+        {/* Top header */}
+        <header className="h-12 px-3 flex items-center justify-between sticky top-0 z-50"
           style={{ background: 'var(--header-bg)', borderBottom: '1px solid var(--header-border)' }}>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setMob(true)} className="p-1.5 rounded-md th-text-m">
+          <div className="flex items-center gap-2 min-w-0">
+            <button onClick={() => setMob(true)} className="p-1.5 rounded-md th-text-m flex-shrink-0">
               <Menu size={18} />
             </button>
-            <span className="text-[14px] font-semibold th-text-p">{pageTitle}</span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-[14px] font-semibold th-text-p truncate">{pageTitle || 'TeleInspect'}</span>
+              <span className="text-[9px] font-mono px-1.5 py-0.5 rounded flex-shrink-0"
+                style={{ background: 'var(--accent-light)', color: 'var(--accent)' }}>
+                v{APP_VERSION}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5 flex-shrink-0">
             <RealtimeBadge />
             <ThemeToggle />
-            <button onClick={refresh} className="p-1.5 th-text-m"><RefreshCw size={13} /></button>
-            {/* Logout visible directo en mobile */}
-            <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-md transition-colors"
-              title="Cerrar sesión"
+            <button onClick={refresh} className="p-1.5 rounded-md th-text-m"
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--accent-light)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+              <RefreshCw size={13} />
+            </button>
+            <button onClick={handleLogout} className="p-1.5 rounded-md transition-colors"
               style={{ color: 'var(--text-muted)' }}
               onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)' }}
               onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}>
@@ -323,18 +331,42 @@ export default function Shell({ children }) {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-5 pb-20 animate-fade-in">{children}</main>
+        {/* Content — padding-bottom depende de si hay admin tabs */}
+        <main className={`flex-1 px-4 py-5 animate-fade-in ${user?.role === 'admin' ? 'pb-28' : 'pb-20'}`}>
+          {children}
+        </main>
 
-        {/* Bottom nav */}
-        <nav className="fixed bottom-0 left-0 right-0 h-14 grid grid-cols-3 z-50"
+        {/* Bottom nav — nav principal siempre visible */}
+        <nav className="fixed bottom-0 left-0 right-0 z-50 flex flex-col"
           style={{ background: 'var(--header-bg)', borderTop: '1px solid var(--border)' }}>
-          {NAV.map(n => (
-            <NavLink key={n.to} to={n.to}
-              className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors"
-              style={({ isActive }) => isActive ? { color: 'var(--accent)' } : { color: 'var(--text-muted)' }}>
-              <n.icon size={17} strokeWidth={1.8} />{n.label}
-            </NavLink>
-          ))}
+
+          {/* Admin sub-nav — solo para admins */}
+          {user?.role === 'admin' && (
+            <div className="grid grid-cols-5 border-b"
+              style={{ borderColor: 'var(--border)', background: 'var(--sidebar-bg)' }}>
+              {NAV_ADMIN.map(n => (
+                <NavLink key={n.to} to={n.to}
+                  className="flex flex-col items-center justify-center py-2 gap-0.5 text-[9px] font-medium transition-colors"
+                  style={({ isActive }) => isActive
+                    ? { color: 'var(--accent)', background: 'rgba(2,132,199,0.08)' }
+                    : { color: 'rgba(255,255,255,0.45)' }}>
+                  <n.icon size={14} strokeWidth={1.8} />
+                  <span className="truncate max-w-[44px] text-center leading-tight">{n.label}</span>
+                </NavLink>
+              ))}
+            </div>
+          )}
+
+          {/* Nav principal — 3 ítems */}
+          <div className="h-14 grid grid-cols-3">
+            {NAV.map(n => (
+              <NavLink key={n.to} to={n.to}
+                className="flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors"
+                style={({ isActive }) => isActive ? { color: 'var(--accent)' } : { color: 'var(--text-muted)' }}>
+                <n.icon size={17} strokeWidth={1.8} />{n.label}
+              </NavLink>
+            ))}
+          </div>
         </nav>
 
         {/* Drawer */}
@@ -351,7 +383,12 @@ export default function Shell({ children }) {
                   </div>
                   <div>
                     <div className="text-[13px] font-semibold" style={{ color: 'var(--sidebar-title)' }}>TeleInspect</div>
-                    <div className="text-[10px]" style={{ color: 'var(--sidebar-sub)' }}>Auditoría</div>
+                    <div className="text-[9px] flex items-center gap-1.5" style={{ color: 'var(--sidebar-sub)' }}>
+                      Auditoría
+                      <span className="font-mono px-1 rounded" style={{ background: 'rgba(2,132,199,0.15)', color: 'var(--accent)' }}>
+                        v{APP_VERSION}
+                      </span>
+                    </div>
                   </div>
                 </div>
                 <button onClick={() => setMob(false)}
