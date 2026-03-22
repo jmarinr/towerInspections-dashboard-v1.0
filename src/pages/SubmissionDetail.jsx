@@ -951,24 +951,49 @@ export default function SubmissionDetail() {
       // Claves estructuradas: checklist.itemId.field / items.itemId.field / medicion.fieldId
       if (k.includes('|||')) {
         const parts = k.split('|||')
-        const scope  = parts[0]   // 'checklist' | 'items' | 'medicion'
+        const scope  = parts[0]
         const itemId = parts[1]
-        const field  = parts[2]   // 'status' | 'observation' | fieldId
+        const field  = parts[2]
 
-        let oldVal = ''
+        let oldVal = '', label = k
+
         if (scope === 'checklist') {
           oldVal = data.checklistData?.[itemId]?.[field] ?? ''
+          label = field === 'status' ? `Ítem ${itemId} — Estado` : `Ítem ${itemId} — Observación`
         } else if (scope === 'items') {
           oldVal = data.items?.[itemId]?.[field] ?? ''
+          label = field === 'status' ? `Ítem ${itemId} — Estado` : `Ítem ${itemId} — Observación`
         } else if (scope === 'medicion') {
           oldVal = data.medicion?.[itemId] ?? ''
+          label = `Medición ${itemId}`
+        } else if (scope === 'siteInfo') {
+          oldVal = data.siteInfo?.[itemId] ?? ''
+          label = itemId
+        } else if (scope === 'torre') {
+          const rIdx = parseInt(field); const fId = parts[3]
+          oldVal = data.torre?.items?.[rIdx]?.[fId] ?? ''
+          label = `Torre fila ${rIdx+1} — ${fId}`
+        } else if (scope === 'piso') {
+          const cIdx = parseInt(itemId)
+          if (field === 'gab') {
+            const gIdx = parseInt(parts[3]); const fId = parts[4]
+            oldVal = data.piso?.clientes?.[cIdx]?.gabinetes?.[gIdx]?.[fId] ?? ''
+            label = `Cliente ${cIdx+1} Gab ${gIdx+1} — ${fId}`
+          } else {
+            oldVal = data.piso?.clientes?.[cIdx]?.[field] ?? ''
+            label = `Cliente ${cIdx+1} — ${field}`
+          }
+        } else if (scope === 'carrier') {
+          const cIdx = parseInt(itemId)
+          if (field === 'item') {
+            const rIdx = parseInt(parts[3]); const fId = parts[4]
+            oldVal = data.carriers?.[cIdx]?.items?.[rIdx]?.[fId] ?? ''
+            label = `Carrier ${cIdx+1} fila ${rIdx+1} — ${fId}`
+          } else {
+            oldVal = data.carriers?.[cIdx]?.[field] ?? ''
+            label = `Carrier ${cIdx+1} — ${field}`
+          }
         }
-
-        const label = field === 'status'
-          ? `Ítem ${itemId} — Estado`
-          : field === 'observation' || field === 'observacion'
-          ? `Ítem ${itemId} — Observación`
-          : `${scope} ${itemId}`
 
         ch[k] = { from: oldVal, to: v, label }
         continue
@@ -1154,7 +1179,8 @@ export default function SubmissionDetail() {
         {/* ── EQUIPMENT V2 — Vista especializada ── */}
         {normalizeFormCode(submission.form_code) === 'equipment-v2' ? (
           <div className="px-0">
-            <EquipmentV2Detail submission={submission} assets={assets} />
+            <EquipmentV2Detail submission={submission} assets={assets}
+              editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange} />
           </div>
         ) : (
           <>

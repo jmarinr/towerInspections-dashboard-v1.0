@@ -404,6 +404,63 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
       } else if (scope === 'medicion' && itemId) {
         const med = updatedData.medicion || {}
         updatedData = { ...updatedData, medicion: { ...med, [itemId]: value } }
+
+      // ── Equipment V2 ──────────────────────────────────────────────────────
+      } else if (scope === 'siteInfo' && itemId) {
+        // siteInfo|||fieldId → data.siteInfo.fieldId
+        updatedData = {
+          ...updatedData,
+          siteInfo: { ...(updatedData.siteInfo || {}), [itemId]: value }
+        }
+      } else if (scope === 'torre' && itemId === 'item' && field !== undefined) {
+        // torre|||item|||{rowIdx}|||{fieldId}
+        const rowIdx = parseInt(field)
+        const fieldId = parts[3]
+        if (!isNaN(rowIdx) && fieldId) {
+          const items = [...(updatedData.torre?.items || [])]
+          items[rowIdx] = { ...(items[rowIdx] || {}), [fieldId]: value }
+          updatedData = { ...updatedData, torre: { ...(updatedData.torre || {}), items } }
+        }
+      } else if (scope === 'piso' && itemId !== undefined) {
+        const cIdx = parseInt(itemId)
+        if (!isNaN(cIdx)) {
+          const clientes = [...(updatedData.piso?.clientes || [])]
+          if (!clientes[cIdx]) clientes[cIdx] = {}
+          if (field === 'gab') {
+            // piso|||{cIdx}|||gab|||{gIdx}|||{fieldId}
+            const gIdx   = parseInt(parts[3])
+            const fieldId = parts[4]
+            if (!isNaN(gIdx) && fieldId) {
+              const gabs = [...(clientes[cIdx].gabinetes || [])]
+              gabs[gIdx] = { ...(gabs[gIdx] || {}), [fieldId]: value }
+              clientes[cIdx] = { ...clientes[cIdx], gabinetes: gabs }
+            }
+          } else if (field) {
+            // piso|||{cIdx}|||{fieldId}
+            clientes[cIdx] = { ...clientes[cIdx], [field]: value }
+          }
+          updatedData = { ...updatedData, piso: { ...(updatedData.piso || {}), clientes } }
+        }
+      } else if (scope === 'carrier' && itemId !== undefined) {
+        const cIdx = parseInt(itemId)
+        if (!isNaN(cIdx)) {
+          const carriers = [...(updatedData.carriers || [])]
+          if (!carriers[cIdx]) carriers[cIdx] = {}
+          if (field === 'item') {
+            // carrier|||{cIdx}|||item|||{rIdx}|||{fieldId}
+            const rIdx   = parseInt(parts[3])
+            const fieldId = parts[4]
+            if (!isNaN(rIdx) && fieldId) {
+              const items = [...(carriers[cIdx].items || [])]
+              items[rIdx] = { ...(items[rIdx] || {}), [fieldId]: value }
+              carriers[cIdx] = { ...carriers[cIdx], items }
+            }
+          } else if (field) {
+            // carrier|||{cIdx}|||{fieldId}
+            carriers[cIdx] = { ...carriers[cIdx], [field]: value }
+          }
+          updatedData = { ...updatedData, carriers }
+        }
       }
       continue
     }
