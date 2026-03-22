@@ -1,4 +1,4 @@
-import { ClipboardCheck, Wrench, Camera, Package, Shield, Zap, LayoutList } from 'lucide-react'
+import { ClipboardCheck, Wrench, Camera, Package, Shield, Zap, LayoutList, Image } from 'lucide-react'
 
 export const FORM_TYPES = {
   'inspection-general': {
@@ -15,7 +15,6 @@ export const FORM_TYPES = {
     color: 'bg-orange-500',
     colorLight: 'bg-orange-50 text-orange-700',
   },
-  // Ejecutado → emerald (intercambiado con Inventario v1)
   'executed-maintenance': {
     label: 'Mantenimiento Ejecutado',
     shortLabel: 'Mant. Ejecutado',
@@ -23,7 +22,6 @@ export const FORM_TYPES = {
     color: 'bg-emerald-500',
     colorLight: 'bg-emerald-50 text-emerald-700',
   },
-  // Inventario v1 → rose + LayoutList (intercambiado)
   'equipment': {
     label: 'Inventario de Equipos',
     shortLabel: 'Inventario',
@@ -31,7 +29,6 @@ export const FORM_TYPES = {
     color: 'bg-rose-500',
     colorLight: 'bg-rose-50 text-rose-700',
   },
-  // Inventario v2 → cyan + Package (intercambiado)
   'equipment-v2': {
     label: 'Inventario de Equipos v2',
     shortLabel: 'Inventario v2',
@@ -39,7 +36,6 @@ export const FORM_TYPES = {
     color: 'bg-cyan-400',
     colorLight: 'bg-cyan-50 text-cyan-700',
   },
-  // Ascenso → yellow (nuevo)
   'safety-system': {
     label: 'Sistema de Ascenso',
     shortLabel: 'Ascenso',
@@ -47,13 +43,19 @@ export const FORM_TYPES = {
     color: 'bg-yellow-400',
     colorLight: 'bg-yellow-50 text-yellow-700',
   },
-  // Puesta a Tierra → purple (sin cambio)
   'grounding-system-test': {
     label: 'Prueba de Puesta a Tierra',
     shortLabel: 'Puesta a Tierra',
     icon: Zap,
     color: 'bg-purple-500',
     colorLight: 'bg-purple-50 text-purple-700',
+  },
+  'additional-photo-report': {
+    label: 'Reporte Adicional de Fotografías',
+    shortLabel: 'Reporte de Fotos',
+    icon: Image,
+    color: 'bg-pink-500',
+    colorLight: 'bg-pink-50 text-pink-700',
   },
 }
 
@@ -72,6 +74,9 @@ const CODE_ALIASES = {
   'equipment-v2':          'equipment-v2',
   'safety-system':         'safety-system',
   'grounding-system-test': 'grounding-system-test',
+  'additional-photo-report': 'additional-photo-report',
+  'additional-photo':        'additional-photo-report',
+  'reporte-fotos':           'additional-photo-report',
 }
 
 export function normalizeFormCode(code) {

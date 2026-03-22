@@ -471,6 +471,12 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
       continue
     }
 
+    // Campo 'notes' del formulario de fotos adicionales
+    if (key === 'notes') {
+      updatedData = { ...updatedData, notes: value }
+      continue
+    }
+
     updatedData = deepApply(updatedData, key, value)
     // Fallback: también escribir en formData como canonical
     if (!key.includes('.')) {

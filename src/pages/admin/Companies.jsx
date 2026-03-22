@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight, MapPin } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight, MapPin, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -41,6 +41,26 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
       await supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id })))
     }
     setSaving(false); onSave()
+  }
+
+  const isNew = !company?.id
+
+  // Escape key
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const handleDelete = async () => {
+    if (!company?.id) return
+    if (!window.confirm(`¿Eliminar empresa "${company.name}"? Esta acción eliminará también sus asociaciones de regiones.`)) return
+    setSaving(true)
+    await supabase.from('company_regions').delete().eq('company_id', company.id)
+    const { error: err } = await supabase.from('companies').delete().eq('id', company.id)
+    setSaving(false)
+    if (err) { setError(err.message); return }
+    onSave()
   }
 
   return (
@@ -111,6 +131,13 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
           </div>
         </div>
         <div className="px-5 py-4 flex gap-2 justify-end" style={{ borderTop:'1px solid var(--border-light)' }}>
+          {!isNew && (
+            <button onClick={handleDelete} disabled={saving}
+              className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50"
+              style={{ color:'#dc2626', background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.2)' }}>
+              <Trash2 size={13}/>Eliminar
+            </button>
+          )}
           <button onClick={onClose} className="h-9 px-4 rounded-lg text-[13px] th-text-s" style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>Cancelar</button>
           <button onClick={save} disabled={saving} className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50 flex items-center gap-1.5" style={{ background:'#0284C7' }}>
             {saving ? <><Spinner size={13}/>Guardando…</> : <><Check size={13}/>Guardar</>}

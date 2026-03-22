@@ -21,6 +21,8 @@ import { downloadPMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
 import { downloadSafetyPdf } from '../utils/pdf/safetyPdf'
 import { generateEquipmentV2Pdf } from '../utils/pdf/equipmentV2Pdf'
 import EquipmentV2Detail from '../components/submissions/EquipmentV2Detail'
+import { generateAdditionalPhotoPdf } from '../utils/pdf/additionalPhotoPdf'
+import AdditionalPhotoDetail from '../components/submissions/AdditionalPhotoDetail'
 import {
   updateSubmissionPayload,
   insertSubmissionEdit,
@@ -641,6 +643,9 @@ export default function SubmissionDetail() {
         document.body.appendChild(a); a.click(); document.body.removeChild(a)
         URL.revokeObjectURL(url)
       }
+      else if (fc === 'additional-photo-report') {
+        await generateAdditionalPhotoPdf(submission, assets)
+      }
       else                                       await downloadSubmissionPdf(submission, assets)
     } catch (e) { console.error('PDF error:', e) }
     setPdfLoading(false)
@@ -895,7 +900,8 @@ export default function SubmissionDetail() {
     // Inventario v1
     'equipment': null,
     // equipment-v2 usa componente propio (EquipmentV2Detail), no pasa por SectionCard
-  }
+    // additional-photo-report usa componente propio (AdditionalPhotoDetail)
+    'additional-photo-report': null,
 
   const fc = normalizeFormCode(submission?.form_code || '')
   const allowedSections = PHOTO_SECTIONS[fc] // undefined = no mapeado, null = todas
@@ -1180,6 +1186,11 @@ export default function SubmissionDetail() {
         {normalizeFormCode(submission.form_code) === 'equipment-v2' ? (
           <div className="px-0">
             <EquipmentV2Detail submission={submission} assets={assets}
+              editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange} />
+          </div>
+        ) : normalizeFormCode(submission.form_code) === 'additional-photo-report' ? (
+          <div className="px-0">
+            <AdditionalPhotoDetail submission={submission} assets={assets}
               editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange} />
           </div>
         ) : (

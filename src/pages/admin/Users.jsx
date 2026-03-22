@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { useAuthStore } from '../../store/useAuthStore'
@@ -42,6 +42,12 @@ function FieldLabel({ label, children }) {
 function UserModal({ user, companies, onSave, onClose }) {
   const isNew = !user?.id
   const currentUser = useAuthStore(s => s.user)
+
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
   const [form, setForm] = useState({
     email:         user?.email         || '',
     full_name:     user?.full_name     || '',

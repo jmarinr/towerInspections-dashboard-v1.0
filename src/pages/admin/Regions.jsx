@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, MapPin, ToggleLeft, ToggleRight, X, Check,
+import React from 'react'
+import { Plus, Pencil, MapPin, ToggleLeft, ToggleRight, X, Check, Trash2,
          ChevronDown, ChevronRight, Building2, Search } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
@@ -11,6 +12,23 @@ function RegionModal({ region, onSave, onClose }) {
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
   const isNew = !region?.id
+
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const handleDelete = async () => {
+    if (!region?.id) return
+    if (!window.confirm(`¿Eliminar la región "${region.name}"? Esto también eliminará todos sus sitios.`)) return
+    setSaving(true)
+    await supabase.from('sites').delete().eq('region_id', region.id)
+    const { error: err } = await supabase.from('regions').delete().eq('id', region.id)
+    setSaving(false)
+    if (err) { setError(err.message); return }
+    onSave()
+  }
 
   const save = async () => {
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
@@ -42,6 +60,13 @@ function RegionModal({ region, onSave, onClose }) {
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop:'1px solid var(--border-light)' }}>
+          {!isNew && (
+            <button onClick={handleDelete} disabled={saving}
+              className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50"
+              style={{ color:'#dc2626', background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.2)' }}>
+              <Trash2 size={13}/>Eliminar región
+            </button>
+          )}
           <button onClick={onClose} className="h-9 px-4 rounded-lg text-[13px] th-text-s" style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>Cancelar</button>
           <button onClick={save} disabled={saving} className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50 flex items-center gap-1.5" style={{ background:'#0284C7' }}>
             {saving ? <><Spinner size={13}/>Guardando…</> : <><Check size={13}/>{isNew ? 'Crear' : 'Guardar'}</>}
@@ -66,6 +91,22 @@ function SiteModal({ site, regionId, onSave, onClose }) {
   const [error,  setError]  = useState('')
   const isNew = !site?.id
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }))
+
+  React.useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose])
+
+  const handleDelete = async () => {
+    if (!site?.id) return
+    if (!window.confirm(`¿Eliminar el sitio "${site.name}" (${site.site_id})?`)) return
+    setSaving(true)
+    const { error: err } = await supabase.from('sites').delete().eq('id', site.id)
+    setSaving(false)
+    if (err) { setError(err.message); return }
+    onSave()
+  }
 
   const save = async () => {
     if (!form.site_id.trim()) { setError('El ID de sitio es obligatorio'); return }
@@ -131,6 +172,13 @@ function SiteModal({ site, regionId, onSave, onClose }) {
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop:'1px solid var(--border-light)' }}>
+          {!isNew && (
+            <button onClick={handleDelete} disabled={saving}
+              className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50"
+              style={{ color:'#dc2626', background:'rgba(239,68,68,0.07)', border:'1px solid rgba(239,68,68,0.2)' }}>
+              <Trash2 size={13}/>Eliminar sitio
+            </button>
+          )}
           <button onClick={onClose} className="h-9 px-4 rounded-lg text-[13px] th-text-s" style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>Cancelar</button>
           <button onClick={save} disabled={saving} className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white disabled:opacity-50 flex items-center gap-1.5" style={{ background:'#0284C7' }}>
             {saving ? <><Spinner size={13}/>Guardando…</> : <><Check size={13}/>{isNew ? 'Crear sitio' : 'Guardar'}</>}

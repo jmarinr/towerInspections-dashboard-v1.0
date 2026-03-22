@@ -20,6 +20,7 @@ import { inspectionSections } from '../data/inspectionItems'
 import { groundingSystemTestConfig } from '../data/groundingSystemTestConfig'
 import { safetyClimbingSections, safetySectionFields } from '../data/safetyClimbingDeviceConfig'
 import { PM_EXECUTED_ACTIVITIES, groupActivities } from '../data/preventiveMaintenanceExecutedConfig'
+import { PHOTO_CATEGORIES, ACRONYM_MAP } from '../data/additionalPhotoConfig'
 
 // ═══════════════════════════════════════════
 // CORE: Navigate nested payload
@@ -543,6 +544,41 @@ function buildPMExecutedPayload(data) {
 // MAIN EXPORT
 // ═══════════════════════════════════════════
 
+
+// ═══════════════════════════════════════════
+// BUILDER 7: Reporte Adicional de Fotografías
+// Payload: { photos: { ACC: [url,...], CAM: [...], ... }, notes: '' }
+// assetType en Supabase: photos:{ACRONYM}:{index}
+// ═══════════════════════════════════════════
+
+function buildAdditionalPhotoPayload(data) {
+  const result = {}
+  const photos = data.photos || {}
+  const notes  = data.notes  || ''
+
+  for (const cat of PHOTO_CATEGORIES) {
+    const catPhotos = (photos[cat.id] || []).filter(Boolean)
+    if (catPhotos.length === 0) continue
+    const rows = catPhotos.map((url, i) => {
+      const subLabel = cat.subLabels?.[i] ?? (cat.subGroups ? `Foto ${i + 1}` : `Foto ${i + 1}`)
+      return {
+        '#':      i + 1,
+        'Código': `${cat.id}_${String(i + 1).padStart(2, '0')}`,
+        'Vista':  subLabel,
+        'URL':    url || '',
+      }
+    })
+    const sectionTitle = `${cat.emoji} ${cat.title}`
+    result[sectionTitle] = rows
+  }
+
+  if (notes) {
+    result['📝 Observaciones'] = { notes: { label: 'Observaciones', value: notes, type: 'textarea', fieldId: 'notes', readOnly: false } }
+  }
+
+  return result
+}
+
 export function getCleanPayload(submission) {
   const { inner, data, meta } = resolveInner(submission)
   const outer = submission?.payload || {}
@@ -588,6 +624,8 @@ export function getCleanPayload(submission) {
     formResult = buildEquipmentPayload(data)
   } else if (fc === 'mantenimiento-ejecutado' || fc.includes('executed')) {
     formResult = buildPMExecutedPayload(data)
+  } else if (fc === 'additional-photo-report' || fc.includes('additional-photo')) {
+    formResult = buildAdditionalPhotoPayload(data)
   } else {
     formResult = buildGenericPayload(data)
   }
@@ -755,6 +793,25 @@ export function groupAssetsBySection(assets, formCode) {
         const info = SAFETY_FIELD_MAP[parts[1]]
         sectionTitle = `🧗 ${info?.sectionTitle || 'Evidencia'}`
         label = info?.label || labelize(parts[1])
+      } else {
+        label = labelize(type)
+      }
+
+    // ── Reporte Adicional de Fotografías ──
+    // asset_type: photos:{ACRONYM}:{index}  (ej: photos:ACC:0, photos:EQTT:2)
+    } else if (fc === 'additional-photo-report' || fc.includes('additional-photo')) {
+      if (parts[0] === 'photos' && parts[1]) {
+        const acronym = parts[1]
+        const idx     = parseInt(parts[2] ?? '0')
+        const cat     = ACRONYM_MAP[acronym]
+        if (cat) {
+          sectionTitle = `${cat.emoji} ${cat.title}`
+          const subLabel = cat.subLabels?.[idx] ?? (cat.subGroups ? `Foto ${idx + 1}` : `Foto ${idx + 1}`)
+          label = `${acronym}_${String(idx + 1).padStart(2, '0')} · ${subLabel}`
+        } else {
+          sectionTitle = '📷 Fotos adicionales'
+          label = `${acronym} #${idx + 1}`
+        }
       } else {
         label = labelize(type)
       }
