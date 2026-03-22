@@ -390,20 +390,26 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
       onClick={onCancel}>
-      <div className="rounded-2xl shadow-elevated w-full max-w-md" style={{background:"var(--bg-card)"}} onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="px-5 pt-5 pb-4 border-b th-border-l flex items-start gap-3">
-          <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
-            <ShieldCheck size={15} className="text-accent" />
-          </div>
-          <div>
-            <h2 className="text-[15px] font-semibold th-text-p">Confirmar cambios</h2>
-            <p className="text-[12px] th-text-m mt-0.5">Quedarán registrados en el historial de auditoría.</p>
+      <div className="rounded-2xl shadow-elevated w-full max-w-md flex flex-col"
+        style={{ background: 'var(--bg-card)', maxHeight: 'min(90vh, 600px)' }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Header — fijo */}
+        <div className="px-5 pt-5 pb-4 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck size={15} className="text-accent" />
+            </div>
+            <div>
+              <h2 className="text-[15px] font-semibold th-text-p">Confirmar cambios</h2>
+              <p className="text-[12px] th-text-m mt-0.5">Quedarán registrados en el historial de auditoría.</p>
+            </div>
           </div>
         </div>
 
-        {/* Diff list */}
-        <div className="px-5 py-3 max-h-48 overflow-y-auto space-y-2">
+        {/* Diff list — scrolleable */}
+        <div className="px-5 py-3 overflow-y-auto space-y-2 flex-1 min-h-0">
           {entries.map(([key, { from, to, label }]) => (
             <div key={key} className="text-[12px] th-bg-base rounded-lg px-3 py-2">
               <div className="font-medium th-text-s mb-1">{label || key}</div>
@@ -416,15 +422,16 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
           ))}
         </div>
 
-        {/* Note input */}
-        <div className="px-5 pb-5 border-t th-border-l pt-4 space-y-3">
+        {/* Note + botones — fijo al fondo */}
+        <div className="px-5 pb-5 pt-4 flex-shrink-0 space-y-3"
+          style={{ borderTop: '1px solid var(--border)' }}>
           <div>
             <label className="text-[11px] font-semibold th-text-s uppercase tracking-wide block mb-1.5">
               Razón del cambio <span className="text-bad">*</span>
             </label>
             <textarea
               autoFocus
-              rows={3}
+              rows={2}
               className="w-full text-[13px] rounded-lg px-3 py-2 outline-none resize-none transition-all th-text-p th-bg-input"
               style={{ border: '1px solid var(--border)' }}
               onFocus={e  => { e.target.style.borderColor = '#0284C7'; e.target.style.boxShadow = '0 0 0 3px rgba(2,132,199,0.15)' }}
@@ -436,15 +443,16 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel}
-              className="flex-1 h-9 text-[13px] font-medium th-text-s th-bg-base rounded-lg transition-colors">
+              className="flex-1 h-10 text-[13px] font-medium th-text-s th-bg-base rounded-lg transition-colors"
+              style={{ border: '1px solid var(--border)' }}>
               Cancelar
             </button>
             <button onClick={() => onConfirm(note)}
               disabled={!note.trim() || saving}
-              className="flex-1 h-9 text-[13px] font-semibold text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+              className="flex-1 h-10 text-[13px] font-semibold text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
               {saving
                 ? <><Clock size={13} className="animate-spin"/>Guardando…</>
-                : <><Save size={13}/>Guardar</>}
+                : <><Save size={13}/>Guardar cambios</>}
             </button>
           </div>
         </div>
@@ -635,20 +643,55 @@ export default function SubmissionDetail() {
   const handlePhotoUpload = useCallback(async (file, sectionHint) => {
     if (!file || !submission) return
     try {
-      const ext  = file.name.split('.').pop() || 'jpg'
-      const path = `${submission.org_code || 'pti'}/${submissionId}/${sectionHint || 'dashboard'}_${Date.now()}.${ext}`
-      const { error } = await supabase.storage
+      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const ts   = Date.now()
+      const path = `${submission.org_code || 'PTI'}/${submissionId}/dashboard_${sectionHint || 'foto'}_${ts}.${ext}`
+
+      // 1. Subir al Storage
+      const { error: storageErr } = await supabase.storage
         .from('inspection-assets')
         .upload(path, file, { upsert: true, contentType: file.type })
-      if (error) throw error
-      // Reload so new asset appears
+      if (storageErr) throw storageErr
+
+      // 2. Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('inspection-assets')
+        .getPublicUrl(path)
+      const publicUrl = urlData?.publicUrl
+
+      // 3. Insertar registro en submission_assets
+      const assetType = `dashboard:${sectionHint || 'foto'}:${ts}`
+      const { error: dbErr } = await supabase
+        .from('submission_assets')
+        .insert({
+          submission_id: submissionId,
+          asset_type:    assetType,
+          storage_path:  path,
+          public_url:    publicUrl,
+          uploaded_by:   user?.email || user?.username || 'admin',
+        })
+      if (dbErr) console.warn('[Photo] submission_assets insert failed:', dbErr.message)
+
+      // 4. Audit log
+      const editedBy = user?.email || user?.username || 'admin'
+      insertSubmissionEdit(submissionId, editedBy,
+        { __photo__: { from: '—', to: path, label: `Foto subida (${sectionHint || 'general'})` } },
+        `Foto subida desde panel: ${file.name}`)
+        .catch(e => console.warn('[Audit]', e.message))
+
+      // 5. System log
+      LOG.submissionEdited(submissionId,
+        extractSiteInfo(submission)?.nombreSitio || submissionId,
+        editedBy, [`foto:${sectionHint}`])
+
+      // 6. Reload para mostrar la foto nueva
       await loadDetail(submissionId)
-      // Audit — non-blocking
-      insertSubmissionEdit(submissionId, user.username,
-        { __photo__: { from: '—', to: path, label: 'Foto subida' } },
-        `Foto subida desde panel de administración: ${file.name}`)
-        .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
-    } catch (e) { console.error('Photo upload error:', e) }
+
+    } catch (e) {
+      console.error('Photo upload error:', e)
+      setSaveError(`Error al subir foto: ${e.message}`)
+      setTimeout(() => setSaveError(null), 4000)
+    }
   }, [submission, submissionId, user])
 
   // ── Finalized toggle ────────────────────────────────────────
@@ -711,13 +754,14 @@ export default function SubmissionDetail() {
       }
 
       await updateSubmissionPayload(submissionId, submission.payload, pendingEdits)
-      insertSubmissionEdit(submissionId, user.username || user.email, changes, note)
+      const editedBy = user?.email || user?.username || 'admin'
+      insertSubmissionEdit(submissionId, editedBy, changes, note)
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
       // Log en system_logs
       LOG.submissionEdited(
         submissionId,
         extractSiteInfo(submission)?.nombreSitio || submissionId,
-        user.email,
+        editedBy,
         Object.keys(changes)
       )
       await loadDetail(submissionId)
