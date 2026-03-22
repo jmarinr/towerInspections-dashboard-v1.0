@@ -71,7 +71,10 @@ function UserModal({ user, companies, onSave, onClose }) {
     setSaving(true); setError('')
 
     if (isNew) {
-      // Llamar a la Edge Function create-user con timeout de 15s
+      // Obtener token de sesión actual para pasarlo a la Edge Function
+      const { data: { session } } = await supabase.auth.getSession()
+      const token = session?.access_token
+
       const invokePromise = supabase.functions.invoke('create-user', {
         body: {
           email:         form.email.trim(),
@@ -82,9 +85,10 @@ function UserModal({ user, companies, onSave, onClose }) {
           supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
           active:        form.active,
         },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Tiempo de espera agotado (15s)')), 15000)
+        setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)
       )
 
       let res
@@ -96,12 +100,17 @@ function UserModal({ user, companies, onSave, onClose }) {
         return
       }
 
-      if (res.error || res.data?.error) {
-        setError(res.data?.error || res.error?.message || 'Error al crear usuario')
+      // Extraer mensaje de error del SDK v2 — puede venir en distintos lugares
+      const errMsg = res.data?.error
+        || res.error?.context?.json?.error
+        || res.error?.message
+        || (res.error ? 'Error al crear usuario' : null)
+
+      if (errMsg) {
+        setError(errMsg)
         setSaving(false)
         return
       }
-      // Log creación exitosa
       LOG.userCreated(form.email, form.role, currentUser?.email)
     } else {
       // Detectar si se desactivó el usuario
