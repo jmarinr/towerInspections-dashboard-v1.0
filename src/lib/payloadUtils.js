@@ -90,31 +90,84 @@ function labelize(key) {
 }
 
 /** Read fields from config [{id, label, type}] into { label: value } */
+// Campos que NUNCA son editables desde el panel
+export const NEVER_EDIT_FIELDS = new Set([
+  'coordenadas', 'gps', 'startedAt', 'finishedAt', 'submitted_at',
+  'device_id', 'app_version', 'horaEntrada', 'fecha', 'hora',
+  'firmaProveedor', 'alturaTotal', 'sumResistencias', 'rg',
+  'idSitio', 'nombreSitio', 'tipoVisita',
+  // Meta del sistema
+  'lat', 'lng', 'startTime', 'endTime',
+])
+
+// Tipo de control a renderizar en el dashboard según tipo del campo en el app
+export function resolveControlType(field) {
+  if (NEVER_EDIT_FIELDS.has(field.id)) return 'readonly'
+  if (field.readOnly) return 'readonly'
+  if (field.type === 'calculated') return 'readonly'
+  if (field.type === 'signature') return 'readonly'
+  if (field.type === 'photo') return 'readonly'
+  if (field.type === 'select' || field.type === 'toggle') return 'select'
+  if (field.type === 'status') return 'select'
+  if (field.type === 'number') return 'number'
+  if (field.type === 'textarea') return 'textarea'
+  return 'text'
+}
+
+// Opciones para campos status
+const STATUS_OPTIONS = [
+  { value: 'bueno', label: 'Bueno' },
+  { value: 'regular', label: 'Regular' },
+  { value: 'malo', label: 'Malo' },
+  { value: 'na', label: 'N/A' },
+]
+
+/**
+ * Extrae campos de un config con metadatos completos para edición.
+ * Retorna { [fieldId]: { label, value, type, options, readOnly } }
+ */
 function extractFieldsFromConfig(fields, dataObj) {
   if (!fields || !dataObj) return {}
   const out = {}
   for (const f of fields) {
     if (f.type === 'photo' || f.type === 'signature') continue
     if (f.type === 'calculated') {
-      // Compute calculated values
+      // Campos calculados: solo mostrar, no editar
+      let displayVal = null
       if (f.id === 'sumResistencias') {
         const keys = ['rPataTorre','rCerramiento','rPorton','rPararrayos','rBarraSPT','rEscalerilla1','rEscalerilla2']
         const sum = keys.reduce((s, k) => s + (parseFloat(dataObj[k]) || 0), 0)
-        out[f.label] = sum.toFixed(4) + ' Ohm'
+        displayVal = sum.toFixed(4) + ' Ohm'
       } else if (f.id === 'rg') {
         const keys = ['rPataTorre','rCerramiento','rPorton','rPararrayos','rBarraSPT','rEscalerilla1','rEscalerilla2']
         const vals = keys.map(k => parseFloat(dataObj[k]) || 0)
         const nonZero = vals.filter(v => v > 0)
         const rg = nonZero.length > 0 ? vals.reduce((a, b) => a + b, 0) / nonZero.length : 0
-        out[f.label] = rg.toFixed(4) + ' Ohm'
+        displayVal = rg.toFixed(4) + ' Ohm'
       } else if (f.id === 'alturaTotal') {
         const at = (parseFloat(dataObj.alturaTorre) || 0) + (parseFloat(dataObj.alturaEdificio) || 0)
-        if (at > 0) out[f.label] = at + ' m'
+        if (at > 0) displayVal = at + ' m'
+      }
+      if (displayVal !== null) {
+        out[f.id] = { label: f.label, value: displayVal, type: 'readonly', fieldId: f.id }
       }
       continue
     }
-    const val = cleanVal(dataObj[f.id])
-    if (val !== null) out[f.label] = val
+    const val = dataObj[f.id]
+    const cleanedVal = cleanVal(val)
+    if (cleanedVal === null && !f.required) continue
+    const controlType = resolveControlType(f)
+    const options = f.type === 'status'
+      ? STATUS_OPTIONS
+      : (f.options || null)
+    out[f.id] = {
+      label: f.label,
+      value: cleanedVal ?? '',
+      type: controlType,
+      options,
+      fieldId: f.id,
+      readOnly: controlType === 'readonly',
+    }
   }
   return out
 }
@@ -206,15 +259,23 @@ function buildMaintenancePayload(data) {
     } else if (step.type === 'checklist') {
       const items = []
       for (const item of step.items) {
-        const entry = checklistData[item.id]
-        if (entry && (entry.status || entry.value || entry.observation)) {
-          const row = { '#': item.id, 'Ítem': item.name, 'Estado': statusLabel(entry.status) }
-          if (entry.value) row['Valor'] = entry.value
-          if (entry.observation) row['Observación'] = entry.observation
-          items.push(row)
-        } else {
-          items.push({ '#': item.id, 'Ítem': item.name, 'Estado': '⏳ Pendiente' })
-        }
+        const entry = checklistData[item.id] || {}
+        items.push({
+          // Identificadores internos (no se muestran como labels)
+          __itemId__: item.id,
+          __itemName__: item.name,
+          // Campos del item
+          '#': item.id,
+          'Ítem': item.name,
+          'Estado': statusLabel(entry.status) || '⏳ Pendiente',
+          'Observación': entry.observation || '',
+          // Metadatos para edición
+          __editable__: true,
+          __statusKey__: `checklist.${item.id}.status`,
+          __obsKey__: `checklist.${item.id}.observation`,
+          __rawStatus__: entry.status || '',
+          __rawObs__: entry.observation || '',
+        })
       }
       if (items.length > 0) result[`${step.icon || '📋'} ${step.title}`] = items
     }
@@ -232,25 +293,37 @@ function buildInspectionPayload(data) {
   const siteInfo = data.siteInfo || {}
   const items = data.items || {}
 
-  const siteLabels = {
-    proveedor: 'Proveedor', idSitio: 'ID del Sitio', nombreSitio: 'Nombre del Sitio',
-    tipoSitio: 'Tipo de Sitio', coordenadas: 'Coordenadas GPS', direccion: 'Dirección',
-    fecha: 'Fecha', hora: 'Hora', tipoTorre: 'Tipo de Torre', alturaTorre: 'Altura de la Torre (m)',
-  }
-  const sf = {}
-  for (const [k, label] of Object.entries(siteLabels)) {
-    const v = cleanVal(siteInfo[k])
-    if (v !== null) sf[label] = v
-  }
+  // Campos de info del sitio con metadatos de edición
+  const siteFields = [
+    { id: 'proveedor',   label: 'Proveedor',          type: 'text' },
+    { id: 'idSitio',     label: 'ID del Sitio',        type: 'text',    readOnly: true },
+    { id: 'nombreSitio', label: 'Nombre del Sitio',    type: 'text',    readOnly: true },
+    { id: 'tipoSitio',   label: 'Tipo de Sitio',       type: 'text' },
+    { id: 'coordenadas', label: 'Coordenadas GPS',     type: 'text',    readOnly: true },
+    { id: 'direccion',   label: 'Dirección',           type: 'textarea' },
+    { id: 'fecha',       label: 'Fecha',               type: 'text',    readOnly: true },
+    { id: 'hora',        label: 'Hora',                type: 'text',    readOnly: true },
+  ]
+  const sf = extractFieldsFromConfig(siteFields, siteInfo)
   if (Object.keys(sf).length) result['📋 Información del Sitio'] = sf
 
   for (const section of inspectionSections) {
     if (!section.items) continue
     const rows = section.items.map(item => {
       const e = items[item.id] || {}
-      const row = { '#': item.id, 'Pregunta': item.text, 'Estado': statusLabel(e.status) }
-      if (e.observation) row['Observación'] = e.observation
-      return row
+      return {
+        __itemId__: item.id,
+        __itemName__: item.text,
+        '#': item.id,
+        'Pregunta': item.text,
+        'Estado': statusLabel(e.status) || '⏳ Sin evaluar',
+        'Observación': e.observation || '',
+        __editable__: true,
+        __statusKey__: `items.${item.id}.status`,
+        __obsKey__: `items.${item.id}.observation`,
+        __rawStatus__: e.status || '',
+        __rawObs__: e.observation || '',
+      }
     })
     if (rows.length) result[`${section.icon || '📋'} ${section.title}`] = rows
   }
@@ -268,49 +341,67 @@ function buildGroundingPayload(data) {
     const sectionData = data[section.id] || {}
 
     if (section.id === 'medicion') {
-      // Present measurements as a checklist-like table with values
       const measurements = [
         { id: 'rPataTorre', label: 'Pata de la torre' },
         { id: 'rCerramiento', label: 'Cerramiento' },
-        { id: 'rPorton', label: 'Porton' },
+        { id: 'rPorton', label: 'Portón' },
         { id: 'rPararrayos', label: 'Pararrayos' },
         { id: 'rBarraSPT', label: 'Barra SPT' },
         { id: 'rEscalerilla1', label: 'Escalerilla #1' },
         { id: 'rEscalerilla2', label: 'Escalerilla #2' },
       ]
-      const items = measurements.map((m, i) => {
-        const val = parseFloat(sectionData[m.id]) || 0
-        const status = val === 0 ? '-- Pendiente' : val <= 5 ? '\u2705 Bueno' : val <= 10 ? '\u26A0\uFE0F Regular' : '\u274C Malo'
-        return {
-          '#': i + 1,
-          'Item': m.label,
-          'Estado': status,
-          'Valor': val > 0 ? val + ' Ohm' : '0',
-          'Observacion': sectionData.observaciones && i === 0 ? sectionData.observaciones : '',
-        }
-      })
-
-      // Add summary rows
       const vals = measurements.map(m => parseFloat(sectionData[m.id]) || 0)
       const sum = vals.reduce((a, b) => a + b, 0)
       const nonZero = vals.filter(v => v > 0)
       const rg = nonZero.length > 0 ? sum / nonZero.length : 0
 
-      result['\u26A1 Medicion de resistencia'] = items
+      // Filas de medición con metadatos de edición (valor numérico editable)
+      const items = measurements.map((m, i) => {
+        const val = vals[i]
+        const status = val === 0 ? '-- Pendiente' : val <= 5 ? '✅ Bueno' : val <= 10 ? '⚠️ Regular' : '❌ Malo'
+        return {
+          __itemId__: m.id,
+          __itemName__: m.label,
+          '#': i + 1,
+          'Item': m.label,
+          'Estado': status,
+          'Valor': val > 0 ? val + ' Ohm' : '0',
+          __editable__: true,
+          __valueKey__: `medicion.${m.id}`,
+          __rawValue__: val || '',
+        }
+      })
+      result['⚡ Medición de resistencia'] = items
 
-      // Add calculated summary as field data
-      const calcFields = {}
-      calcFields['Distancia electrodo corriente'] = (sectionData.distanciaElectrodoCorriente || '50') + ' m'
-      calcFields['Sumatoria de resistencias'] = sum.toFixed(4) + ' Ohm'
-      calcFields['Rg promedio'] = rg.toFixed(4) + ' Ohm'
-      if (sectionData.observaciones) calcFields['Observaciones'] = sectionData.observaciones
-      result['\u26A1 Resultados'] = calcFields
+      // Resultados calculados (readonly)
+      const calcFields = {
+        distanciaElectrodoCorriente: {
+          label: 'Distancia electrodo corriente', fieldId: 'distanciaElectrodoCorriente',
+          value: (sectionData.distanciaElectrodoCorriente || '50') + ' m',
+          type: 'number', readOnly: false,
+        },
+        sumResistencias: {
+          label: 'Sumatoria de resistencias', fieldId: 'sumResistencias',
+          value: sum.toFixed(4) + ' Ohm', type: 'readonly', readOnly: true,
+        },
+        rg: {
+          label: 'Rg promedio', fieldId: 'rg',
+          value: rg.toFixed(4) + ' Ohm', type: 'readonly', readOnly: true,
+        },
+      }
+      if (sectionData.observaciones) {
+        calcFields.observaciones = {
+          label: 'Observaciones', fieldId: 'observaciones',
+          value: sectionData.observaciones, type: 'textarea', readOnly: false,
+        }
+      }
+      result['⚡ Resultados'] = calcFields
+
     } else if (section.id === 'evidencia') {
-      // Skip evidence section - photos handled separately
       continue
     } else {
       const fields = extractFieldsFromConfig(section.fields, sectionData)
-      if (Object.keys(fields).length) result['\u26A1 ' + section.title] = fields
+      if (Object.keys(fields).length) result[`⚡ ${section.title}`] = fields
     }
   }
   return result
@@ -327,12 +418,6 @@ function buildSafetyClimbingPayload(data) {
     const sectionData = data[section.id] || {}
     const fields = safetySectionFields[section.id] || []
     const extracted = extractFieldsFromConfig(fields, sectionData)
-    // Status fields → pill-friendly labels
-    for (const f of fields) {
-      if (f.type === 'status' && sectionData[f.id]) {
-        extracted[f.label] = statusLabel(sectionData[f.id])
-      }
-    }
     if (Object.keys(extracted).length) result[`🧗 ${section.title}`] = extracted
   }
   return result
@@ -347,35 +432,37 @@ function buildEquipmentPayload(data) {
   const result = {}
   const si = data.siteInfo || {}
 
-  const siteLabels = {
-    proveedor: 'Proveedor', tipoVisita: 'Tipo de Visita', idSitio: 'ID del Sitio',
-    nombreSitio: 'Nombre del Sitio', direccion: 'Dirección',
-    alturaMts: 'Altura (m)', tipoSitio: 'Tipo de Sitio', tipoEstructura: 'Tipo de Estructura',
-    latitud: 'Latitud', longitud: 'Longitud',
-  }
-  const sf = {}
-  for (const [k, label] of Object.entries(siteLabels)) {
-    const v = cleanVal(si[k])
-    if (v !== null) sf[label] = v
-  }
+  const siteFields = [
+    { id: 'proveedor',      label: 'Proveedor',          type: 'text' },
+    { id: 'tipoVisita',     label: 'Tipo de Visita',      type: 'text',    readOnly: true },
+    { id: 'idSitio',        label: 'ID del Sitio',        type: 'text',    readOnly: true },
+    { id: 'nombreSitio',    label: 'Nombre del Sitio',    type: 'text',    readOnly: true },
+    { id: 'direccion',      label: 'Dirección',           type: 'textarea' },
+    { id: 'alturaMts',      label: 'Altura (m)',          type: 'number' },
+    { id: 'tipoSitio',      label: 'Tipo de Sitio',       type: 'select',  options: [
+      { value: 'Rooftop', label: 'Rooftop' }, { value: 'Rawland', label: 'Rawland' },
+    ]},
+    { id: 'tipoEstructura', label: 'Tipo de Estructura',  type: 'select',  options: [
+      { value: 'Autosoportada', label: 'Autosoportada' }, { value: 'Arriostrada', label: 'Arriostrada' },
+      { value: 'Monopolo', label: 'Monopolo' }, { value: 'Otro', label: 'Otro' },
+    ]},
+    { id: 'latitud',        label: 'Latitud',             type: 'text',    readOnly: true },
+    { id: 'longitud',       label: 'Longitud',            type: 'text',    readOnly: true },
+  ]
+  const sf = extractFieldsFromConfig(siteFields, si)
   if (Object.keys(sf).length) result['🧾 Datos del Sitio'] = sf
 
-  // Torre items
   const torreItems = (data.torre?.items || []).filter(i => Object.values(i).some(v => v !== '' && v != null))
   if (torreItems.length) {
     result['🗼 Equipos en Torre'] = torreItems.map((item, idx) => ({
       '#': idx + 1,
-      'Altura (m)': item.alturaMts || '—',
-      'Orientación': item.orientacion || '—',
-      'Tipo de Equipo': item.tipoEquipo || '—',
-      'Cantidad': item.cantidad || '—',
-      'Dimensiones (m)': item.dimensionesMts || '—',
-      'Área (m²)': item.areaM2 || '—',
+      'Altura (m)': item.alturaMts || '—', 'Orientación': item.orientacion || '—',
+      'Tipo de Equipo': item.tipoEquipo || '—', 'Cantidad': item.cantidad || '—',
+      'Dimensiones (m)': item.dimensionesMts || '—', 'Área (m²)': item.areaM2 || '—',
       'Carrier': item.carrier || '—',
     }))
   }
 
-  // Piso clients + cabinets
   const clientes = (data.piso?.clientes || []).filter(c => c.nombreCliente || c.areaArrendada || c.areaEnUso)
   for (const [i, c] of clientes.entries()) {
     const cf = {}
@@ -385,11 +472,11 @@ function buildEquipmentPayload(data) {
     if (c.areaEnUso) cf['Área en Uso'] = c.areaEnUso
     if (c.placaEquipos) cf['Placa/Equipos'] = c.placaEquipos
     result[`🏢 Cliente ${i + 1}: ${c.nombreCliente || 'Sin nombre'}`] = cf
-
     const gabs = (c.gabinetes || []).filter(g => g.gabinete || g.largo || g.ancho || g.alto)
     if (gabs.length) {
       result[`📦 Gabinetes — ${c.nombreCliente || `Cliente ${i + 1}`}`] = gabs.map((g, gi) => ({
-        '#': gi + 1, 'Gabinete': g.gabinete || '—', 'Largo': g.largo || '—', 'Ancho': g.ancho || '—', 'Alto': g.alto || '—',
+        '#': gi + 1, 'Gabinete': g.gabinete || '—', 'Largo': g.largo || '—',
+        'Ancho': g.ancho || '—', 'Alto': g.alto || '—',
       }))
     }
   }
@@ -406,28 +493,28 @@ function buildPMExecutedPayload(data) {
   const si = data.siteInfo || {}
   const photos = data.photos || {}
 
-  const siteLabels = {
-    proveedor: 'Proveedor', idSitio: 'ID del Sitio', tipoVisita: 'Tipo de Visita',
-    nombreSitio: 'Nombre del Sitio', tipoSitio: 'Tipo de Sitio', fecha: 'Fecha',
-    hora: 'Hora', coordenadas: 'Coordenadas GPS', direccion: 'Dirección',
-  }
-  const sf = {}
-  for (const [k, label] of Object.entries(siteLabels)) {
-    const v = cleanVal(si[k])
-    if (v !== null) sf[label] = v
-  }
+  const siteFields = [
+    { id: 'proveedor',   label: 'Proveedor',       type: 'text' },
+    { id: 'idSitio',     label: 'ID del Sitio',    type: 'text',  readOnly: true },
+    { id: 'tipoVisita',  label: 'Tipo de Visita',  type: 'text',  readOnly: true },
+    { id: 'nombreSitio', label: 'Nombre del Sitio', type: 'text', readOnly: true },
+    { id: 'tipoSitio',   label: 'Tipo de Sitio',   type: 'select', options: [
+      { value: 'rooftop', label: 'Rooftop' }, { value: 'rawland', label: 'Rawland' },
+    ]},
+    { id: 'fecha',       label: 'Fecha',           type: 'text',  readOnly: true },
+    { id: 'hora',        label: 'Hora',            type: 'text',  readOnly: true },
+    { id: 'coordenadas', label: 'Coordenadas GPS', type: 'text',  readOnly: true },
+    { id: 'direccion',   label: 'Dirección',       type: 'textarea' },
+  ]
+  const sf = extractFieldsFromConfig(siteFields, si)
   if (Object.keys(sf).length) result['📋 Datos del Sitio'] = sf
 
-  // Activities grouped by category
   const groups = groupActivities()
   for (const group of groups) {
     const items = group.items.map(act => {
-      const beforeKey = `${act.id}-before`
-      const afterKey = `${act.id}-after`
-      const executed = photos[beforeKey] || photos[afterKey]
+      const executed = photos[`${act.id}-before`] || photos[`${act.id}-after`]
       return {
-        '#': act.item,
-        'Actividad': act.name,
+        '#': act.item, 'Actividad': act.name,
         'Referencia': act.photoLabel,
         'Estado': executed ? '✅ Ejecutada' : '⏳ Pendiente',
       }

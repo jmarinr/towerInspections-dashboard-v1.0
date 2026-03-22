@@ -61,6 +61,17 @@ function ScoreRing({ good, regular, bad, total, size = 56 }) {
 // ─────────────────────────────────────────────────────────────
 // STATUS ATOMS
 // ─────────────────────────────────────────────────────────────
+
+// Convierte raw status ('bueno','regular','malo','na') a label display
+function statusDisplayLabel(raw) {
+  const v = String(raw || '').toLowerCase()
+  if (v === 'bueno' || v.includes('bueno') || v.includes('ejecutada')) return '✅ Bueno'
+  if (v === 'regular' || v.includes('regular')) return '⚠️ Regular'
+  if (v === 'malo' || v.includes('malo')) return '❌ Malo'
+  if (v === 'na' || v.includes('n/a')) return '— N/A'
+  return raw || ''
+}
+
 function StatusDot({ value }) {
   const v = String(value || '').toLowerCase()
   if (v.includes('bueno') || v.includes('ejecutada')) return <span className="w-2.5 h-2.5 rounded-full bg-good" title="Bueno" />
@@ -131,40 +142,105 @@ function PhotoGallery({ photos, editMode = false, onUpload }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// INLINE EDITABLE FIELD
+// INLINE EDITABLE FIELD  — type-aware
 // ─────────────────────────────────────────────────────────────
-function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
+const inputCls = (changed) =>
+  `w-full text-[12px] border rounded px-2 py-1.5 outline-none transition-all th-text-p
+   ${changed
+     ? 'border-sky-500 bg-sky-50 shadow-sm ring-1 ring-sky-500/20 dark:bg-sky-900/20'
+     : 'border-[var(--border)] th-bg-base focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20'}`
+
+function EditableField({ label, value, fieldKey, type = 'text', options, readOnly, pendingEdits, onChange }) {
   const current = fieldKey in pendingEdits ? pendingEdits[fieldKey] : (value ?? '')
   const changed  = fieldKey in pendingEdits && String(pendingEdits[fieldKey]) !== String(value ?? '')
-  const isLong   = String(current).length > 80
+
+  const changedBg = changed ? 'bg-sky-50 dark:bg-sky-900/10 -mx-2 px-2 rounded' : ''
+
+  if (readOnly) {
+    return (
+      <div className={`flex items-start gap-2 py-1.5 border-b border-[var(--border-light)] last:border-0 ${changedBg}`}>
+        <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m w-36 flex-shrink-0 pt-1">{label}</span>
+        <span className="text-[12px] th-text-s flex-1 pt-0.5 italic">{String(current || '—')}</span>
+      </div>
+    )
+  }
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 border-b th-border-l last:border-0 transition-colors
-      ${changed ? 'bg-accent/5 -mx-2 px-2 rounded' : ''}`}>
-      <span className="text-[11px] th-text-m w-36 flex-shrink-0 pt-1.5">{label}</span>
+    <div className={`flex items-start gap-2 py-1.5 border-b border-[var(--border-light)] last:border-0 transition-colors ${changedBg}`}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m w-36 flex-shrink-0 pt-1.5">{label}</span>
       <div className="flex-1 relative">
-        {isLong
-          ? <textarea rows={3}
-              className={`w-full text-[12px] border rounded px-2 py-1 outline-none resize-none transition-all
-                ${changed
-                  ? 'border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20'
-                  : 'border th-border th-bg-base focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20'}`}
-              value={current}
-              onChange={e => onChange(fieldKey, e.target.value)}
-            />
-          : <input
-              className={`w-full text-[12px] border rounded px-2 py-1 outline-none transition-all
-                ${changed
-                  ? 'border-sky-500 bg-white shadow-sm ring-1 ring-sky-500/20'
-                  : 'border th-border th-bg-base focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20'}`}
-              value={current}
-              onChange={e => onChange(fieldKey, e.target.value)}
-            />
-        }
+        {type === 'select' && options ? (
+          <select
+            className={inputCls(changed)}
+            value={current}
+            onChange={e => onChange(fieldKey, e.target.value)}>
+            {options.map(o => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        ) : type === 'textarea' ? (
+          <textarea rows={2}
+            className={inputCls(changed) + ' resize-none'}
+            value={current}
+            onChange={e => onChange(fieldKey, e.target.value)} />
+        ) : type === 'number' ? (
+          <input type="number" step="any"
+            className={inputCls(changed)}
+            value={current}
+            onChange={e => onChange(fieldKey, e.target.value)} />
+        ) : (
+          <input type="text"
+            className={inputCls(changed)}
+            value={current}
+            onChange={e => onChange(fieldKey, e.target.value)} />
+        )}
         {changed && (
-          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-accent" title="Modificado" />
+          <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-sky-500" title="Modificado" />
         )}
       </div>
+    </div>
+  )
+}
+
+// Status select para items de checklist
+const CHECKLIST_STATUS_OPTIONS = [
+  { value: '',        label: 'Sin evaluar' },
+  { value: 'bueno',   label: '✅ Bueno' },
+  { value: 'regular', label: '⚠️ Regular' },
+  { value: 'malo',    label: '❌ Malo' },
+  { value: 'na',      label: '— N/A' },
+]
+
+function ChecklistItemEditable({ item, pendingEdits, onChange }) {
+  const statusKey = item.__statusKey__
+  const obsKey    = item.__obsKey__
+  const curStatus = statusKey in pendingEdits ? pendingEdits[statusKey] : (item.__rawStatus__ || '')
+  const curObs    = obsKey    in pendingEdits ? pendingEdits[obsKey]    : (item.__rawObs__    || '')
+  const changedS  = statusKey in pendingEdits && pendingEdits[statusKey] !== (item.__rawStatus__ || '')
+  const changedO  = obsKey    in pendingEdits && pendingEdits[obsKey]    !== (item.__rawObs__    || '')
+
+  return (
+    <div className="py-2 px-2 rounded-lg space-y-1.5"
+      style={{ borderBottom: '1px solid var(--border-light)', background: (changedS || changedO) ? 'rgba(2,132,199,0.04)' : '' }}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-[12px] font-medium th-text-p flex-1 min-w-0">{item.__itemName__}</span>
+        <select
+          className={`text-[11px] border rounded px-2 py-1 outline-none transition-all th-text-p
+            ${changedS ? 'border-sky-500 bg-sky-50 ring-1 ring-sky-500/20' : 'border-[var(--border)] th-bg-base'}`}
+          value={curStatus}
+          onChange={e => onChange(statusKey, e.target.value)}
+          style={{ minWidth: 120 }}>
+          {CHECKLIST_STATUS_OPTIONS.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      </div>
+      <textarea rows={1}
+        placeholder="Observación (opcional)…"
+        className={`w-full text-[11px] border rounded px-2 py-1 outline-none resize-none transition-all th-text-p
+          ${changedO ? 'border-sky-500 bg-sky-50 ring-1 ring-sky-500/20' : 'border-[var(--border)] th-bg-base'}`}
+        value={curObs}
+        onChange={e => onChange(obsKey, e.target.value)} />
     </div>
   )
 }
@@ -172,82 +248,65 @@ function EditableField({ label, value, fieldKey, pendingEdits, onChange }) {
 // ─────────────────────────────────────────────────────────────
 // SECTION CARD  (read + edit modes)
 // ─────────────────────────────────────────────────────────────
+const READONLY_SECTIONS_SET = new Set(['👤 Enviado por', '📍 Inicio de inspección'])
+
 function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload, allowUpload = false }) {
   const [open, setOpen] = useState(true)
 
-  const isCL  = Array.isArray(data) && data.some(d => d?.['Estado'])
+  const isSectionReadonly = READONLY_SECTIONS_SET.has(title)
+  const isNewFormat = data && typeof data === 'object' && !Array.isArray(data)
+    && Object.values(data).some(v => v && typeof v === 'object' && 'fieldId' in v)
+  const isCL  = Array.isArray(data) && data.some(d => d?.['Estado'] !== undefined)
   const isFld = data && typeof data === 'object' && !Array.isArray(data)
 
-  const READONLY_KEYS = new Set([
-    'lat','lng','startedAt','finishedAt','date','time','created_at','updated_at','_meta',
-    'Nombre','Rol','Usuario','Fecha de envío','Fecha de envio',
-    'name','role','username',
-  ])
-  const READONLY_SECTIONS = new Set(['👤 Enviado por', '📍 Inicio de inspección'])
-  const isSectionReadonly = READONLY_SECTIONS.has(title)
+  const newFormatEntries = isNewFormat
+    ? Object.entries(data).filter(([k]) => !k.startsWith('__'))
+    : []
+  const legacyEntries = (isFld && !isNewFormat)
+    ? Object.entries(data).filter(([k]) => !k.startsWith('__'))
+    : []
 
-  // Checklist stats
   let sGood=0, sReg=0, sBad=0, sTotal=0
   if (isCL) data.forEach(it => {
-    if (!it['Estado']) return; sTotal++
-    const st = String(it['Estado']).toLowerCase()
-    if (st.includes('bueno') || st.includes('ejecutada')) sGood++
-    else if (st.includes('regular')) sReg++
-    else if (st.includes('malo')) sBad++
+    const raw = (it.__rawStatus__ || it['Estado'] || '').toLowerCase()
+    if (!raw || raw.includes('pendiente') || raw.includes('evaluar')) return
+    sTotal++
+    if (raw === 'bueno' || raw.includes('bueno') || raw.includes('ejecutada')) sGood++
+    else if (raw === 'regular' || raw.includes('regular')) sReg++
+    else if (raw === 'malo' || raw.includes('malo')) sBad++
   })
 
-  const hv = isCL && data.some(i => i['Valor'])
-  const ho = isCL && data.some(i => i['Observación'])
   const photoCount = photos?.length || 0
-
-  // Score % para checklists
   const score = sTotal > 0 ? Math.round((sGood / sTotal) * 100) : null
   const scoreColor = score === null ? '' : score >= 80 ? '#16a34a' : score >= 50 ? '#b45309' : '#dc2626'
   const scoreBg    = score === null ? '' : score >= 80 ? '#f0fdf4' : score >= 50 ? '#fffbeb' : '#fef2f2'
-
-  // Agrupar campos por pares (label - valor) para layout en grid
-  const fieldEntries = isFld ? Object.entries(data).filter(([k]) => !k.startsWith('__')) : []
+  const fCount = isNewFormat ? newFormatEntries.length : legacyEntries.length
 
   return (
     <div className="rounded-xl overflow-hidden"
-      style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        animationDelay: `${index * 40}ms`,
-      }}>
+      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', animationDelay: `${index * 40}ms` }}>
 
-      {/* ── Header de sección ─────────────────────────────────── */}
       <button onClick={() => setOpen(!open)}
         className="w-full flex items-center gap-3 px-4 py-3 text-left transition-colors"
         style={{ borderBottom: open ? '1px solid var(--border-light)' : 'none' }}
         onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
         onMouseLeave={e => e.currentTarget.style.background = ''}>
-
         <div className="flex-1 min-w-0 flex items-center gap-2.5 flex-wrap">
           <span className="text-[13px] font-semibold th-text-p">{title}</span>
-
-          {/* Mini score bar para checklists */}
           {isCL && sTotal > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex gap-0.5">
-                {data.slice(0,24).map((it,i) => <StatusDot key={i} value={it['Estado']} />)}
+                {data.slice(0,24).map((it,i) => <StatusDot key={i} value={it.__rawStatus__ || it['Estado']} />)}
                 {data.length > 24 && <span className="text-[9px] th-text-m ml-0.5">+{data.length-24}</span>}
               </div>
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                style={{ background: scoreBg, color: scoreColor }}>
-                {score}%
-              </span>
+                style={{ background: scoreBg, color: scoreColor }}>{score}%</span>
             </div>
           )}
-
-          {/* Contador campo normales */}
-          {isFld && fieldEntries.length > 0 && (
-            <span className="text-[10px] th-text-m">
-              {fieldEntries.length} campo{fieldEntries.length !== 1 ? 's' : ''}
-            </span>
+          {fCount > 0 && !isCL && (
+            <span className="text-[10px] th-text-m">{fCount} campo{fCount !== 1 ? 's' : ''}</span>
           )}
         </div>
-
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {photoCount > 0 && (
             <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full"
@@ -264,101 +323,80 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
       {open && (
         <div className="px-4 pb-4">
 
-          {/* ── Campos en grid 2 columnas ──────────────────────── */}
-          {isFld && (
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
-              {fieldEntries.map(([k, v]) => {
-                const isReadonly = isSectionReadonly || READONLY_KEYS.has(k) || k.startsWith('foto') || k.startsWith('__')
-                if (editMode && !isReadonly) {
+          {/* Nuevo formato con metadatos de tipo */}
+          {isNewFormat && (
+            <div className="mt-3 space-y-0">
+              {newFormatEntries.map(([fieldId, field]) => {
+                const isRO = isSectionReadonly || field.readOnly
+                if (editMode && !isRO) {
                   return (
-                    <EditableField key={k} label={k} value={v} fieldKey={k}
+                    <EditableField key={fieldId}
+                      label={field.label} value={field.value} fieldKey={fieldId}
+                      type={field.type} options={field.options}
                       pendingEdits={pendingEdits} onChange={onFieldChange} />
                   )
                 }
-                const display = (v === null || v === undefined || v === '') ? '—' : String(v)
-                const isPhoto = k.startsWith('foto') && typeof v === 'string' && v.startsWith('http')
-                const isEmpty = display === '—'
+                const display = (field.value === '' || field.value == null) ? '—' : String(field.value)
                 return (
-                  <div key={k} className="flex flex-col gap-0.5 py-2"
+                  <div key={fieldId} className="flex flex-col gap-0.5 py-2"
                     style={{ borderBottom: '1px solid var(--border-light)' }}>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m"
-                      style={{ letterSpacing: '.05em' }}>{k}</span>
-                    {isPhoto
-                      ? <a href={v} target="_blank" rel="noopener noreferrer"
-                          className="text-[12px] font-medium"
-                          style={{ color: 'var(--accent)' }}>Ver foto ↗</a>
-                      : <span className={`text-[13px] font-medium ${isEmpty ? 'th-text-m' : 'th-text-p'}`}>
-                          {display}
-                        </span>
-                    }
+                    <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m">{field.label}</span>
+                    <span className={`text-[13px] font-medium ${display === '—' ? 'th-text-m italic' : 'th-text-p'}`}>{display}</span>
                   </div>
                 )
               })}
             </div>
           )}
 
-          {/* ── Checklist ──────────────────────────────────────── */}
+          {/* Formato legacy */}
+          {!isNewFormat && isFld && (
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-0">
+              {legacyEntries.map(([k, v]) => {
+                const display = (v === null || v === undefined || v === '') ? '—' : String(v)
+                return (
+                  <div key={k} className="flex flex-col gap-0.5 py-2"
+                    style={{ borderBottom: '1px solid var(--border-light)' }}>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m">{k}</span>
+                    <span className={`text-[13px] font-medium ${display === '—' ? 'th-text-m' : 'th-text-p'}`}>{display}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Checklist */}
           {isCL && (
             <>
-              {/* Resumen de estado si hay items */}
               {sTotal > 0 && (
-                <div className="flex gap-3 mt-3 mb-2 flex-wrap">
-                  {sGood > 0 && (
-                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg"
-                      style={{ background: '#f0fdf4', color: '#16a34a' }}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"/> {sGood} Bueno
-                    </span>
-                  )}
-                  {sReg > 0 && (
-                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg"
-                      style={{ background: '#fffbeb', color: '#b45309' }}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/> {sReg} Regular
-                    </span>
-                  )}
-                  {sBad > 0 && (
-                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg"
-                      style={{ background: '#fef2f2', color: '#dc2626' }}>
-                      <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/> {sBad} Malo
-                    </span>
-                  )}
-                  {(sTotal - sGood - sReg - sBad) > 0 && (
-                    <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg th-bg-base th-text-m">
-                      <span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"/> {sTotal - sGood - sReg - sBad} Sin estado
-                    </span>
-                  )}
+                <div className="flex gap-2 mt-3 mb-2 flex-wrap">
+                  {sGood > 0 && <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background:'#f0fdf4', color:'#16a34a' }}><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"/> {sGood} Bueno</span>}
+                  {sReg  > 0 && <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background:'#fffbeb', color:'#b45309' }}><span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"/> {sReg} Regular</span>}
+                  {sBad  > 0 && <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg" style={{ background:'#fef2f2', color:'#dc2626' }}><span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block"/> {sBad} Malo</span>}
+                  {(sTotal - sGood - sReg - sBad) > 0 && <span className="text-[11px] font-semibold flex items-center gap-1 px-2 py-1 rounded-lg th-bg-base th-text-m"><span className="w-1.5 h-1.5 rounded-full bg-slate-300 inline-block"/> {sTotal - sGood - sReg - sBad} Sin estado</span>}
                 </div>
               )}
-
-              {/* Items del checklist */}
               <div className="mt-1 space-y-0">
                 {data.map((it, i) => {
-                  const estado = it['Estado'] || ''
-                  const st = estado.toLowerCase()
-                  const isGood = st.includes('bueno') || st.includes('ejecutada')
-                  const isBad  = st.includes('malo')
-                  const isReg  = st.includes('regular')
-                  const rowBg  = isBad ? 'rgba(239,68,68,.04)' : isReg ? 'rgba(245,158,11,.04)' : ''
+                  if (editMode && it.__editable__) {
+                    return <ChecklistItemEditable key={i} item={it} pendingEdits={pendingEdits} onChange={onFieldChange} />
+                  }
+                  const estado = it.__rawStatus__ ? statusDisplayLabel(it.__rawStatus__) : (it['Estado'] || '')
+                  const obs    = it.__rawObs__ || it['Observación'] || ''
+                  const raw    = (it.__rawStatus__ || '').toLowerCase()
+                  const rowBg  = raw === 'malo' ? 'rgba(239,68,68,.04)' : raw === 'regular' ? 'rgba(245,158,11,.04)' : ''
                   return (
-                    <div key={i}
-                      className="flex items-start gap-2.5 py-2 px-2 rounded-lg"
-                      style={{
-                        borderBottom: i < data.length-1 ? '1px solid var(--border-light)' : 'none',
-                        background: rowBg,
-                      }}>
-                      <StatusDot value={estado} />
+                    <div key={i} className="flex items-start gap-2.5 py-2 px-2 rounded-lg"
+                      style={{ borderBottom: i < data.length-1 ? '1px solid var(--border-light)' : 'none', background: rowBg }}>
+                      <StatusDot value={it.__rawStatus__ || estado} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[12px] font-medium th-text-p">
-                            {it['Item'] || it['Ítem'] || it['nombre'] || `Ítem ${i+1}`}
+                            {it.__itemName__ || it['Item'] || it['Ítem'] || it['Pregunta'] || `Ítem ${i+1}`}
                           </span>
-                          {estado && <StatusBadge value={estado} />}
-                          {hv && it['Valor'] && (
-                            <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded font-mono">{it['Valor']}</span>
-                          )}
+                          {(it.__rawStatus__ || estado) && <StatusBadge value={it.__rawStatus__ || estado} />}
+                          {it['Valor'] && <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded font-mono">{it['Valor']}</span>}
                         </div>
-                        {ho && it['Observación'] && (
-                          <p className="text-[11px] th-text-m mt-0.5 leading-snug">{it['Observación']}</p>
-                        )}
+                        {obs && <p className="text-[11px] th-text-m mt-0.5 leading-snug">{obs}</p>}
                       </div>
                     </div>
                   )
@@ -367,10 +405,10 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
             </>
           )}
 
-          {/* ── Fotos ──────────────────────────────────────────── */}
+          {/* Fotos */}
           {(photoCount > 0 || (editMode && allowUpload)) && (
-            <div className={fieldEntries.length > 0 || isCL ? 'mt-3 pt-3' : 'mt-3'}
-              style={fieldEntries.length > 0 || isCL ? { borderTop: '1px solid var(--border-light)' } : {}}>
+            <div className={(isNewFormat || isCL || legacyEntries.length > 0) ? 'mt-3 pt-3' : 'mt-3'}
+              style={(isNewFormat || isCL || legacyEntries.length > 0) ? { borderTop: '1px solid var(--border-light)' } : {}}>
               <PhotoGallery photos={photos} editMode={editMode && allowUpload} onUpload={onPhotoUpload} />
             </div>
           )}
@@ -449,7 +487,7 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
             </button>
             <button onClick={() => onConfirm(note)}
               disabled={!note.trim() || saving}
-              className="flex-1 h-10 text-[13px] font-semibold text-white bg-accent rounded-lg hover:bg-accent/90 disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5">
+              className="flex-1 h-10 text-[13px] font-semibold text-white rounded-lg disabled:opacity-40 transition-colors flex items-center justify-center gap-1.5" style={{ background: '#0284C7' }}>
               {saving
                 ? <><Clock size={13} className="animate-spin"/>Guardando…</>
                 : <><Save size={13}/>Guardar cambios</>}
@@ -719,33 +757,12 @@ export default function SubmissionDetail() {
   const handleConfirmSave = async (note) => {
     setSaving(true); setSaveError(null)
     try {
-      // Build original flat map for diff — merge all sub-objects, case-insensitive lookup
-      const outer  = submission?.payload || {}
-      const inner  = outer.payload || outer
-      const data   = inner.data || {}
-
-      const rawFlat = {}
-      const subObjs = [data.formData, data.datos, data.herrajes, data.prensacables,
-                       data.tramos, data.platinas, data.certificacion, data.siteInfo]
-      for (const sub of subObjs) {
-        if (!sub || typeof sub !== 'object') continue
-        for (const [k, v] of Object.entries(sub)) {
-          rawFlat[k] = v
-          rawFlat[k.toLowerCase()] = v
-        }
-      }
-      const findOld = (key) => {
-        if (key in rawFlat) return rawFlat[key]
-        const kl = key.toLowerCase()
-        return kl in rawFlat ? rawFlat[kl] : ''
-      }
-
-      // Build changes object (only truly changed fields)
+      // Usar buildModalChanges que ya maneja claves estructuradas (checklist, medicion, etc.)
+      const allChanges = buildModalChanges()
       const changes = {}
-      for (const [key, newVal] of Object.entries(pendingEdits)) {
-        const oldVal = findOld(key)
-        if (String(newVal) !== String(oldVal ?? '')) {
-          changes[key] = { from: oldVal ?? '', to: newVal, label: key }
+      for (const [k, ch] of Object.entries(allChanges)) {
+        if (String(ch.to) !== String(ch.from ?? '')) {
+          changes[k] = ch
         }
       }
 
@@ -757,7 +774,6 @@ export default function SubmissionDetail() {
       const editedBy = user?.email || user?.username || 'admin'
       insertSubmissionEdit(submissionId, editedBy, changes, note)
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
-      // Log en system_logs
       LOG.submissionEdited(
         submissionId,
         extractSiteInfo(submission)?.nombreSitio || submissionId,
@@ -805,7 +821,15 @@ export default function SubmissionDetail() {
   const visitId     = submission.site_visit_id
   const hasOrder    = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
   const canWrite    = user?.canWrite === true
-  const pendingCount= Object.keys(pendingEdits).length
+  // Contar cambios reales: claves checklist.itemId.* cuentan como 1 por item
+  const pendingCount = (() => {
+    const keys = Object.keys(pendingEdits)
+    const checklistItems = new Set(
+      keys.filter(k => k.includes('.')).map(k => k.split('.').slice(0,2).join('.'))
+    )
+    const directKeys = keys.filter(k => !k.includes('.')).length
+    return directKeys + checklistItems.size
+  })()
 
   // Global checklist stats
   let totalItems=0, bueno=0, regular=0, malo=0, pendiente=0
@@ -900,6 +924,8 @@ export default function SubmissionDetail() {
     const outer  = submission?.payload || {}
     const inner  = outer.payload || outer
     const data   = inner.data || {}
+
+    // Flat map del payload para comparar valores originales
     const rawFlat = {}
     const _subs = [data.formData, data.datos, data.herrajes, data.prensacables,
                    data.tramos, data.platinas, data.certificacion, data.siteInfo]
@@ -907,10 +933,38 @@ export default function SubmissionDetail() {
       if (!sub || typeof sub !== 'object') continue
       for (const [k, v] of Object.entries(sub)) { rawFlat[k] = v; rawFlat[k.toLowerCase()] = v }
     }
-    const _findOld = (key) => key in rawFlat ? rawFlat[key] : (key.toLowerCase() in rawFlat ? rawFlat[key.toLowerCase()] : '')
+
     const ch = {}
     for (const [k, v] of Object.entries(pendingEdits)) {
-      ch[k] = { from: _findOld(k) ?? '', to: v, label: k }
+      // Claves estructuradas: checklist.itemId.field / items.itemId.field / medicion.fieldId
+      if (k.includes('.')) {
+        const parts = k.split('.')
+        const scope = parts[0]   // 'checklist' | 'items' | 'medicion'
+        const itemId = parts[1]
+        const field  = parts[2]  // 'status' | 'observation' | fieldId
+
+        let oldVal = ''
+        if (scope === 'checklist') {
+          oldVal = data.checklistData?.[itemId]?.[field] ?? ''
+        } else if (scope === 'items') {
+          oldVal = data.items?.[itemId]?.[field] ?? ''
+        } else if (scope === 'medicion') {
+          oldVal = data.medicion?.[itemId] ?? ''
+        }
+
+        const label = field === 'status'
+          ? `Ítem ${itemId} — Estado`
+          : field === 'observation'
+          ? `Ítem ${itemId} — Observación`
+          : `${scope}.${itemId}`
+
+        ch[k] = { from: oldVal, to: v, label }
+        continue
+      }
+
+      // Clave directa (campo de formulario)
+      const oldVal = k in rawFlat ? rawFlat[k] : (k.toLowerCase() in rawFlat ? rawFlat[k.toLowerCase()] : '')
+      ch[k] = { from: oldVal ?? '', to: v, label: k }
     }
     return ch
   }

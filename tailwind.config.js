@@ -10,7 +10,7 @@ export default {
       colors: {
         navy:   { DEFAULT: '#0d2137', 2: '#122840', 3: '#1a3450' },
         teal:   { DEFAULT: '#00b4a0', dim: '#0d7a6d', light: '#e6faf8' },
-        // status colors kept for checklist/score badges
+        accent: { DEFAULT: '#0284C7', light: '#e0f2fe', text: '#0369a1', dark: '#0369a1' },
         good:   { DEFAULT: '#22C55E', light: '#f0fdf4', ring: '#bbf7d0' },
         warn:   { DEFAULT: '#f59e0b', light: '#fffbeb', ring: '#fde68a' },
         bad:    { DEFAULT: '#ef4444', light: '#fef2f2', ring: '#fecaca' },

@@ -333,17 +333,34 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
     if (Array.isArray(obj)) return obj.map(item => deepApply(item, key, value))
     const updated = { ...obj }
     let hit = false
-    // Exact match first
+
+    // 1. Exact match
     if (key in updated) { updated[key] = value; hit = true }
-    // Case-insensitive match (handles "Proveedor" → "proveedor")
+
+    // 2. Case-insensitive
     if (!hit) {
       const keyLower = key.toLowerCase()
       for (const k of Object.keys(updated)) {
         if (k.toLowerCase() === keyLower) { updated[k] = value; hit = true; break }
       }
     }
-    // Recurse into sub-objects even if we found a match (key may exist in multiple levels)
+
+    // 3. Normalize: "Nombre del Sitio" → "nombreSitio" style
+    if (!hit) {
+      const normalize = (s) => s.toLowerCase()
+        .replace(/[áàä]/g,'a').replace(/[éèë]/g,'e').replace(/[íìï]/g,'i')
+        .replace(/[óòö]/g,'o').replace(/[úùü]/g,'u').replace(/ñ/g,'n')
+        .replace(/[^a-z0-9]/g,'')
+      const keyNorm = normalize(key)
+      for (const k of Object.keys(updated)) {
+        if (k === '__keyMap__') continue
+        if (normalize(k) === keyNorm) { updated[k] = value; hit = true; break }
+      }
+    }
+
+    // Recurse into sub-objects
     for (const k of Object.keys(updated)) {
+      if (k.startsWith('__')) continue
       if (updated[k] && typeof updated[k] === 'object' && k !== '__proto__') {
         const sub = deepApply(updated[k], key, value)
         if (sub !== updated[k]) updated[k] = sub
@@ -354,8 +371,6 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
 
   let updatedData = { ...data }
 
-  // submitted_by fields shown in dashboard as Nombre/Rol/Usuario
-  // Map of display label → submitted_by key
   const SUBMITTED_BY_LABEL_MAP = {
     'nombre': 'name', 'name': 'name',
     'rol': 'role', 'role': 'role',
@@ -366,17 +381,64 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
   for (const [key, value] of Object.entries(fieldUpdates)) {
     if (key === '__finalized__') continue
 
-    // Check if key maps to submitted_by (case-insensitive)
+    // Claves especiales de checklist: "checklist.itemId.status" o "checklist.itemId.observation"
+    // Formato: checklist.{itemId}.{status|observation}
+    if (key.startsWith('checklist.')) {
+      const parts = key.split('.')
+      const itemId = parts[1]
+      const field  = parts[2] // 'status' | 'observation'
+      if (itemId && field) {
+        const cd = updatedData.checklistData || {}
+        updatedData = {
+          ...updatedData,
+          checklistData: {
+            ...cd,
+            [itemId]: { ...(cd[itemId] || {}), [field]: value },
+          }
+        }
+      }
+      continue
+    }
+
+    // Claves de items de inspección general: "items.itemId.status"
+    if (key.startsWith('items.')) {
+      const parts = key.split('.')
+      const itemId = parts[1]
+      const field  = parts[2]
+      if (itemId && field) {
+        const it = updatedData.items || {}
+        updatedData = {
+          ...updatedData,
+          items: { ...it, [itemId]: { ...(it[itemId] || {}), [field]: value } }
+        }
+      }
+      continue
+    }
+
+    // Claves de medición grounding: "medicion.fieldId"
+    if (key.startsWith('medicion.')) {
+      const fieldId = key.split('.')[1]
+      if (fieldId) {
+        const med = updatedData.medicion || {}
+        updatedData = {
+          ...updatedData,
+          medicion: { ...med, [fieldId]: value }
+        }
+      }
+      continue
+    }
+
     const sbKey = SUBMITTED_BY_LABEL_MAP[key.toLowerCase()]
     if (sbKey && updatedSubmittedBy) {
       updatedSubmittedBy = { ...updatedSubmittedBy, [sbKey]: value }
-      continue  // Don't also write into data
+      continue
     }
 
-    // Apply deep into all known sub-objects of data
     updatedData = deepApply(updatedData, key, value)
-    // Always also write into formData as canonical fallback
-    updatedData.formData = { ...(updatedData.formData || {}), [key]: value }
+    // Fallback: también escribir en formData como canonical
+    if (!key.includes('.')) {
+      updatedData.formData = { ...(updatedData.formData || {}), [key]: value }
+    }
   }
 
   const newFinalized = fieldUpdates.__finalized__
