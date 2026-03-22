@@ -43,8 +43,6 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     setSaving(false); onSave()
   }
 
-  const isNew = !company?.id
-
   // Escape key
   React.useEffect(() => {
     const h = e => { if (e.key === 'Escape') onClose() }
