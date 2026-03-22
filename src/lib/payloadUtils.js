@@ -243,6 +243,20 @@ const SAFETY_PHOTO_IDS = new Set(
 )
 
 
+
+// Normaliza un status display label o raw al valor raw estándar
+function normalizeRawStatus(val) {
+  if (!val) return ''
+  const v = String(val).toLowerCase()
+  if (v.includes('bueno') || v.includes('ejecutada') || v === 'good') return 'bueno'
+  if (v.includes('regular') || v === 'warn') return 'regular'
+  if (v.includes('malo') || v.includes('bad')) return 'malo'
+  if (v === 'na' || v.includes('n/a') || v.includes('aplica')) return 'na'
+  // Si ya es un raw value válido, devolverlo
+  if (['bueno','regular','malo','na',''].includes(v)) return v
+  return '' // pendiente/desconocido
+}
+
 // ═══════════════════════════════════════════
 // BUILDER 1: Mantenimiento Preventivo
 // ═══════════════════════════════════════════
@@ -271,9 +285,9 @@ function buildMaintenancePayload(data) {
           'Observación': entry.observation || '',
           // Metadatos para edición
           __editable__: true,
-          __statusKey__: `checklist.${item.id}.status`,
-          __obsKey__: `checklist.${item.id}.observation`,
-          __rawStatus__: entry.status || '',
+          __statusKey__: `checklist|||${item.id}|||status`,
+          __obsKey__: `checklist|||${item.id}|||observation`,
+          __rawStatus__: normalizeRawStatus(entry.status),
           __rawObs__: entry.observation || '',
         })
       }
@@ -319,9 +333,9 @@ function buildInspectionPayload(data) {
         'Estado': statusLabel(e.status) || '⏳ Sin evaluar',
         'Observación': e.observation || '',
         __editable__: true,
-        __statusKey__: `items.${item.id}.status`,
-        __obsKey__: `items.${item.id}.observation`,
-        __rawStatus__: e.status || '',
+        __statusKey__: `items|||${item.id}|||status`,
+        __obsKey__: `items|||${item.id}|||observation`,
+        __rawStatus__: normalizeRawStatus(e.status),
         __rawObs__: e.observation || '',
       }
     })
@@ -367,7 +381,7 @@ function buildGroundingPayload(data) {
           'Estado': status,
           'Valor': val > 0 ? val + ' Ohm' : '0',
           __editable__: true,
-          __valueKey__: `medicion.${m.id}`,
+          __valueKey__: `medicion|||${m.id}`,
           __rawValue__: val || '',
         }
       })

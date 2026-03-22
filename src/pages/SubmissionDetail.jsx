@@ -205,19 +205,31 @@ function EditableField({ label, value, fieldKey, type = 'text', options, readOnl
 // Status select para items de checklist
 const CHECKLIST_STATUS_OPTIONS = [
   { value: '',        label: 'Sin evaluar' },
-  { value: 'bueno',   label: '✅ Bueno' },
-  { value: 'regular', label: '⚠️ Regular' },
-  { value: 'malo',    label: '❌ Malo' },
-  { value: 'na',      label: '— N/A' },
+  { value: 'bueno',   label: 'Bueno' },
+  { value: 'regular', label: 'Regular' },
+  { value: 'malo',    label: 'Malo' },
+  { value: 'na',      label: 'N/A' },
 ]
 
 function ChecklistItemEditable({ item, pendingEdits, onChange }) {
   const statusKey = item.__statusKey__
   const obsKey    = item.__obsKey__
-  const curStatus = statusKey in pendingEdits ? pendingEdits[statusKey] : (item.__rawStatus__ || '')
-  const curObs    = obsKey    in pendingEdits ? pendingEdits[obsKey]    : (item.__rawObs__    || '')
-  const changedS  = statusKey in pendingEdits && pendingEdits[statusKey] !== (item.__rawStatus__ || '')
-  const changedO  = obsKey    in pendingEdits && pendingEdits[obsKey]    !== (item.__rawObs__    || '')
+
+  const normalizeStatus = (v) => {
+    if (!v) return ''
+    const s = String(v).toLowerCase()
+    if (s.includes('bueno') || s.includes('ejecutada')) return 'bueno'
+    if (s.includes('regular')) return 'regular'
+    if (s.includes('malo'))    return 'malo'
+    if (s === 'na' || s.includes('n/a')) return 'na'
+    return v
+  }
+
+  const rawStatus = normalizeStatus(item.__rawStatus__ || '')
+  const curStatus = statusKey in pendingEdits ? normalizeStatus(pendingEdits[statusKey]) : rawStatus
+  const curObs    = obsKey    in pendingEdits ? pendingEdits[obsKey]    : (item.__rawObs__ || '')
+  const changedS  = curStatus !== rawStatus
+  const changedO  = obsKey in pendingEdits && pendingEdits[obsKey] !== (item.__rawObs__ || '')
 
   return (
     <div className="py-2 px-2 rounded-lg space-y-1.5"
@@ -825,9 +837,9 @@ export default function SubmissionDetail() {
   const pendingCount = (() => {
     const keys = Object.keys(pendingEdits)
     const checklistItems = new Set(
-      keys.filter(k => k.includes('.')).map(k => k.split('.').slice(0,2).join('.'))
+      keys.filter(k => k.includes('|||')).map(k => k.split('|||').slice(0,2).join('|||'))
     )
-    const directKeys = keys.filter(k => !k.includes('.')).length
+    const directKeys = keys.filter(k => !k.includes('|||')).length
     return directKeys + checklistItems.size
   })()
 
@@ -937,11 +949,11 @@ export default function SubmissionDetail() {
     const ch = {}
     for (const [k, v] of Object.entries(pendingEdits)) {
       // Claves estructuradas: checklist.itemId.field / items.itemId.field / medicion.fieldId
-      if (k.includes('.')) {
-        const parts = k.split('.')
-        const scope = parts[0]   // 'checklist' | 'items' | 'medicion'
+      if (k.includes('|||')) {
+        const parts = k.split('|||')
+        const scope  = parts[0]   // 'checklist' | 'items' | 'medicion'
         const itemId = parts[1]
-        const field  = parts[2]  // 'status' | 'observation' | fieldId
+        const field  = parts[2]   // 'status' | 'observation' | fieldId
 
         let oldVal = ''
         if (scope === 'checklist') {
@@ -954,9 +966,9 @@ export default function SubmissionDetail() {
 
         const label = field === 'status'
           ? `Ítem ${itemId} — Estado`
-          : field === 'observation'
+          : field === 'observation' || field === 'observacion'
           ? `Ítem ${itemId} — Observación`
-          : `${scope}.${itemId}`
+          : `${scope} ${itemId}`
 
         ch[k] = { from: oldVal, to: v, label }
         continue

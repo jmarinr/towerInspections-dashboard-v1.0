@@ -381,49 +381,29 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
   for (const [key, value] of Object.entries(fieldUpdates)) {
     if (key === '__finalized__') continue
 
-    // Claves especiales de checklist: "checklist.itemId.status" o "checklist.itemId.observation"
-    // Formato: checklist.{itemId}.{status|observation}
-    if (key.startsWith('checklist.')) {
-      const parts = key.split('.')
+    // Claves estructuradas con separador ||| para evitar conflicto con IDs que tienen puntos (1.1, 1.2...)
+    // Formato: scope|||itemId|||field
+    if (key.includes('|||')) {
+      const parts = key.split('|||')
+      const scope  = parts[0]
       const itemId = parts[1]
-      const field  = parts[2] // 'status' | 'observation'
-      if (itemId && field) {
+      const field  = parts[2]
+
+      if (scope === 'checklist' && itemId && field) {
         const cd = updatedData.checklistData || {}
         updatedData = {
           ...updatedData,
-          checklistData: {
-            ...cd,
-            [itemId]: { ...(cd[itemId] || {}), [field]: value },
-          }
+          checklistData: { ...cd, [itemId]: { ...(cd[itemId] || {}), [field]: value } }
         }
-      }
-      continue
-    }
-
-    // Claves de items de inspección general: "items.itemId.status"
-    if (key.startsWith('items.')) {
-      const parts = key.split('.')
-      const itemId = parts[1]
-      const field  = parts[2]
-      if (itemId && field) {
+      } else if (scope === 'items' && itemId && field) {
         const it = updatedData.items || {}
         updatedData = {
           ...updatedData,
           items: { ...it, [itemId]: { ...(it[itemId] || {}), [field]: value } }
         }
-      }
-      continue
-    }
-
-    // Claves de medición grounding: "medicion.fieldId"
-    if (key.startsWith('medicion.')) {
-      const fieldId = key.split('.')[1]
-      if (fieldId) {
+      } else if (scope === 'medicion' && itemId) {
         const med = updatedData.medicion || {}
-        updatedData = {
-          ...updatedData,
-          medicion: { ...med, [fieldId]: value }
-        }
+        updatedData = { ...updatedData, medicion: { ...med, [itemId]: value } }
       }
       continue
     }
