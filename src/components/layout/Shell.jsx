@@ -6,6 +6,7 @@ import { useSubmissionsStore } from '../../store/useSubmissionsStore'
 import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { APP_VERSION } from '../../version'
+import { supabase } from '../../lib/supabaseClient'
 
 const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Inicio' },
@@ -245,11 +246,10 @@ export default function Shell({ children }) {
 
   useEffect(() => { init() }, [])
 
-  // Polling cada 30s — reemplaza WebSocket Realtime (era inestable con RLS)
+  // Polling cada 30s + recarga inteligente al volver al tab
   useEffect(() => {
     const poll = () => useSubmissionsStore.getState().load(true)
 
-    // Refrescar stores de admin si sus datos ya estaban cargados
     const refreshAdminStores = () => {
       const a = useAdminStore.getState()
       if (a.usersLoaded)     { a.invalidateUsers();     a.loadUsers(true)     }
@@ -257,60 +257,70 @@ export default function Shell({ children }) {
       if (a.regionsLoaded)   { a.invalidateRegions();   a.loadRegions(true)   }
     }
 
-    const interval = setInterval(poll, 30000)
-
-    // Al volver al tab: NO tocar el SDK de auth.
-    // Cualquier llamada a getUser()/getSession()/refreshSession() adquiere
-    // el lock interno del SDK. Si el usuario hace click en Guardar mientras
-    // ese lock está ocupado, el save se bloquea indefinidamente.
-    //
-    // El SDK con autoRefreshToken:true maneja el refresh del token solo.
-    // Solo refrescamos datos de submissions y admin si pasaron más de 5 minutos.
-    let hiddenAt = null
-    const handleHide = () => { if (document.visibilityState === 'hidden') hiddenAt = Date.now() }
-    document.addEventListener('visibilitychange', handleHide)
-
-    const STALE_MS   = 5 * 60 * 1000  // 5 minutos: refrescar datos
-    const STUCK_MS   = 40 * 1000       // 40s: considerar spinner atascado
-
-    const handleVisibility = () => {
-      if (document.visibilityState !== 'visible') return
-      const now    = Date.now()
-      const awayMs = hiddenAt ? now - hiddenAt : 0
-
-      // Resetear spinners atascados: si isLoading lleva más de 40s
-      // es porque el lock del SDK bloqueó la query y el timeout interno
-      // fue throttleado por Chrome mientras el tab estaba en background.
-      const sub = useSubmissionsStore.getState()
-      if (sub.isLoading && sub.loadingStartedAt && now - sub.loadingStartedAt > STUCK_MS) {
-        useSubmissionsStore.setState({ isLoading: false, loadingStartedAt: null })
-      }
-      const ord = useOrdersStore.getState()
-      if (ord.isLoading && ord.loadingStartedAt && now - ord.loadingStartedAt > STUCK_MS) {
-        useOrdersStore.setState({ isLoading: false, loadingStartedAt: null })
-      }
-
-      // Refrescar datos solo si el usuario estuvo fuera más de 5 minutos
-      if (awayMs >= STALE_MS) {
-        const s = useSubmissionsStore.getState()
-        if (!s.isLoading) poll()
-        refreshAdminStores()
-      } else if (awayMs > 0) {
-        // Estuvo poco tiempo fuera — solo re-pollear submissions si los datos
-        // son muy viejos (>60s), sin tocar admin stores
-        const s = useSubmissionsStore.getState()
-        if (!s.isLoading && s.lastFetch && now - s.lastFetch > 60000) poll()
-      }
+    const reloadAllData = () => {
+      poll()
+      refreshAdminStores()
     }
 
-    // Al recuperar red: refrescar datos (red estaba caída, tiene sentido)
-    const handleOnline = () => { poll(); refreshAdminStores() }
+    const interval = setInterval(poll, 30000)
 
+    // ── Estrategia al volver al tab ────────────────────────────────────
+    // Problema: el SDK de Supabase tiene su propio visibilitychange listener
+    // que adquiere un lock interno para _recoverAndRefresh(). Cualquier query
+    // que se dispare mientras ese lock está ocupado queda bloqueada.
+    //
+    // Solución: esperar a que el SDK termine antes de cargar datos.
+    // El SDK avisa exactamente cuando terminó via TOKEN_REFRESHED.
+    // Si el token no necesitaba refresh, el lock se libera en <500ms
+    // y usamos un fallback de 1 segundo.
+
+    let pendingReload = false     // hay una recarga pendiente al volver al tab
+    let fallbackTimer = null      // timer de 1s si TOKEN_REFRESHED no dispara
+
+    const schedulePendingReload = () => {
+      pendingReload = true
+      // Fallback: si TOKEN_REFRESHED no dispara en 1s, el token era válido
+      // y el lock ya se liberó — recargar ahora
+      if (fallbackTimer) clearTimeout(fallbackTimer)
+      fallbackTimer = setTimeout(() => {
+        if (pendingReload) {
+          pendingReload = false
+          reloadAllData()
+        }
+      }, 1000)
+    }
+
+    // El SDK dispara TOKEN_REFRESHED cuando termina _recoverAndRefresh()
+    // Ese es el momento exacto en que el lock se libera — seguro para queries
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'TOKEN_REFRESHED' && pendingReload) {
+        pendingReload = false
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+        // Pequeño delay para asegurar que el lock se liberó completamente
+        setTimeout(reloadAllData, 100)
+      }
+    })
+
+    let hiddenAt = null
+    const handleHide = () => {
+      if (document.visibilityState === 'hidden') hiddenAt = Date.now()
+    }
+    const handleVisibility = () => {
+      if (document.visibilityState !== 'visible') return
+      schedulePendingReload()
+    }
+
+    // Al recuperar red
+    const handleOnline = () => reloadAllData()
+
+    document.addEventListener('visibilitychange', handleHide)
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('online', handleOnline)
 
     return () => {
       clearInterval(interval)
+      if (fallbackTimer) clearTimeout(fallbackTimer)
+      authSub.unsubscribe()
       document.removeEventListener('visibilitychange', handleHide)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
