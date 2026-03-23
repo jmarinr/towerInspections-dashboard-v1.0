@@ -178,7 +178,7 @@ export default function AdditionalPhotoDetail({ submission, assets, editMode = f
       const parts = type.split(':')
       // formato: photos:{ACRONYM}:{index}
       if (parts[0] === 'photos' && parts[1]) {
-        const acronym = parts[1]
+        const acronym = parts[1].toUpperCase()  // normalizar a mayúsculas
         const idx     = parseInt(parts[2] ?? '0')
         if (!assetMap[acronym]) assetMap[acronym] = []
         assetMap[acronym][idx] = a

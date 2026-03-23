@@ -937,7 +937,10 @@ export default function SubmissionDetail() {
     const p = findPhotos(t)
     if (p) for (const [k, v] of Object.entries(photosBySection)) { if (v === p) matched.add(k) }
   }
-  const unmatched     = Object.entries(photosBySection).filter(([k]) => !matched.has(k)).flatMap(([,p]) => p)
+  // Para additional-photo-report, AdditionalPhotoDetail maneja todas las fotos — no mostrar "Otras fotos"
+  const unmatched     = fc === 'additional-photo-report'
+    ? []
+    : Object.entries(photosBySection).filter(([k]) => !matched.has(k)).flatMap(([,p]) => p)
   const globalScore   = totalItems > 0 && (bueno+regular+malo) > 0 ? Math.round((bueno/totalItems)*100) : null
   const Icon          = meta.icon
 

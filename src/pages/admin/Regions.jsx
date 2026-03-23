@@ -3,7 +3,6 @@ import React from 'react'
 import { Plus, Pencil, MapPin, ToggleLeft, ToggleRight, X, Check, Trash2,
          ChevronDown, ChevronRight, Building2, Search } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
-import { waitForSdkReady } from '../../lib/sdkReady'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
 import { q } from '../../lib/dbUtils'
@@ -25,7 +24,6 @@ function RegionModal({ region, onSave, onClose }) {
     if (!region?.id) return
     if (!window.confirm(`¿Eliminar la región "${region.name}"? Esto también eliminará todos sus sitios.`)) return
     setSaving(true)
-    await waitForSdkReady(5000)
     try {
       await q(supabase.from('sites').delete().eq('region_id', region.id))
       const { error: err } = await q(supabase.from('regions').delete().eq('id', region.id))
@@ -41,7 +39,6 @@ function RegionModal({ region, onSave, onClose }) {
   const save = async () => {
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     setSaving(true); setError('')
-    await waitForSdkReady(5000)
     try {
       const { error: err } = await q(isNew
         ? supabase.from('regions').insert({ name: name.trim() })
@@ -116,7 +113,6 @@ function SiteModal({ site, regionId, onSave, onClose }) {
     if (!site?.id) return
     if (!window.confirm(`¿Eliminar el sitio "${site.name}" (${site.site_id})?`)) return
     setSaving(true)
-    await waitForSdkReady(5000)
     try {
       const { error: err } = await q(supabase.from('sites').delete().eq('id', site.id))
       if (err) { setError(err.message); return }
@@ -132,7 +128,6 @@ function SiteModal({ site, regionId, onSave, onClose }) {
     if (!form.site_id.trim()) { setError('El ID de sitio es obligatorio'); return }
     if (!form.name.trim())    { setError('El nombre es obligatorio'); return }
     setSaving(true); setError('')
-    await waitForSdkReady(5000)
     try {
       const payload = {
         region_id: regionId,

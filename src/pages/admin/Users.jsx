@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
-import { waitForSdkReady, getTokenFromStorage } from '../../lib/sdkReady'
+
 import { q } from '../../lib/dbUtils'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LOG } from '../../lib/logEvent'
@@ -63,19 +63,6 @@ function UserModal({ user, companies, onSave, onClose }) {
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState('')
 
-  // Capturar el token en el momento que el modal abre — antes de cualquier
-  // cambio de tab. El token dura 1 hora. Al guardar usamos este token
-  // directamente sin llamar al SDK (que puede tener el lock ocupado).
-  const capturedTokenRef = useRef(null)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('pti_admin_session')
-      if (raw) {
-        const session = JSON.parse(raw)
-        capturedTokenRef.current = session?.access_token || null
-      }
-    } catch { /* continuar sin token capturado */ }
-  }, [])
 
   // Cargar supervisores de la empresa seleccionada
   useEffect(() => {
@@ -94,33 +81,19 @@ function UserModal({ user, companies, onSave, onClose }) {
     setSaving(true); setError('')
 
     try {
-      // Esperar a que el SDK termine _recoverAndRefresh() si el usuario
-      // acaba de regresar de otro tab. Máximo 5s de espera.
-      await waitForSdkReady(5000)
-
       if (isNew) {
-        // ── Obtener token para la Edge Function ────────────────────────
-        // Usamos el token capturado cuando el modal se abrió.
-        // Evita cualquier llamada al SDK que pueda adquirir el lock interno.
-        // El token es válido por 1 hora — más que suficiente para llenar el form.
-        // Si el token capturado no está disponible, intentar localStorage directo.
-        let token = capturedTokenRef.current
-        if (!token) {
-          try {
-            const raw = localStorage.getItem('pti_admin_session')
-            if (raw) token = JSON.parse(raw)?.access_token || null
-          } catch { /* continuar sin token */ }
-        }
+        // Obtener token — con lockNoOp en el cliente, getSession() es instantáneo
+        let token = null
+        try {
+          const { data } = await supabase.auth.getSession()
+          token = data?.session?.access_token || null
+        } catch { /* continuar */ }
 
         if (!token) {
           setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
           return
         }
 
-        // Invocar Edge Function pasando el token capturado explícitamente.
-        // supabase.functions.invoke() no adquiere el lock de auth —
-        // solo hace un fetch con los headers que le pasamos.
-        // El lock solo lo adquieren getSession/getUser/refreshSession.
         let invokeRes
         try {
           invokeRes = await Promise.race([

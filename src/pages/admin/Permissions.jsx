@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Save, Info } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
-import { waitForSdkReady } from '../../lib/sdkReady'
 import { q } from '../../lib/dbUtils'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -115,7 +114,6 @@ export default function Permissions() {
 
   const save = async () => {
     setSaving(true); setSaveError('')
-    await waitForSdkReady(5000)
     try {
       const upserts = []
       for (const [k, enabled] of Object.entries(matrix)) {
