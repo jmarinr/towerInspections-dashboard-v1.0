@@ -79,11 +79,12 @@ function UserModal({ user, companies, onSave, onClose }) {
 
     try {
       if (isNew) {
-        // getUser() valida con el servidor y refresca el token si expiró.
-        // Esto actualiza el token en memoria del SDK → functions.invoke lo usa automáticamente.
-        // A diferencia de getSession(), getUser() NO lee el caché local.
-        const { data: userData, error: userError } = await supabase.auth.getUser()
-        if (userError || !userData?.user) {
+        // Obtener token desde localStorage (instantáneo, sin llamada a red).
+        // El SDK adjunta este token automáticamente en functions.invoke.
+        // Si el token está expirado, la Edge Function retorna 401 y lo mostramos
+        // con un mensaje claro gracias al fix de context.json().
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData?.session) {
           setError('Tu sesión expiró. Por favor cierra sesión e inicia de nuevo.')
           return
         }
@@ -98,8 +99,6 @@ function UserModal({ user, companies, onSave, onClose }) {
             supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
             active:        form.active,
           },
-          // NO pasar Authorization manualmente — el SDK lo inyecta con el token
-          // que acaba de validar/refrescar en getUser() arriba.
         })
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)

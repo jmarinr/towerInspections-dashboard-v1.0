@@ -28,21 +28,21 @@ export const useAuthStore = create((set, get) => ({
       }
     })
 
-    // Cuando el usuario regresa al tab: getUser() valida con el servidor
-    // y refresca el token automáticamente. A diferencia de getSession(),
-    // getUser() NO lee el caché — siempre consulta Supabase Auth.
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && get().isAuthed) {
-        get()._refreshOnFocus()
-      }
-    })
+    // Nota: el listener de visibilitychange está en Shell.jsx (con cleanup correcto).
+    // No registrar aquí para evitar llamadas duplicadas a _refreshOnFocus.
   },
 
   // ── Refrescar sesión al volver al tab ────────────────────────────────
   _refreshOnFocus: async () => {
+    // getUser() va al servidor — necesita timeout para no colgarse si la red
+    // está lenta al volver al tab (exactamente el escenario que queremos proteger).
+    const withTimeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+    ])
+
     try {
-      // getUser() valida con el servidor + refresca si el token expiró
-      const { data, error } = await supabase.auth.getUser()
+      const { data, error } = await withTimeout(supabase.auth.getUser(), 5000)
       if (error || !data?.user) {
         // Sesión verdaderamente expirada → logout limpio
         await supabase.auth.signOut()
@@ -51,9 +51,15 @@ export const useAuthStore = create((set, get) => ({
         // Sesión válida (SDK ya refrescó el token si era necesario)
         set({ sessionWarning: false })
       }
-    } catch {
-      // Error de red al verificar → no cerrar sesión, solo avisar
-      set({ sessionWarning: true })
+    } catch (e) {
+      if (e?.message === 'timeout') {
+        // Red lenta al volver al tab — no cerrar sesión, el usuario puede seguir trabajando
+        // El auto-refresh del SDK intentará refrescar el token en background
+        set({ sessionWarning: false })
+      } else {
+        // Error de red real → avisar sin cerrar sesión
+        set({ sessionWarning: true })
+      }
     }
   },
 

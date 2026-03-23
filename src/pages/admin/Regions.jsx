@@ -224,8 +224,8 @@ function RegionCard({ region, onEditRegion, onRefresh }) {
   )
 
   const toggleActive = async (site) => {
-    await supabase.from('sites').update({ active: !site.active }).eq('id', site.id)
-    onRefresh()
+    const { error } = await supabase.from('sites').update({ active: !site.active }).eq('id', site.id)
+    if (!error) onRefresh()
   }
 
   const companies = region.company_regions || []

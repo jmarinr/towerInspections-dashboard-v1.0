@@ -109,17 +109,25 @@ export default function Permissions() {
     setSaved(false)
   }
 
+  const [saveError, setSaveError] = React.useState('')
+
   const save = async () => {
-    setSaving(true)
-    const upserts = []
-    for (const [k, enabled] of Object.entries(matrix)) {
-      const [role, ...rest] = k.split(':')
-      const permission = rest.join(':')
-      upserts.push({ role, permission, enabled, updated_at: new Date().toISOString() })
+    setSaving(true); setSaveError('')
+    try {
+      const upserts = []
+      for (const [k, enabled] of Object.entries(matrix)) {
+        const [role, ...rest] = k.split(':')
+        const permission = rest.join(':')
+        upserts.push({ role, permission, enabled, updated_at: new Date().toISOString() })
+      }
+      const { error } = await supabase.from('role_permissions').upsert(upserts, { onConflict:'role,permission' })
+      if (error) { setSaveError(error.message); return }
+      setSaved(true); setTimeout(() => setSaved(false), 3000)
+    } catch (e) {
+      setSaveError(e.message || 'Error inesperado. Verifica tu conexión.')
+    } finally {
+      setSaving(false)
     }
-    const { error } = await supabase.from('role_permissions').upsert(upserts, { onConflict:'role,permission' })
-    setSaving(false)
-    if (!error) { setSaved(true); setTimeout(()=>setSaved(false), 3000) }
   }
 
   const get = (role, perm) => matrix[`${role}:${perm}`] ?? false
@@ -136,6 +144,7 @@ export default function Permissions() {
           <h1 className="text-[20px] font-bold th-text-p">Permisos por rol</h1>
           <p className="text-[12px] th-text-m mt-0.5">Activa o desactiva funcionalidades por rol. Los cambios aplican de inmediato a todos los usuarios con ese rol.</p>
         </div>
+        {saveError && <div className="text-[12px] px-3 py-2 rounded-lg mb-2" style={{ background:'#fef2f2', border:'1px solid #fecaca', color:'#dc2626' }}>{saveError}</div>}
         <button onClick={save} disabled={saving}
           className="h-9 px-4 rounded-lg text-[13px] font-semibold text-white flex items-center gap-1.5 disabled:opacity-50 transition-all"
           style={{ background: saved ? '#16a34a' : '#0284C7' }}>

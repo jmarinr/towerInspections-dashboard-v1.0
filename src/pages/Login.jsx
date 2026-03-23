@@ -142,11 +142,16 @@ export default function Login() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const r = await login({ email, password })
-    if (r?.ok) {
-      navigate('/dashboard')
-    } else {
-      setError(r?.message || 'Credenciales inválidas')
+    try {
+      const r = await login({ email, password })
+      if (r?.ok) {
+        navigate('/dashboard')
+      } else {
+        setError(r?.message || 'Credenciales inválidas')
+      }
+    } catch {
+      setError('Error inesperado. Verifica tu conexión.')
+    } finally {
       setLoading(false)
     }
   }

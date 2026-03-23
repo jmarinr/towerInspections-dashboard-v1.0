@@ -37,9 +37,11 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
         const { error: err } = await supabase.from('companies').update(payload).eq('id', companyId)
         if (err) { setError(err.message); return }
       }
-      await supabase.from('company_regions').delete().eq('company_id', companyId)
+      const { error: delErr } = await supabase.from('company_regions').delete().eq('company_id', companyId)
+      if (delErr) { setError(delErr.message); return }
       if (selectedRegions.length > 0) {
-        await supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id })))
+        const { error: insErr } = await supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id })))
+        if (insErr) { setError(insErr.message); return }
       }
       onSave()
     } catch (e) {

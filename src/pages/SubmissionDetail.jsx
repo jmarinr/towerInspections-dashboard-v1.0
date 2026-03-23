@@ -756,7 +756,6 @@ export default function SubmissionDetail() {
     setSaving(true)
     try {
       await updateSubmissionPayload(submissionId, submission.payload, { __finalized__: newVal })
-      // Audit — non-blocking
       insertSubmissionEdit(submissionId, user.username, {
         estado: {
           from:  fin ? 'Completado' : 'Borrador',
@@ -766,8 +765,11 @@ export default function SubmissionDetail() {
       }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a Borrador desde el panel')
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
       await loadDetail(submissionId)
-    } catch (e) { console.error(e) }
-    setSaving(false)
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSaving(false)
+    }
   }
 
   // ── Confirm save with audit ─────────────────────────────────
@@ -805,8 +807,9 @@ export default function SubmissionDetail() {
     } catch (err) {
       console.error('Save error:', err)
       setSaveError(err.message || 'Error al guardar')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   // ── Derived ─────────────────────────────────────────────────
