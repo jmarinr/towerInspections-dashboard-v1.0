@@ -56,7 +56,7 @@ function RegionModal({ region, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" style={{ background:'rgba(0,0,0,0.5)' }}>
+    <div data-modal="open" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" style={{ background:'rgba(0,0,0,0.5)' }}>
       <div className="w-full max-w-sm rounded-2xl flex flex-col max-h-[80dvh] sm:max-h-[85dvh]" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
         <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--border)' }}>
           <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nueva región' : 'Editar región'}</h2>
@@ -160,7 +160,7 @@ function SiteModal({ site, regionId, onSave, onClose }) {
   const lbl = txt => <label className="block text-[11px] font-semibold th-text-m uppercase tracking-wider mb-1">{txt}</label>
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" style={{ background:'rgba(0,0,0,0.5)' }}>
+    <div data-modal="open" className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" style={{ background:'rgba(0,0,0,0.5)' }}>
       <div className="w-full max-w-md rounded-2xl max-h-[80dvh] sm:max-h-[85dvh] flex flex-col" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
         <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--border)' }}>
           <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nuevo sitio' : 'Editar sitio'}</h2>

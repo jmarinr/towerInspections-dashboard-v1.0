@@ -3,11 +3,9 @@ import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X,
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
-import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { APP_VERSION } from '../../version'
-import { supabase } from '../../lib/supabaseClient'
-import { markSdkBusy, markSdkReady } from '../../lib/sdkReady'
+
 
 const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Inicio' },
@@ -247,74 +245,35 @@ export default function Shell({ children }) {
 
   useEffect(() => { init() }, [])
 
-  // Polling cada 30s + recarga inteligente al volver al tab
+  // Polling cada 30s + recarga automática al volver al tab
   useEffect(() => {
     const poll = () => useSubmissionsStore.getState().load(true)
-
-    const refreshAdminStores = () => {
-      const a = useAdminStore.getState()
-      if (a.usersLoaded)     { a.invalidateUsers();     a.loadUsers(true)     }
-      if (a.companiesLoaded) { a.invalidateCompanies(); a.loadCompanies(true) }
-      if (a.regionsLoaded)   { a.invalidateRegions();   a.loadRegions(true)   }
-    }
-
-    const reloadAllData = () => {
-      poll()
-      refreshAdminStores()
-    }
-
     const interval = setInterval(poll, 30000)
 
-    // ── Estrategia al volver al tab ────────────────────────────────────
-    // Problema: el SDK de Supabase tiene su propio visibilitychange listener
-    // que adquiere un lock interno para _recoverAndRefresh(). Cualquier query
-    // que se dispare mientras ese lock está ocupado queda bloqueada.
-    //
-    // Solución: esperar a que el SDK termine antes de cargar datos.
-    // El SDK avisa exactamente cuando terminó via TOKEN_REFRESHED.
-    // Si el token no necesitaba refresh, el lock se libera en <500ms
-    // y usamos un fallback de 1 segundo.
-
-    let pendingReload = false     // hay una recarga pendiente al volver al tab
-    let fallbackTimer = null      // timer de 1s si TOKEN_REFRESHED no dispara
-
-    const schedulePendingReload = () => {
-      pendingReload = true
-      markSdkBusy()  // avisar a saves que el SDK está ocupado
-      // Fallback: si TOKEN_REFRESHED no dispara en 1s, el token era válido
-      // y el lock ya se liberó — recargar ahora
-      if (fallbackTimer) clearTimeout(fallbackTimer)
-      fallbackTimer = setTimeout(() => {
-        if (pendingReload) {
-          pendingReload = false
-          markSdkReady()  // lock libre, saves pueden proceder
-          reloadAllData()
-        }
-      }, 3000)
-    }
-
-    // El SDK dispara TOKEN_REFRESHED cuando termina _recoverAndRefresh()
-    // Ese es el momento exacto en que el lock se libera — seguro para queries
-    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'TOKEN_REFRESHED' && pendingReload) {
-        pendingReload = false
-        if (fallbackTimer) clearTimeout(fallbackTimer)
-        markSdkReady()  // lock libre, saves pueden proceder
-        setTimeout(reloadAllData, 100)
-      }
-    })
-
     let hiddenAt = null
+
     const handleHide = () => {
       if (document.visibilityState === 'hidden') hiddenAt = Date.now()
     }
+
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return
-      schedulePendingReload()
+
+      // Si hay un modal abierto (el usuario está llenando un formulario),
+      // NO recargar — perdería los datos ingresados
+      const hasOpenModal = !!document.querySelector('[data-modal="open"]')
+      if (hasOpenModal) return
+
+      // Recargar la página — igual que presionar F5.
+      // Esto da un SDK de Supabase limpio sin locks, sin estado pendiente.
+      // El usuario recupera exactamente lo que tenía gracias a:
+      //   - La sesión persiste en localStorage
+      //   - React Router restaura la ruta actual
+      //   - Los stores se recargan al montar
+      window.location.reload()
     }
 
-    // Al recuperar red
-    const handleOnline = () => reloadAllData()
+    const handleOnline = () => poll()
 
     document.addEventListener('visibilitychange', handleHide)
     document.addEventListener('visibilitychange', handleVisibility)
@@ -322,8 +281,6 @@ export default function Shell({ children }) {
 
     return () => {
       clearInterval(interval)
-      if (fallbackTimer) clearTimeout(fallbackTimer)
-      authSub.unsubscribe()
       document.removeEventListener('visibilitychange', handleHide)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)

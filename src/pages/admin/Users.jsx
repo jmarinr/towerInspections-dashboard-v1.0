@@ -193,7 +193,7 @@ function UserModal({ user, companies, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" onClick={onClose}>
+    <div data-modal="open" className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" onClick={onClose}>
       <div className="rounded-2xl w-full max-w-md max-h-[80dvh] sm:max-h-[85dvh] flex flex-col"
         style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}
         onClick={e=>e.stopPropagation()}>
