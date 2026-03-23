@@ -9,13 +9,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     autoRefreshToken:   true,
     detectSessionInUrl: false,
     storageKey:         'pti_admin_session',
+    // El SDK adquiere un lock interno al volver al tab (visibilitychange)
+    // para ejecutar _recoverAndRefresh(). El default es 10s.
+    // Subimos a 30s para que las operaciones del usuario esperen el lock
+    // en lugar de fallar con timeout mientras el refresh está en curso.
+    lockAcquireTimeout: 30000,
   },
   realtime: {
-    // Reconexión automática con backoff exponencial
-    reconnectAfterMs: (tries) => Math.min(tries * 1000, 10000),
-    // Heartbeat cada 15s para detectar conexiones caídas rápido
+    reconnectAfterMs:    (tries) => Math.min(tries * 1000, 10000),
     heartbeatIntervalMs: 15000,
-    // Timeout para intentos de conexión
-    timeout: 20000,
+    timeout:             20000,
   },
 })

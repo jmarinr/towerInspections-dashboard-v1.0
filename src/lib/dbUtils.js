@@ -8,7 +8,12 @@
  *     supabase.from('companies').insert(payload).select('id').single()
  *   )
  */
-export function q(promise, ms = 12000) {
+// Timeout para operaciones de Supabase.
+// El SDK adquiere un lock al volver al tab que puede durar hasta 10s
+// (lockAcquireTimeout configurado en supabaseClient.js).
+// Este timeout debe ser mayor que lockAcquireTimeout + tiempo real de la query.
+// 35s = 30s lock + 5s query con margen.
+export function q(promise, ms = 35000) {
   return Promise.race([
     promise,
     new Promise((_, reject) =>

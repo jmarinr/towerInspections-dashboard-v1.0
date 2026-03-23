@@ -7,8 +7,9 @@ export const useSubmissionsStore = create((set, get) => ({
 
   // ── Lista ─────────────────────────────────────────────────────────────────
   submissions:   [],
-  isLoading:     false,
-  error:         null,
+  isLoading:        false,
+  loadingStartedAt: null,  // para detectar spinner atascado
+  error:            null,
   filterFormCode:'all',
   search:        '',
   lastFetch:     null,
@@ -27,11 +28,11 @@ export const useSubmissionsStore = create((set, get) => ({
 
     // Si ya hay datos, no mostrar spinner — refrescar en background silenciosamente
     const showSpinner = isEmpty
-    set({ isLoading: showSpinner, error: null })
+    set({ isLoading: showSpinner, loadingStartedAt: showSpinner ? Date.now() : null, error: null })
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {
-        set({ isLoading: false, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
+        set({ isLoading: false, loadingStartedAt: null, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
       }
     }, 20000)
 
@@ -63,7 +64,7 @@ export const useSubmissionsStore = create((set, get) => ({
         set({ lastRealtimeEvent: { type: 'UPDATE', id: finalized[0].id, ts: Date.now() } })
       }
 
-      set({ submissions: data, isLoading: false, lastFetch: Date.now(), error: null })
+      set({ submissions: data, isLoading: false, loadingStartedAt: null, lastFetch: Date.now(), error: null })
     } catch (err) {
       clearTimeout(timeout)
       set({ error: err?.message || 'Error al cargar datos', isLoading: false })

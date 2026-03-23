@@ -12,19 +12,21 @@ export const useAdminStore = create((set, get) => ({
   loadUsers: async (force = false) => {
     if (get().usersLoading) return
     if (!force && get().usersLoaded) return
-    set({ usersLoading: true, usersError: null })
-    const t = setTimeout(() => set({ usersLoading: false, usersError: 'Tiempo de espera agotado.' }), 15000)
+    // Spinner solo si no hay datos previos — si hay datos, refrescar en silencio
+    const hasData = get().users.length > 0
+    set({ usersLoading: !hasData, usersError: null })
+    const t = setTimeout(() => set({ usersLoading: false, usersError: hasData ? null : 'Tiempo de espera agotado.' }), 40000)
     try {
       const { data, error } = await supabase
         .from('app_users')
         .select('*, companies(name, org_code)')
         .order('full_name')
       clearTimeout(t)
-      if (error) { set({ usersError: error.message }); return }
+      if (error) { set({ usersError: hasData ? null : error.message }); return }
       set({ users: data || [], usersLoaded: true, usersError: null })
     } catch (e) {
       clearTimeout(t)
-      set({ usersError: e?.message || 'Error al cargar usuarios' })
+      if (!hasData) set({ usersError: e?.message || 'Error al cargar usuarios' })
     } finally {
       set({ usersLoading: false })
     }
@@ -39,19 +41,20 @@ export const useAdminStore = create((set, get) => ({
   loadCompanies: async (force = false) => {
     if (get().companiesLoading) return
     if (!force && get().companiesLoaded) return
-    set({ companiesLoading: true, companiesError: null })
-    const t = setTimeout(() => set({ companiesLoading: false, companiesError: 'Tiempo de espera agotado.' }), 15000)
+    const hasData = get().companies.length > 0
+    set({ companiesLoading: !hasData, companiesError: null })
+    const t = setTimeout(() => set({ companiesLoading: false, companiesError: hasData ? null : 'Tiempo de espera agotado.' }), 40000)
     try {
       const { data, error } = await supabase
         .from('companies')
         .select('*, company_regions(region_id, regions(id, name))')
         .order('name')
       clearTimeout(t)
-      if (error) { set({ companiesError: error.message }); return }
+      if (error) { set({ companiesError: hasData ? null : error.message }); return }
       set({ companies: data || [], companiesLoaded: true, companiesError: null })
     } catch (e) {
       clearTimeout(t)
-      set({ companiesError: e?.message || 'Error al cargar empresas' })
+      if (!hasData) set({ companiesError: e?.message || 'Error al cargar empresas' })
     } finally {
       set({ companiesLoading: false })
     }
@@ -66,8 +69,9 @@ export const useAdminStore = create((set, get) => ({
   loadRegions: async (force = false) => {
     if (get().regionsLoading) return
     if (!force && get().regionsLoaded) return
-    set({ regionsLoading: true, regionsError: null })
-    const t = setTimeout(() => set({ regionsLoading: false, regionsError: 'Tiempo de espera agotado.' }), 15000)
+    const hasData = get().regions.length > 0
+    set({ regionsLoading: !hasData, regionsError: null })
+    const t = setTimeout(() => set({ regionsLoading: false, regionsError: hasData ? null : 'Tiempo de espera agotado.' }), 40000)
     try {
       const { data, error } = await supabase
         .from('regions')
@@ -78,11 +82,11 @@ export const useAdminStore = create((set, get) => ({
         `)
         .order('name')
       clearTimeout(t)
-      if (error) { set({ regionsError: error.message }); return }
+      if (error) { set({ regionsError: hasData ? null : error.message }); return }
       set({ regions: data || [], regionsLoaded: true, regionsError: null })
     } catch (e) {
       clearTimeout(t)
-      set({ regionsError: e?.message || 'Error al cargar regiones' })
+      if (!hasData) set({ regionsError: e?.message || 'Error al cargar regiones' })
     } finally {
       set({ regionsLoading: false })
     }
@@ -97,7 +101,7 @@ export const useAdminStore = create((set, get) => ({
     if (get().permLoading) return
     if (!force && get().permLoaded) return
     set({ permLoading: true })
-    const t = setTimeout(() => set({ permLoading: false }), 15000)
+    const t = setTimeout(() => set({ permLoading: false }), 40000)
     try {
       const { data, error } = await supabase
         .from('role_permissions')
@@ -120,7 +124,7 @@ export const useAdminStore = create((set, get) => ({
   loadLogs: async ({ page = 0, filterType = 'all', filterSev = 'all', filterUser = '', search = '', pageSize = 50 } = {}) => {
     if (get().logsLoading) return
     set({ logsLoading: true })
-    const t = setTimeout(() => set({ logsLoading: false }), 15000)
+    const t = setTimeout(() => set({ logsLoading: false }), 40000)
     try {
       let q = supabase
         .from('system_logs')

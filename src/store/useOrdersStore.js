@@ -3,8 +3,9 @@ import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit
 
 export const useOrdersStore = create((set, get) => ({
   orders: [],
-  isLoading: false,
-  error: null,
+  isLoading:        false,
+  loadingStartedAt: null,
+  error:            null,
   filterStatus: 'all',
   search: '',
   lastFetch: null,
@@ -16,18 +17,18 @@ export const useOrdersStore = create((set, get) => ({
     if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
 
     const showSpinner = isEmpty
-    set({ isLoading: showSpinner, error: null })
+    set({ isLoading: showSpinner, loadingStartedAt: showSpinner ? Date.now() : null, error: null })
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {
-        set({ isLoading: false, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
+        set({ isLoading: false, loadingStartedAt: null, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
       }
-    }, 20000)
+    }, 40000)
 
     try {
       const data = await fetchSiteVisits()
       clearTimeout(timeout)
-      set({ orders: data, isLoading: false, lastFetch: Date.now(), error: null })
+      set({ orders: data, isLoading: false, loadingStartedAt: null, lastFetch: Date.now(), error: null })
     } catch (err) {
       clearTimeout(timeout)
       set({ error: err?.message || 'Error al cargar órdenes', isLoading: false })

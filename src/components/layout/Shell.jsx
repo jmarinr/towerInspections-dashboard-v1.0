@@ -270,15 +270,36 @@ export default function Shell({ children }) {
     const handleHide = () => { if (document.visibilityState === 'hidden') hiddenAt = Date.now() }
     document.addEventListener('visibilitychange', handleHide)
 
-    const STALE_MS = 5 * 60 * 1000  // 5 minutos
+    const STALE_MS   = 5 * 60 * 1000  // 5 minutos: refrescar datos
+    const STUCK_MS   = 40 * 1000       // 40s: considerar spinner atascado
 
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return
-      const awayMs = hiddenAt ? Date.now() - hiddenAt : 0
+      const now    = Date.now()
+      const awayMs = hiddenAt ? now - hiddenAt : 0
+
+      // Resetear spinners atascados: si isLoading lleva más de 40s
+      // es porque el lock del SDK bloqueó la query y el timeout interno
+      // fue throttleado por Chrome mientras el tab estaba en background.
+      const sub = useSubmissionsStore.getState()
+      if (sub.isLoading && sub.loadingStartedAt && now - sub.loadingStartedAt > STUCK_MS) {
+        useSubmissionsStore.setState({ isLoading: false, loadingStartedAt: null })
+      }
+      const ord = useOrdersStore.getState()
+      if (ord.isLoading && ord.loadingStartedAt && now - ord.loadingStartedAt > STUCK_MS) {
+        useOrdersStore.setState({ isLoading: false, loadingStartedAt: null })
+      }
+
+      // Refrescar datos solo si el usuario estuvo fuera más de 5 minutos
       if (awayMs >= STALE_MS) {
         const s = useSubmissionsStore.getState()
         if (!s.isLoading) poll()
         refreshAdminStores()
+      } else if (awayMs > 0) {
+        // Estuvo poco tiempo fuera — solo re-pollear submissions si los datos
+        // son muy viejos (>60s), sin tocar admin stores
+        const s = useSubmissionsStore.getState()
+        if (!s.isLoading && s.lastFetch && now - s.lastFetch > 60000) poll()
       }
     }
 
