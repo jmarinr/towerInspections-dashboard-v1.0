@@ -77,67 +77,72 @@ function UserModal({ user, companies, onSave, onClose }) {
     if (isNew && !form.password) { setError('La contraseña es obligatoria para usuarios nuevos'); return }
     setSaving(true); setError('')
 
-    if (isNew) {
-      // Obtener token de sesión actual para pasarlo a la Edge Function
-      const { data: { session } } = await supabase.auth.getSession()
-      const token = session?.access_token
+    try {
+      if (isNew) {
+        // Obtener token de sesión — defensive: puede ser null en mobile
+        let token = null
+        try {
+          const { data } = await supabase.auth.getSession()
+          token = data?.session?.access_token || null
+        } catch (_) { /* continuar sin token explícito */ }
 
-      const invokePromise = supabase.functions.invoke('create-user', {
-        body: {
-          email:         form.email.trim(),
-          password:      form.password,
+        const invokePromise = supabase.functions.invoke('create-user', {
+          body: {
+            email:         form.email.trim(),
+            password:      form.password,
+            full_name:     form.full_name.trim(),
+            role:          form.role,
+            company_id:    form.company_id    || null,
+            supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
+            active:        form.active,
+          },
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)
+        )
+
+        let res
+        try {
+          res = await Promise.race([invokePromise, timeoutPromise])
+        } catch (e) {
+          setError(e.message || 'Error al conectar con el servidor')
+          return
+        }
+
+        // Extraer mensaje de error del SDK v2 — puede venir en distintos lugares
+        const errMsg = res.data?.error
+          || res.error?.context?.json?.error
+          || res.error?.message
+          || (res.error ? 'Error al crear usuario' : null)
+
+        if (errMsg) { setError(errMsg); return }
+
+        try { LOG.userCreated(form.email, form.role, currentUser?.email) } catch (_) {}
+
+      } else {
+        // Detectar si se desactivó el usuario
+        const wasDeactivated = user.active && !form.active
+        const { error: err } = await supabase.from('app_users').update({
           full_name:     form.full_name.trim(),
           role:          form.role,
-          company_id:    form.company_id    || null,
+          company_id:    form.company_id || null,
           supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
           active:        form.active,
-        },
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)
-      )
-
-      let res
-      try {
-        res = await Promise.race([invokePromise, timeoutPromise])
-      } catch (e) {
-        setError(e.message || 'Error al conectar con el servidor')
-        setSaving(false)
-        return
+        }).eq('id', user.id)
+        if (err) { setError(err.message); return }
+        try {
+          if (wasDeactivated) LOG.userDeactivated(user.email, currentUser?.email)
+          else LOG.userUpdated(user.email, { role: form.role, active: form.active }, currentUser?.email)
+        } catch (_) {}
       }
 
-      // Extraer mensaje de error del SDK v2 — puede venir en distintos lugares
-      const errMsg = res.data?.error
-        || res.error?.context?.json?.error
-        || res.error?.message
-        || (res.error ? 'Error al crear usuario' : null)
-
-      if (errMsg) {
-        setError(errMsg)
-        setSaving(false)
-        return
-      }
-      LOG.userCreated(form.email, form.role, currentUser?.email)
-    } else {
-      // Detectar si se desactivó el usuario
-      const wasDeactivated = user.active && !form.active
-      const { error: err } = await supabase.from('app_users').update({
-        full_name:     form.full_name.trim(),
-        role:          form.role,
-        company_id:    form.company_id || null,
-        supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
-        active:        form.active,
-      }).eq('id', user.id)
-      if (err) { setError(err.message); setSaving(false); return }
-      if (wasDeactivated) {
-        LOG.userDeactivated(user.email, currentUser?.email)
-      } else {
-        LOG.userUpdated(user.email, { role: form.role, active: form.active }, currentUser?.email)
-      }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
-    onSave()
   }
 
   const handleDelete = async () => {
