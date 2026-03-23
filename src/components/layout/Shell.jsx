@@ -290,7 +290,7 @@ export default function Shell({ children }) {
           markSdkReady()  // lock libre, saves pueden proceder
           reloadAllData()
         }
-      }, 1000)
+      }, 3000)
     }
 
     // El SDK dispara TOKEN_REFRESHED cuando termina _recoverAndRefresh()

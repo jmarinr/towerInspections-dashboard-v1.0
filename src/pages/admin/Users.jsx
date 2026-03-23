@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
-import { waitForSdkReady } from '../../lib/sdkReady'
+import { waitForSdkReady, getTokenFromStorage } from '../../lib/sdkReady'
 import { q } from '../../lib/dbUtils'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LOG } from '../../lib/logEvent'
@@ -85,49 +85,25 @@ function UserModal({ user, companies, onSave, onClose }) {
       await waitForSdkReady(5000)
 
       if (isNew) {
-        // ── Obtener token fresco para la Edge Function ─────────────────
-        // supabase.from() intercepta 401 y reintenta automáticamente.
-        // supabase.functions.invoke() NO tiene ese mecanismo.
-        // Si el token expiró mientras el usuario estaba en otros tabs,
-        // la Edge Function devuelve 401 "Token inválido" sin retry.
-        // Solución: verificar el token localmente y refrescarlo si es necesario
-        // ANTES de llamar a invoke().
+        // ── Obtener token para la Edge Function ────────────────────────
+        // IMPORTANTE: NO usar supabase.auth.getSession() aquí.
+        // getSession() adquiere el lock interno del SDK — si _recoverAndRefresh()
+        // está corriendo (visibilitychange), getSession() bloquea indefinidamente.
+        //
+        // En cambio, leemos el token directamente de localStorage:
+        // sin red, sin lock, instantáneo.
+        //
+        // waitForSdkReady() ya esperó a que el SDK termine antes de llegar aquí,
+        // así que el token en localStorage ya está fresco si necesitaba refresh.
+        const { token, isExpired } = getTokenFromStorage()
 
-        let token = null
-        try {
-          const { data: sessionData } = await supabase.auth.getSession()
-          const session = sessionData?.session
+        if (!token) {
+          setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
+          return
+        }
 
-          if (!session) {
-            setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
-            return
-          }
-
-          // Verificar si el token ya expiró o expira en menos de 60 segundos
-          const expiresAt = session.expires_at   // epoch seconds
-          const nowSec    = Math.floor(Date.now() / 1000)
-          const isExpired = expiresAt && (expiresAt - nowSec) < 60
-
-          if (isExpired) {
-            // Token expirado — refrescar explícitamente con timeout de 10s
-            // q() no sirve aquí porque refreshSession retorna { data, error },
-            // no lanza excepción en caso de error de red
-            const refreshResult = await Promise.race([
-              supabase.auth.refreshSession(),
-              new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('No se pudo renovar la sesión (timeout). Verifica tu conexión.')), 10000)
-              )
-            ])
-            if (refreshResult.error || !refreshResult.data?.session) {
-              setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
-              return
-            }
-            token = refreshResult.data.session.access_token
-          } else {
-            token = session.access_token
-          }
-        } catch (e) {
-          setError(e.message || 'No se pudo verificar la sesión. Verifica tu conexión.')
+        if (isExpired) {
+          setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
           return
         }
 
