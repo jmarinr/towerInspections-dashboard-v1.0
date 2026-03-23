@@ -3,57 +3,73 @@ import { supabase } from '../lib/supabaseClient'
 
 export const useAdminStore = create((set, get) => ({
 
-  // ── Users ──────────────────────────────────────────────────────────────────
+  // ── Users ─────────────────────────────────────────────────────────────
   users:        [],
   usersLoading: false,
   usersLoaded:  false,
+  usersError:   null,
 
   loadUsers: async (force = false) => {
     if (get().usersLoading) return
     if (!force && get().usersLoaded) return
-    set({ usersLoading: true })
-    const t = setTimeout(() => set({ usersLoading: false }), 15000)
+    set({ usersLoading: true, usersError: null })
+    const t = setTimeout(() => set({ usersLoading: false, usersError: 'Tiempo de espera agotado.' }), 15000)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('app_users')
         .select('*, companies(name, org_code)')
         .order('full_name')
-      set({ users: data || [], usersLoaded: true })
-    } catch { } finally { clearTimeout(t); set({ usersLoading: false }) }
+      clearTimeout(t)
+      if (error) { set({ usersError: error.message }); return }
+      set({ users: data || [], usersLoaded: true, usersError: null })
+    } catch (e) {
+      clearTimeout(t)
+      set({ usersError: e?.message || 'Error al cargar usuarios' })
+    } finally {
+      set({ usersLoading: false })
+    }
   },
 
-  // ── Companies ──────────────────────────────────────────────────────────────
+  // ── Companies ─────────────────────────────────────────────────────────
   companies:        [],
   companiesLoading: false,
   companiesLoaded:  false,
+  companiesError:   null,
 
   loadCompanies: async (force = false) => {
     if (get().companiesLoading) return
     if (!force && get().companiesLoaded) return
-    set({ companiesLoading: true })
-    const t = setTimeout(() => set({ companiesLoading: false }), 15000)
+    set({ companiesLoading: true, companiesError: null })
+    const t = setTimeout(() => set({ companiesLoading: false, companiesError: 'Tiempo de espera agotado.' }), 15000)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('companies')
         .select('*, company_regions(region_id, regions(id, name))')
         .order('name')
-      set({ companies: data || [], companiesLoaded: true })
-    } catch { } finally { clearTimeout(t); set({ companiesLoading: false }) }
+      clearTimeout(t)
+      if (error) { set({ companiesError: error.message }); return }
+      set({ companies: data || [], companiesLoaded: true, companiesError: null })
+    } catch (e) {
+      clearTimeout(t)
+      set({ companiesError: e?.message || 'Error al cargar empresas' })
+    } finally {
+      set({ companiesLoading: false })
+    }
   },
 
-  // ── Regions ────────────────────────────────────────────────────────────────
-  // Cada región trae sus sites y sus company_regions
+  // ── Regions ───────────────────────────────────────────────────────────
   regions:        [],
   regionsLoading: false,
   regionsLoaded:  false,
+  regionsError:   null,
 
   loadRegions: async (force = false) => {
     if (get().regionsLoading) return
     if (!force && get().regionsLoaded) return
-    set({ regionsLoading: true })
-    const t = setTimeout(() => set({ regionsLoading: false }), 15000)
+    set({ regionsLoading: true, regionsError: null })
+    const t = setTimeout(() => set({ regionsLoading: false, regionsError: 'Tiempo de espera agotado.' }), 15000)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('regions')
         .select(`
           *,
@@ -61,11 +77,18 @@ export const useAdminStore = create((set, get) => ({
           company_regions(company_id, companies(id, name, org_code))
         `)
         .order('name')
-      set({ regions: data || [], regionsLoaded: true })
-    } catch { } finally { clearTimeout(t); set({ regionsLoading: false }) }
+      clearTimeout(t)
+      if (error) { set({ regionsError: error.message }); return }
+      set({ regions: data || [], regionsLoaded: true, regionsError: null })
+    } catch (e) {
+      clearTimeout(t)
+      set({ regionsError: e?.message || 'Error al cargar regiones' })
+    } finally {
+      set({ regionsLoading: false })
+    }
   },
 
-  // ── Permissions ────────────────────────────────────────────────────────────
+  // ── Permissions ───────────────────────────────────────────────────────
   permMatrix:  {},
   permLoading: false,
   permLoaded:  false,
@@ -76,18 +99,20 @@ export const useAdminStore = create((set, get) => ({
     set({ permLoading: true })
     const t = setTimeout(() => set({ permLoading: false }), 15000)
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('role_permissions')
         .select('role, permission, enabled')
+      clearTimeout(t)
+      if (error) return
       const m = {}
       ;(data || []).forEach(r => { m[`${r.role}:${r.permission}`] = r.enabled })
       set({ permMatrix: m, permLoaded: true })
-    } catch { } finally { clearTimeout(t); set({ permLoading: false }) }
+    } catch { clearTimeout(t) } finally { set({ permLoading: false }) }
   },
 
   setPermMatrix: (m) => set({ permMatrix: m }),
 
-  // ── Logs ───────────────────────────────────────────────────────────────────
+  // ── Logs ──────────────────────────────────────────────────────────────
   logs:        [],
   logsLoading: false,
   logsTotal:   0,
@@ -106,12 +131,14 @@ export const useAdminStore = create((set, get) => ({
       if (filterSev  !== 'all') q = q.eq('severity', filterSev)
       if (filterUser)           q = q.ilike('user_email', `%${filterUser}%`)
       if (search)               q = q.ilike('message', `%${search}%`)
-      const { data, count } = await q
+      const { data, count, error } = await q
+      clearTimeout(t)
+      if (error) return
       set({ logs: data || [], logsTotal: count || 0 })
-    } catch { } finally { clearTimeout(t); set({ logsLoading: false }) }
+    } catch { clearTimeout(t) } finally { set({ logsLoading: false }) }
   },
 
-  // ── Invalidar cache ────────────────────────────────────────────────────────
+  // ── Invalidar cache ───────────────────────────────────────────────────
   invalidateUsers:     () => set({ usersLoaded: false }),
   invalidateCompanies: () => set({ companiesLoaded: false }),
   invalidateRegions:   () => set({ regionsLoaded: false }),

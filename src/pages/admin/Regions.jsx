@@ -357,6 +357,7 @@ function RegionCard({ region, onEditRegion, onRefresh }) {
 export default function Regions() {
   const regions           = useAdminStore(s => s.regions)
   const loading           = useAdminStore(s => s.regionsLoading)
+  const storeError        = useAdminStore(s => s.regionsError)
   const loadRegions       = useAdminStore(s => s.loadRegions)
   const invalidateRegions = useAdminStore(s => s.invalidateRegions)
   const invalidateCompanies = useAdminStore(s => s.invalidateCompanies)
@@ -392,6 +393,14 @@ export default function Regions() {
         </button>
       </div>
 
+      {storeError && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-[13px]"
+          style={{ background:'#fef2f2', border:'1px solid #fecaca', color:'#dc2626' }}>
+          <span>⚠️ {storeError}</span>
+          <button onClick={onRefresh} className="px-3 py-1 rounded-lg text-[12px] font-semibold"
+            style={{ background:'#dc2626', color:'#fff' }}>Reintentar</button>
+        </div>
+      )}
       {loading && regions.length===0 ? (
         <div className="flex justify-center py-16"><Spinner size={16}/></div>
       ) : regions.length===0 ? (

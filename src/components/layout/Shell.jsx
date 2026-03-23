@@ -3,6 +3,7 @@ import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X,
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
+import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { APP_VERSION } from '../../version'
 
@@ -248,20 +249,31 @@ export default function Shell({ children }) {
   useEffect(() => {
     const poll = () => useSubmissionsStore.getState().load(true)
 
+    // Refrescar stores de admin si sus datos ya estaban cargados
+    const refreshAdminStores = () => {
+      const a = useAdminStore.getState()
+      if (a.usersLoaded)     { a.invalidateUsers();     a.loadUsers(true)     }
+      if (a.companiesLoaded) { a.invalidateCompanies(); a.loadCompanies(true) }
+      if (a.regionsLoaded)   { a.invalidateRegions();   a.loadRegions(true)   }
+    }
+
     const interval = setInterval(poll, 30000)
 
-    // Re-pollear al volver al tab si pasaron más de 15s y no hay carga en curso
+    // Al volver al tab: refrescar sesión + datos si pasaron más de 15s
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
+        // 1. Verificar sesión con el servidor (getUser auto-refresca token si expiró)
+        useAuthStore.getState()._refreshOnFocus()
+        // 2. Re-pollear submissions si pasaron más de 15s
         const s = useSubmissionsStore.getState()
-        if (s.isLoading) return  // ya hay una carga en curso, no interferir
-        const last = s.lastFetch
-        if (!last || Date.now() - last > 15000) poll()
+        if (!s.isLoading && (!s.lastFetch || Date.now() - s.lastFetch > 15000)) poll()
+        // 3. Refrescar datos de admin stores
+        refreshAdminStores()
       }
     }
 
-    // Re-pollear al recuperar red
-    const handleOnline = () => poll()
+    // Al recuperar red: refrescar todo
+    const handleOnline = () => { poll(); refreshAdminStores() }
 
     document.addEventListener('visibilitychange', handleVisibility)
     window.addEventListener('online', handleOnline)

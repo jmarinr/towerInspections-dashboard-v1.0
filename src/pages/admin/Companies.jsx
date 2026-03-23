@@ -161,6 +161,7 @@ export default function Companies() {
   const companies           = useAdminStore(s => s.companies)
   const regions             = useAdminStore(s => s.regions)
   const loading             = useAdminStore(s => s.companiesLoading)
+  const storeError          = useAdminStore(s => s.companiesError)
   const loadCompanies       = useAdminStore(s => s.loadCompanies)
   const loadRegions         = useAdminStore(s => s.loadRegions)
   const invalidateCompanies = useAdminStore(s => s.invalidateCompanies)
@@ -168,6 +169,8 @@ export default function Companies() {
   const [modal, setModal]   = useState(null)
 
   useEffect(() => { loadCompanies(); loadRegions() }, [])
+
+  const retry = () => { invalidateCompanies(); invalidateRegions(); loadCompanies(true); loadRegions(true) }
 
   const onSave = () => {
     setModal(null)
@@ -187,6 +190,14 @@ export default function Companies() {
         </button>
       </div>
 
+      {storeError && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-[13px]"
+          style={{ background:'#fef2f2', border:'1px solid #fecaca', color:'#dc2626' }}>
+          <span>⚠️ {storeError}</span>
+          <button onClick={retry} className="px-3 py-1 rounded-lg text-[12px] font-semibold"
+            style={{ background:'#dc2626', color:'#fff' }}>Reintentar</button>
+        </div>
+      )}
       {loading && companies.length === 0 ? (
         <div className="flex justify-center py-16"><Spinner size={16}/></div>
       ) : (

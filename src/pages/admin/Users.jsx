@@ -79,21 +79,12 @@ function UserModal({ user, companies, onSave, onClose }) {
 
     try {
       if (isNew) {
-        // Obtener token fresco — forzar refresh si está cerca de expirar
-        let token = null
-        try {
-          // Primero intentar refreshSession para garantizar token válido
-          const { data: refreshed } = await supabase.auth.refreshSession()
-          token = refreshed?.session?.access_token || null
-          if (!token) {
-            // Fallback: leer sesión actual
-            const { data } = await supabase.auth.getSession()
-            token = data?.session?.access_token || null
-          }
-        } catch (_) { /* continuar sin token explícito */ }
-
-        if (!token) {
-          setError('Tu sesión expiró. Por favor recarga la página e inicia sesión nuevamente.')
+        // getUser() valida con el servidor y refresca el token si expiró.
+        // Esto actualiza el token en memoria del SDK → functions.invoke lo usa automáticamente.
+        // A diferencia de getSession(), getUser() NO lee el caché local.
+        const { data: userData, error: userError } = await supabase.auth.getUser()
+        if (userError || !userData?.user) {
+          setError('Tu sesión expiró. Por favor cierra sesión e inicia de nuevo.')
           return
         }
 
@@ -107,7 +98,8 @@ function UserModal({ user, companies, onSave, onClose }) {
             supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
             active:        form.active,
           },
-          headers: { Authorization: `Bearer ${token}` },
+          // NO pasar Authorization manualmente — el SDK lo inyecta con el token
+          // que acaba de validar/refrescar en getUser() arriba.
         })
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)
@@ -121,13 +113,20 @@ function UserModal({ user, companies, onSave, onClose }) {
           return
         }
 
-        // Extraer mensaje de error del SDK v2 — puede venir en distintos lugares
-        const errMsg = res.data?.error
-          || res.error?.context?.json?.error
-          || res.error?.message
-          || (res.error ? 'Error al crear usuario' : null)
-
-        if (errMsg) { setError(errMsg); return }
+        // FunctionsHttpError.context es un objeto Response (fetch API).
+        // context.json es una función async, NO datos — hay que awaitearlo.
+        // Esto explica por qué antes siempre mostraba el mensaje genérico del SDK.
+        if (res.error) {
+          let errMsg = 'Error al crear usuario'
+          try {
+            const body = await res.error.context.json()
+            errMsg = body?.error || errMsg
+          } catch {
+            errMsg = res.error.message || errMsg
+          }
+          setError(errMsg)
+          return
+        }
 
         try { LOG.userCreated(form.email, form.role, currentUser?.email) } catch (_) {}
 
@@ -275,6 +274,7 @@ export default function Users() {
   const users        = useAdminStore(s => s.users)
   const companies    = useAdminStore(s => s.companies)
   const loading      = useAdminStore(s => s.usersLoading || s.companiesLoading)
+  const storeError   = useAdminStore(s => s.usersError || s.companiesError)
   const loadUsers    = useAdminStore(s => s.loadUsers)
   const loadCompanies = useAdminStore(s => s.loadCompanies)
   const invalidateUsers = useAdminStore(s => s.invalidateUsers)
@@ -326,6 +326,15 @@ export default function Users() {
         </select>
       </div>
 
+      {storeError && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-[13px]"
+          style={{ background:'#fef2f2', border:'1px solid #fecaca', color:'#dc2626' }}>
+          <span>⚠️ {storeError}</span>
+          <button onClick={()=>{ invalidateUsers(); invalidateCompanies(); loadUsers(true); loadCompanies(true) }}
+            className="px-3 py-1 rounded-lg text-[12px] font-semibold"
+            style={{ background:'#dc2626', color:'#fff' }}>Reintentar</button>
+        </div>
+      )}
       {loading ? (
         <div className="flex justify-center py-16"><Spinner size={16}/></div>
       ) : (
