@@ -5,6 +5,8 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { APP_VERSION } from '../../version'
+import { supabase } from '../../lib/supabaseClient'
+import { markSdkBusy, markSdkReady } from '../../lib/sdkReady'
 
 
 const NAV = [
@@ -250,28 +252,45 @@ export default function Shell({ children }) {
     const poll = () => useSubmissionsStore.getState().load(true)
     const interval = setInterval(poll, 30000)
 
-    let hiddenAt = null
+    let fallbackTimer = null
 
     const handleHide = () => {
-      if (document.visibilityState === 'hidden') hiddenAt = Date.now()
+      if (document.visibilityState === 'hidden') {
+        // Avisar que el SDK va a adquirir lock cuando volvamos
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+        markSdkBusy()
+      }
     }
 
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return
 
-      // Si hay un modal abierto (el usuario está llenando un formulario),
-      // NO recargar — perdería los datos ingresados
       const hasOpenModal = !!document.querySelector('[data-modal="open"]')
-      if (hasOpenModal) return
 
-      // Recargar la página — igual que presionar F5.
-      // Esto da un SDK de Supabase limpio sin locks, sin estado pendiente.
-      // El usuario recupera exactamente lo que tenía gracias a:
-      //   - La sesión persiste en localStorage
-      //   - React Router restaura la ruta actual
-      //   - Los stores se recargan al montar
-      window.location.reload()
+      if (!hasOpenModal) {
+        // Sin modal abierto: recargar página — SDK limpio, sin locks
+        // La sesión persiste en localStorage, React Router restaura la ruta
+        markSdkReady() // limpiar estado por si acaso
+        window.location.reload()
+        return
+      }
+
+      // Modal abierto: no podemos recargar sin perder los datos del usuario.
+      // Coordinar con el SDK: marcar como listo cuando TOKEN_REFRESHED
+      // o después de 5s de fallback (cubre _recoverAndRefresh con token válido).
+      if (fallbackTimer) clearTimeout(fallbackTimer)
+      fallbackTimer = setTimeout(() => {
+        markSdkReady()
+      }, 5000)
     }
+
+    // TOKEN_REFRESHED = SDK terminó, lock liberado
+    const { data: { subscription: authSub } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'TOKEN_REFRESHED') {
+        if (fallbackTimer) clearTimeout(fallbackTimer)
+        markSdkReady()
+      }
+    })
 
     const handleOnline = () => poll()
 
@@ -281,6 +300,8 @@ export default function Shell({ children }) {
 
     return () => {
       clearInterval(interval)
+      if (fallbackTimer) clearTimeout(fallbackTimer)
+      authSub.unsubscribe()
       document.removeEventListener('visibilitychange', handleHide)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
