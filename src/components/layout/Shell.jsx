@@ -207,6 +207,32 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
   )
 }
 
+function SessionWarningBanner() {
+  const sessionWarning = useAuthStore((s) => s.sessionWarning)
+  const logout         = useAuthStore((s) => s.logout)
+  const navigate       = useNavigate()
+
+  if (!sessionWarning) return null
+
+  const handleRelogin = () => {
+    logout().catch(() => {})
+    navigate('/login')
+  }
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[100] flex items-center justify-between gap-3 px-4 py-2 text-[12px] font-medium"
+      style={{ background: '#f59e0b', color: '#1c1917' }}>
+      <span>⚠️ Se perdió la conexión con el servidor. Algunas acciones pueden fallar.</span>
+      <button
+        onClick={handleRelogin}
+        className="flex-shrink-0 px-3 py-1 rounded-md text-[11px] font-semibold"
+        style={{ background: 'rgba(0,0,0,0.15)', color: '#1c1917' }}>
+        Volver a iniciar sesión
+      </button>
+    </div>
+  )
+}
+
 export default function Shell({ children }) {
   const navigate  = useNavigate()
   const location  = useLocation()
@@ -265,6 +291,8 @@ export default function Shell({ children }) {
 
   return (
     <div className="min-h-[100dvh] th-bg-base">
+
+      <SessionWarningBanner />
 
       {/* ── DESKTOP ─────────────────────────────────────────────────────────── */}
       <div className="hidden lg:flex min-h-[100dvh]">

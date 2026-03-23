@@ -79,12 +79,23 @@ function UserModal({ user, companies, onSave, onClose }) {
 
     try {
       if (isNew) {
-        // Obtener token de sesión — defensive: puede ser null en mobile
+        // Obtener token fresco — forzar refresh si está cerca de expirar
         let token = null
         try {
-          const { data } = await supabase.auth.getSession()
-          token = data?.session?.access_token || null
+          // Primero intentar refreshSession para garantizar token válido
+          const { data: refreshed } = await supabase.auth.refreshSession()
+          token = refreshed?.session?.access_token || null
+          if (!token) {
+            // Fallback: leer sesión actual
+            const { data } = await supabase.auth.getSession()
+            token = data?.session?.access_token || null
+          }
         } catch (_) { /* continuar sin token explícito */ }
+
+        if (!token) {
+          setError('Tu sesión expiró. Por favor recarga la página e inicia sesión nuevamente.')
+          return
+        }
 
         const invokePromise = supabase.functions.invoke('create-user', {
           body: {
@@ -96,7 +107,7 @@ function UserModal({ user, companies, onSave, onClose }) {
             supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
             active:        form.active,
           },
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          headers: { Authorization: `Bearer ${token}` },
         })
         const timeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)

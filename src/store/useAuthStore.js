@@ -3,9 +3,10 @@ import { supabase } from '../lib/supabaseClient'
 import { LOG } from '../lib/logEvent'
 
 export const useAuthStore = create((set, get) => ({
-  isAuthed:    false,
-  user:        null,   // { id, email, full_name, role, company_id, canWrite }
-  isLoading:   true,   // true mientras verifica sesión al arrancar
+  isAuthed:       false,
+  user:           null,   // { id, email, full_name, role, company_id, canWrite }
+  isLoading:      true,   // true mientras verifica sesión al arrancar
+  sessionWarning: false,  // true cuando hay problema de conectividad
 
   // ── Inicializar — llamar una vez al montar App ────────────────────────────
   init: async () => {
@@ -20,16 +21,52 @@ export const useAuthStore = create((set, get) => ({
     // 2. Escuchar cambios de sesión (refresh, logout externo)
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
-        // Solo registrar log en login real, no en token refresh automático
         const wasAuthed = get().isAuthed
         await get()._loadProfile(session.user.id, !wasAuthed)
       } else if (event === 'TOKEN_REFRESHED') {
-        // Token refrescado automáticamente — no hacer nada, la sesión sigue activa
-        // No desmontar componentes, no cambiar isAuthed
+        // Token refrescado automáticamente — limpiar warning si había
+        set({ sessionWarning: false })
       } else if (event === 'SIGNED_OUT') {
-        set({ isAuthed: false, user: null, isLoading: false })
+        set({ isAuthed: false, user: null, isLoading: false, sessionWarning: false })
       }
     })
+
+    // 3. Vigilar cuando el tab vuelve a ser visible (fix: Chrome suspende auto-refresh en background)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && get().isAuthed) {
+        get()._refreshOnFocus()
+      }
+    })
+  },
+
+  // ── Verificar / refrescar sesión al volver al tab ─────────────────────────
+  _refreshOnFocus: async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession()
+
+      // Sin sesión activa → cerrar sesión limpiamente
+      if (error || !data?.session) {
+        set({ isAuthed: false, user: null, isLoading: false, sessionWarning: false })
+        return
+      }
+
+      // Si el token expira pronto (< 5 minutos) → forzar refresh
+      const expiresAt = data.session.expires_at  // epoch seconds
+      const nowSec    = Math.floor(Date.now() / 1000)
+      if (expiresAt && (expiresAt - nowSec) < 300) {
+        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+        if (refreshError || !refreshData?.session) {
+          await supabase.auth.signOut()
+          set({ isAuthed: false, user: null, isLoading: false, sessionWarning: false })
+        } else {
+          set({ sessionWarning: false })
+        }
+      }
+      // Token válido → no hacer nada (no queremos llamadas extra a app_users en cada focus)
+    } catch {
+      // Error de red al verificar — NO cerrar sesión, solo mostrar aviso
+      set({ sessionWarning: true })
+    }
   },
 
   // ── Cargar perfil desde app_users ────────────────────────────────────────
@@ -41,7 +78,20 @@ export const useAuthStore = create((set, get) => ({
         .eq('id', authId)
         .single()
 
-      if (error || !data) {
+      if (error) {
+        // Distinguir "usuario no existe" (PGRST116) de error de red/timeout
+        const isNotFound = error.code === 'PGRST116' || error.details?.includes('0 rows')
+        if (isNotFound) {
+          await supabase.auth.signOut()
+          set({ isAuthed: false, user: null, isLoading: false })
+        } else {
+          // Error de red → no cerrar sesión, solo marcar warning
+          set({ isLoading: false, sessionWarning: true })
+        }
+        return
+      }
+
+      if (!data) {
         await supabase.auth.signOut()
         set({ isAuthed: false, user: null, isLoading: false })
         return
@@ -61,8 +111,9 @@ export const useAuthStore = create((set, get) => ({
       }
 
       set({
-        isAuthed: true,
-        isLoading: false,
+        isAuthed:       true,
+        isLoading:      false,
+        sessionWarning: false,
         user: {
           id:         data.id,
           email:      data.email,
@@ -74,13 +125,13 @@ export const useAuthStore = create((set, get) => ({
         },
       })
 
-      // Registrar log solo en login real, no en refresh silencioso de sesión
       if (isRealLogin) {
         LOG.authLogin(data.email, data.role, data.company_id)
       }
 
     } catch {
-      set({ isAuthed: false, user: null, isLoading: false })
+      // Excepción inesperada → NO cerrar sesión, avisar
+      set({ isLoading: false, sessionWarning: true })
     }
   },
 
@@ -94,7 +145,6 @@ export const useAuthStore = create((set, get) => ({
       LOG.authLoginFailed(email)
       return { ok: false, message: msg }
     }
-    // Login exitoso — _loadProfile se dispara vía onAuthStateChange
     return { ok: true }
   },
 
@@ -103,7 +153,7 @@ export const useAuthStore = create((set, get) => ({
     const user = get().user
     if (user) LOG.authLogout(user.email, user.role)
     await supabase.auth.signOut()
-    set({ isAuthed: false, user: null })
+    set({ isAuthed: false, user: null, sessionWarning: false })
   },
 
   // ── Helpers de permiso ────────────────────────────────────────────────────
