@@ -171,18 +171,44 @@ export default function AdditionalPhotoDetail({ submission, assets, editMode = f
   const photos  = raw.photos || {}
 
   // Mapear assets de Supabase → { [acronym]: [{ public_url, label }] }
-  // Construir mapa de assets por acrónimo.
-  // Usamos un objeto intermedio para evitar arrays sparse (huecos en índices no contiguos).
-  // groupAssetsBySection hace: if (!asset.public_url) continue — replicamos ese filtro.
+  // Construir mapa de assets por acrónimo — soporta DOS formatos de asset_type:
+  //
+  // Formato nuevo (PTI Inspect v2.5.x):
+  //   photos:{ACRONYM}:{index_0based}  → ej: photos:ACC:0
+  //
+  // Formato legacy (PTI Inspect versiones anteriores):
+  //   {SITIO}_{ACRONYM}_{FECHA}_({index_1based})  → ej: SITIO1_ACC_230326_(1)
+  //
+  const PHOTO_ACRONYMS = new Set(PHOTO_CATEGORIES.map(c => c.id))
+
   const assetMapRaw = {}  // { [acronym]: { [idx]: asset } }
   if (assets) {
     for (const a of assets) {
       if (!a.public_url) continue
       const type  = a.asset_type || a.type || ''
-      const parts = type.split(':')
-      if (parts[0] === 'photos' && parts[1]) {
-        const acronym = parts[1].toUpperCase()
-        const idx     = parseInt(parts[2] ?? '0')
+      let acronym = null
+      let idx     = 0
+
+      if (type.startsWith('photos:')) {
+        // Formato nuevo: photos:ACC:0
+        const parts = type.split(':')
+        acronym = parts[1]?.toUpperCase() || null
+        idx     = parseInt(parts[2] ?? '0')
+      } else {
+        // Formato legacy: SITIO1_ACC_230326_(3)
+        // Buscar el acrónimo conocido entre los segmentos separados por _
+        for (const seg of type.split('_')) {
+          if (PHOTO_ACRONYMS.has(seg.toUpperCase())) {
+            acronym = seg.toUpperCase()
+            break
+          }
+        }
+        // Extraer índice del número entre paréntesis al final: (1) → 0
+        const idxMatch = type.match(/\((\d+)\)$/)
+        idx = idxMatch ? parseInt(idxMatch[1]) - 1 : 0
+      }
+
+      if (acronym && PHOTO_ACRONYMS.has(acronym)) {
         if (!assetMapRaw[acronym]) assetMapRaw[acronym] = {}
         assetMapRaw[acronym][idx] = a
       }

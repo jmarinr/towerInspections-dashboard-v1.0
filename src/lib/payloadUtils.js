@@ -798,21 +798,32 @@ export function groupAssetsBySection(assets, formCode) {
       }
 
     // ── Reporte Adicional de Fotografías ──
-    // asset_type: photos:{ACRONYM}:{index}  (ej: photos:ACC:0, photos:EQTT:2)
+    // Formato nuevo: photos:{ACRONYM}:{index_0based}  → ej: photos:ACC:0
+    // Formato legacy: {SITIO}_{ACRONYM}_{FECHA}_({index_1based})  → ej: SITIO1_ACC_230326_(1)
     } else if (fc === 'additional-photo-report' || fc.includes('additional-photo')) {
+      let acronym = null
+      let idx     = 0
+
       if (parts[0] === 'photos' && parts[1]) {
-        const acronym = parts[1]
-        const idx     = parseInt(parts[2] ?? '0')
-        const cat     = ACRONYM_MAP[acronym]
-        if (cat) {
-          sectionTitle = `${cat.emoji} ${cat.title}`
-          const subLabel = cat.subLabels?.[idx] ?? (cat.subGroups ? `Foto ${idx + 1}` : `Foto ${idx + 1}`)
-          label = `${acronym}_${String(idx + 1).padStart(2, '0')} · ${subLabel}`
-        } else {
-          sectionTitle = '📷 Fotos adicionales'
-          label = `${acronym} #${idx + 1}`
-        }
+        // Formato nuevo
+        acronym = parts[1].toUpperCase()
+        idx     = parseInt(parts[2] ?? '0')
       } else {
+        // Formato legacy: buscar acrónimo conocido entre segmentos
+        for (const seg of type.split('_')) {
+          if (ACRONYM_MAP[seg.toUpperCase()]) { acronym = seg.toUpperCase(); break }
+        }
+        const idxMatch = type.match(/\((\d+)\)$/)
+        idx = idxMatch ? parseInt(idxMatch[1]) - 1 : 0
+      }
+
+      if (acronym && ACRONYM_MAP[acronym]) {
+        const cat = ACRONYM_MAP[acronym]
+        sectionTitle = `${cat.emoji} ${cat.title}`
+        const subLabel = cat.subLabels?.[idx] ?? `Foto ${idx + 1}`
+        label = `${acronym}_${String(idx + 1).padStart(2, '0')} · ${subLabel}`
+      } else {
+        sectionTitle = '📷 Fotos adicionales'
         label = labelize(type)
       }
 
