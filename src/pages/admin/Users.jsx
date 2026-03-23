@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import { waitForSdkReady, getTokenFromStorage } from '../../lib/sdkReady'
@@ -63,6 +63,20 @@ function UserModal({ user, companies, onSave, onClose }) {
   const [saving,  setSaving]  = useState(false)
   const [error,   setError]   = useState('')
 
+  // Capturar el token en el momento que el modal abre — antes de cualquier
+  // cambio de tab. El token dura 1 hora. Al guardar usamos este token
+  // directamente sin llamar al SDK (que puede tener el lock ocupado).
+  const capturedTokenRef = useRef(null)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('pti_admin_session')
+      if (raw) {
+        const session = JSON.parse(raw)
+        capturedTokenRef.current = session?.access_token || null
+      }
+    } catch { /* continuar sin token capturado */ }
+  }, [])
+
   // Cargar supervisores de la empresa seleccionada
   useEffect(() => {
     if (!form.company_id) { setSupervisors([]); return }
@@ -86,14 +100,17 @@ function UserModal({ user, companies, onSave, onClose }) {
 
       if (isNew) {
         // ── Obtener token para la Edge Function ────────────────────────
-        // waitForSdkReady() garantiza que el lock del SDK está libre aquí.
-        // Ahora sí es seguro llamar getSession() — resolverá instantáneamente
-        // con el token fresco que el SDK acaba de escribir en localStorage.
-        let token = null
-        try {
-          const { data: sessionData } = await supabase.auth.getSession()
-          token = sessionData?.session?.access_token || null
-        } catch { /* continuar, el fetch fallará con error claro */ }
+        // Usamos el token capturado cuando el modal se abrió.
+        // Evita cualquier llamada al SDK que pueda adquirir el lock interno.
+        // El token es válido por 1 hora — más que suficiente para llenar el form.
+        // Si el token capturado no está disponible, intentar localStorage directo.
+        let token = capturedTokenRef.current
+        if (!token) {
+          try {
+            const raw = localStorage.getItem('pti_admin_session')
+            if (raw) token = JSON.parse(raw)?.access_token || null
+          } catch { /* continuar sin token */ }
+        }
 
         if (!token) {
           setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
