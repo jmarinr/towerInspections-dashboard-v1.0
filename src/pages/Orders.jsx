@@ -106,7 +106,7 @@ export default function Orders() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-m pointer-events-none" />
           <input type="text" value={search} onChange={e => setFilter({ search: e.target.value })}
             placeholder="Buscar orden, sitio…"
@@ -150,7 +150,8 @@ export default function Orders() {
 
       {filtered.length > 0 && (
         <div className="rounded-2xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
-          <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[480px]">
             <thead>
               <tr className="border-b th-border-l">
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Orden</th>
@@ -213,6 +214,7 @@ export default function Orders() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

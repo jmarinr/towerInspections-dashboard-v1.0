@@ -170,7 +170,7 @@ export default function Submissions() {
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1 max-w-xs">
+        <div className="relative flex-1 sm:max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-m pointer-events-none" />
           <input
             type="text" value={search}
@@ -227,7 +227,8 @@ export default function Submissions() {
         <div className="rounded-2xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
 
           {/* Header row — usando <table> real para alineación correcta */}
-          <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[520px]">
             <thead>
               <tr className="border-b th-border-l">
                 <th className="px-3 sm:px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[140px] sm:w-[170px]">Tipo</th>
@@ -330,6 +331,7 @@ export default function Submissions() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

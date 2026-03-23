@@ -121,7 +121,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
               <p className="mt-1 text-[11px] th-text-m">{selectedRegions.length} región{selectedRegions.length!==1?'es':''} seleccionada{selectedRegions.length!==1?'s':''}</p>
             )}
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-[13px] th-text-p">Estado activo</span>
             <button onClick={()=>setForm(f=>({...f,active:!f.active}))}>
               {form.active ? <ToggleRight size={24} style={{ color:'#0284C7' }}/> : <ToggleLeft size={24} className="th-text-m"/>}
@@ -166,7 +166,7 @@ export default function Companies() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-[20px] font-bold th-text-p">Empresas</h1>
           <p className="text-[12px] th-text-m mt-0.5">{companies.length} empresa{companies.length!==1?'s':''} registrada{companies.length!==1?'s':''}</p>
@@ -180,11 +180,12 @@ export default function Companies() {
         <div className="flex justify-center py-16"><Spinner size={16}/></div>
       ) : (
         <div className="rounded-xl overflow-hidden" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-          <table className="w-full text-[13px]" style={{ borderCollapse:'collapse' }}>
+          <div className="overflow-x-auto">
+          <table className="w-full text-[13px] min-w-[400px]" style={{ borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ borderBottom:'1px solid var(--border-light)' }}>
-                {['Empresa','Código','País','Regiones','Estado',''].map(h=>(
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold th-text-m uppercase tracking-wider">{h}</th>
+                {[{l:'Empresa',x:''},{l:'Código',x:'hidden sm:table-cell'},{l:'País',x:'hidden md:table-cell'},{l:'Regiones',x:'hidden sm:table-cell'},{l:'Estado',x:''},{l:'',x:''}].map(({l,x})=>(
+                  <th key={l} className={`px-4 py-3 text-left text-[11px] font-semibold th-text-m uppercase tracking-wider ${x}`}>{l}</th>
                 ))}
               </tr>
             </thead>
@@ -206,7 +207,7 @@ export default function Companies() {
                     <span className="font-mono text-[12px] px-2 py-1 rounded" style={{ background:'var(--bg-base)', color:'var(--text-secondary)' }}>{c.org_code}</span>
                   </td>
                   <td className="px-4 py-3 th-text-s">{c.country}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 hidden sm:table-cell">
                     {!c.company_regions?.length ? (
                       <span className="text-[11px] th-text-m italic">Sin regiones</span>
                     ) : (
@@ -240,6 +241,7 @@ export default function Companies() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

@@ -53,7 +53,7 @@ function MetaDrawer({ log, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex justify-end" onClick={onClose}
       style={{ background:'rgba(0,0,0,0.3)' }}>
-      <div className="h-full w-full max-w-md overflow-y-auto animate-slide-in"
+      <div className="h-full w-full sm:max-w-md overflow-y-auto animate-slide-in"
         style={{ background:'var(--bg-card)', borderLeft:'1px solid var(--border)' }}
         onClick={e=>e.stopPropagation()}>
         <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10"
@@ -184,7 +184,7 @@ export default function Logs() {
 
       {/* Filtros */}
       <div className="flex gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative flex-1 min-w-0 w-full sm:w-auto">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 th-text-m pointer-events-none"/>
           <input value={search} onChange={e=>setSearch(e.target.value)}
             placeholder="Buscar en mensajes..."
@@ -196,13 +196,13 @@ export default function Logs() {
 
         <input value={filterUser} onChange={e=>setFilterUser(e.target.value)}
           placeholder="Filtrar por usuario..."
-          className="h-9 px-3 text-[12px] rounded-lg th-text-p th-bg-card"
-          style={{ border:'1px solid var(--border)', outline:'none', minWidth:160 }}
+          className="h-9 px-3 text-[12px] rounded-lg th-text-p th-bg-card w-full sm:w-auto"
+          style={{ border:'1px solid var(--border)', outline:'none' }}
           onFocus={e=>{e.target.style.borderColor='#0284C7'}}
           onBlur={e=>{e.target.style.borderColor='var(--border)'}}/>
 
         <select value={filterType} onChange={e=>setFilterType(e.target.value)}
-          className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card"
+          className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card w-full sm:w-auto"
           style={{ border:'1px solid var(--border)', outline:'none' }}>
           <option value="all">Todos los eventos</option>
           {Object.entries(EVENT_META).map(([k,v])=>(
@@ -211,7 +211,7 @@ export default function Logs() {
         </select>
 
         <select value={filterSev} onChange={e=>setFilterSev(e.target.value)}
-          className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card"
+          className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card w-full sm:w-auto"
           style={{ border:'1px solid var(--border)', outline:'none' }}>
           <option value="all">Todas las severidades</option>
           {Object.entries(SEVERITY_META).map(([k,v])=>(
@@ -235,13 +235,19 @@ export default function Logs() {
         <>
           <div className="rounded-xl overflow-hidden"
             style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-            <table className="w-full text-[12px]" style={{ borderCollapse:'collapse' }}>
+            <div className="overflow-x-auto">
+            <table className="w-full text-[12px] min-w-[560px]" style={{ borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ borderBottom:'1px solid var(--border-light)' }}>
-                  {['Fecha / hora','Evento','Severidad','Usuario','IP','Mensaje'].map(h=>(
-                    <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold th-text-m uppercase tracking-wider whitespace-nowrap">
-                      {h}
-                    </th>
+                  {[
+                    {l:'Fecha / hora',x:''},
+                    {l:'Evento',x:''},
+                    {l:'Severidad',x:'hidden sm:table-cell'},
+                    {l:'Usuario',x:'hidden md:table-cell'},
+                    {l:'IP',x:'hidden lg:table-cell'},
+                    {l:'Mensaje',x:''},
+                  ].map(({l,x})=>(
+                    <th key={l} className={`px-4 py-3 text-left text-[10px] font-semibold th-text-m uppercase tracking-wider whitespace-nowrap ${x}`}>{l}</th>
                   ))}
                 </tr>
               </thead>
@@ -283,6 +289,7 @@ export default function Logs() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
 
           {/* Paginación */}

@@ -135,7 +135,7 @@ function SiteModal({ site, regionId, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background:'rgba(0,0,0,0.5)' }}>
-      <div className="w-full max-w-md rounded-2xl" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+      <div className="w-full max-w-md rounded-2xl max-h-[90dvh] flex flex-col" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid var(--border)' }}>
           <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nuevo sitio' : 'Editar sitio'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg th-text-m" style={{ background:'var(--bg-base)' }}><X size={15}/></button>
@@ -156,7 +156,7 @@ function SiteModal({ site, regionId, onSave, onClose }) {
             {lbl('Nombre del sitio *')}
             <input className={inputCls} style={inputSty} value={form.name} onChange={e=>f('name',e.target.value)} placeholder="PENONOME CENTRO A" />
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div>
               {lbl('Latitud')}
               <input type="number" step="any" className={inputCls} style={inputSty} value={form.lat} onChange={e=>f('lat',e.target.value)} placeholder="8.514" />
@@ -274,11 +274,11 @@ function RegionCard({ region, onEditRegion, onRefresh }) {
 
           {/* Tabla de sitios */}
           <div className="overflow-x-auto">
-            <table className="w-full text-[12px]" style={{ borderCollapse:'collapse' }}>
+            <table className="w-full text-[12px] min-w-[360px]" style={{ borderCollapse:'collapse' }}>
               <thead>
                 <tr style={{ background:'var(--bg-base)', borderBottom:'1px solid var(--border-light)' }}>
-                  {['ID Sitio','Nombre','Provincia','Coords','Altura (m)','Estado',''].map(h=>(
-                    <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold th-text-m uppercase tracking-wider">{h}</th>
+                  {[{l:'ID Sitio',x:''},{l:'Nombre',x:''},{l:'Provincia',x:'hidden sm:table-cell'},{l:'Coords',x:'hidden md:table-cell'},{l:'Altura (m)',x:'hidden md:table-cell'},{l:'Estado',x:'hidden sm:table-cell'},{l:'',x:''}].map(({l,x})=>(
+                    <th key={l} className={`px-3 py-2 text-left text-[10px] font-semibold th-text-m uppercase tracking-wider ${x}`}>{l}</th>
                   ))}
                 </tr>
               </thead>
@@ -294,14 +294,14 @@ function RegionCard({ region, onEditRegion, onRefresh }) {
                         style={{ background:'#0284C714', color:'#0284C7' }}>{s.site_id}</span>
                     </td>
                     <td className="px-3 py-2 th-text-p font-medium max-w-[180px] truncate">{s.name}</td>
-                    <td className="px-3 py-2 th-text-s">{s.province||'—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 th-text-s hidden sm:table-cell">{s.province||'—'}</td>
+                    <td className="px-3 py-2 hidden md:table-cell">
                       {s.lat&&s.lng
                         ? <span className="font-mono text-[10px] th-text-m">{Number(s.lat).toFixed(4)}, {Number(s.lng).toFixed(4)}</span>
                         : <span className="text-[10px] th-text-m italic">Sin coords</span>}
                     </td>
-                    <td className="px-3 py-2 font-mono th-text-s">{s.height_m??'—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-3 py-2 font-mono th-text-s hidden md:table-cell">{s.height_m??'—'}</td>
+                    <td className="px-3 py-2 hidden sm:table-cell">
                       <button onClick={()=>toggleActive(s)} className="flex items-center gap-1 text-[11px] font-semibold"
                         style={{ color:s.active?'#16a34a':'var(--text-muted)' }}>
                         {s.active ? <><ToggleRight size={14}/>Activo</> : <><ToggleLeft size={14}/>Inactivo</>}

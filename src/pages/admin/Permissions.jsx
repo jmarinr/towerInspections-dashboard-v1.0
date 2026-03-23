@@ -151,7 +151,8 @@ export default function Permissions() {
       </div>
 
       {/* Tabla de permisos */}
-      <div className="rounded-xl overflow-hidden" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+      <div className="overflow-x-auto rounded-xl" style={{ border:'1px solid var(--border)' }}>
+      <div style={{ background:'var(--bg-card)', minWidth:'360px' }}>
 
         {/* Header de roles */}
         <div className="grid border-b" style={{ gridTemplateColumns:'1fr repeat(3, 100px)', borderColor:'var(--border)' }}>
@@ -212,6 +213,7 @@ export default function Permissions() {
             ))}
           </div>
         ))}
+      </div>
       </div>
 
       {/* Leyenda */}

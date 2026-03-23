@@ -346,12 +346,13 @@ export default function Shell({ children }) {
               style={{ borderColor: 'var(--border)', background: 'var(--sidebar-bg)' }}>
               {NAV_ADMIN.map(n => (
                 <NavLink key={n.to} to={n.to}
-                  className="flex flex-col items-center justify-center py-2 gap-0.5 text-[9px] font-medium transition-colors"
+                  className="flex flex-col items-center justify-center py-2 gap-0.5 transition-colors"
                   style={({ isActive }) => isActive
                     ? { color: 'var(--accent)', background: 'rgba(2,132,199,0.08)' }
                     : { color: 'rgba(255,255,255,0.45)' }}>
-                  <n.icon size={14} strokeWidth={1.8} />
-                  <span className="truncate max-w-[44px] text-center leading-tight">{n.label}</span>
+                  <n.icon size={15} strokeWidth={1.8} />
+                  <span className="text-[8px] font-medium truncate w-full text-center px-0.5 leading-tight hidden xs:block"
+                    style={{ maxWidth: 56 }}>{n.label}</span>
                 </NavLink>
               ))}
             </div>

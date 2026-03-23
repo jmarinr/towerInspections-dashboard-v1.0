@@ -160,16 +160,16 @@ function EditableField({ label, value, fieldKey, type = 'text', options, readOnl
 
   if (readOnly) {
     return (
-      <div className={`flex items-start gap-2 py-1.5 border-b border-[var(--border-light)] last:border-0 ${changedBg}`}>
-        <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m w-36 flex-shrink-0 pt-1">{label}</span>
+      <div className={`flex flex-col xs:flex-row xs:items-start gap-1 xs:gap-2 py-1.5 border-b border-[var(--border-light)] last:border-0 ${changedBg}`}>
+        <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m w-full xs:w-28 sm:w-36 flex-shrink-0 xs:pt-1">{label}</span>
         <span className="text-[12px] th-text-s flex-1 pt-0.5 italic">{String(current || '—')}</span>
       </div>
     )
   }
 
   return (
-    <div className={`flex items-start gap-2 py-1.5 border-b border-[var(--border-light)] last:border-0 transition-colors ${changedBg}`}>
-      <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m w-36 flex-shrink-0 pt-1.5">{label}</span>
+    <div className={`flex flex-col xs:flex-row xs:items-start gap-1 xs:gap-2 py-1.5 border-b border-[var(--border-light)] last:border-0 transition-colors ${changedBg}`}>
+      <span className="text-[10px] font-semibold uppercase tracking-wider th-text-m w-full xs:w-28 sm:w-36 flex-shrink-0 xs:pt-1.5">{label}</span>
       <div className="flex-1 relative">
         {type === 'select' && options ? (
           <select
@@ -1027,20 +1027,20 @@ export default function SubmissionDetail() {
 
       <div className="space-y-4">
         {/* ── Top bar ── */}
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <button onClick={() => navigate(-1)}
-            className="text-[13px] th-text-m hover:th-text-p flex items-center gap-1 transition-colors">
-            <ArrowLeft size={15}/> Volver
-          </button>
-
-          {/* Botón para forzar reload del submission desde Supabase */}
-          <button
-            onClick={() => { useSubmissionsStore.getState().load(true); loadDetail(submissionId) }}
-            className="h-7 px-2.5 text-[11px] rounded-lg flex items-center gap-1 transition-colors th-text-m"
-            style={{ border: '1px solid var(--border)', background: 'var(--bg-base)' }}
-            title="Actualizar datos desde el servidor">
-            <RefreshCw size={11}/> Actualizar
-          </button>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate(-1)}
+              className="text-[13px] th-text-m hover:th-text-p flex items-center gap-1 transition-colors">
+              <ArrowLeft size={15}/> Volver
+            </button>
+            <button
+              onClick={() => { useSubmissionsStore.getState().load(true); loadDetail(submissionId) }}
+              className="h-7 px-2.5 text-[11px] rounded-lg flex items-center gap-1 transition-colors th-text-m"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg-base)' }}
+              title="Actualizar datos desde el servidor">
+              <RefreshCw size={11}/> Actualizar
+            </button>
+          </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             {/* Feedback */}
@@ -1119,10 +1119,10 @@ export default function SubmissionDetail() {
 
         {/* ── HERO CARD ── */}
         <div className="rounded-xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
-          <div className="px-5 py-4 flex items-start gap-4">
+          <div className="px-4 sm:px-5 py-4 flex items-start gap-3">
             <div className="flex-shrink-0">
               {globalScore !== null
-                ? <ScoreRing good={bueno} regular={regular} bad={malo} total={totalItems} size={64}/>
+                ? <ScoreRing good={bueno} regular={regular} bad={malo} total={totalItems} size={56}/>
                 : <div className={`w-14 h-14 rounded-xl ${meta.color} text-white flex items-center justify-center`}><Icon size={22}/></div>}
             </div>
             <div className="flex-1 min-w-0">
@@ -1166,7 +1166,7 @@ export default function SubmissionDetail() {
           </div>
 
           {/* Meta chips */}
-          <div className="px-5 pb-4 flex flex-wrap gap-x-5 gap-y-1 text-[12px] th-text-m">
+          <div className="px-4 sm:px-5 pb-4 flex flex-wrap gap-x-4 gap-y-1 text-[12px] th-text-m">
             <span className="flex items-center gap-1"><MapPin   size={12} className="th-text-m"/>{site.idSitio || '—'}</span>
             <span className="flex items-center gap-1"><User2    size={12} className="th-text-m"/>{who?.name || '—'}</span>
             <span className="flex items-center gap-1"><Calendar size={12} className="th-text-m"/>{inspMeta.date || (submission.created_at ? new Date(submission.created_at).toLocaleDateString() : '—')}</span>

@@ -97,10 +97,10 @@ export default function OrderDetail() {
 
       {/* Header card */}
       <div className="rounded-2xl th-shadow p-5 space-y-4" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-[22px] font-bold th-text-p">{order.order_number}</h1>
+              <h1 className="text-[18px] sm:text-[22px] font-bold th-text-p">{order.order_number}</h1>
               {open
                 ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Abierta

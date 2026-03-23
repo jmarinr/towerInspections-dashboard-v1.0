@@ -307,11 +307,12 @@ export default function Users() {
         <div className="flex justify-center py-16"><Spinner size={16}/></div>
       ) : (
         <div className="rounded-xl overflow-hidden" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-          <table className="w-full text-[13px]" style={{ borderCollapse:'collapse' }}>
+          <div className="overflow-x-auto">
+          <table className="w-full text-[13px] min-w-[380px]" style={{ borderCollapse:'collapse' }}>
             <thead>
               <tr style={{ borderBottom:'1px solid var(--border-light)' }}>
-                {['Usuario','Rol','Empresa','Supervisor','Estado',''].map(h=>(
-                  <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold th-text-m uppercase tracking-wider">{h}</th>
+                {[{l:'Usuario',c:''},{l:'Rol',c:''},{l:'Empresa',c:'hidden sm:table-cell'},{l:'Supervisor',c:'hidden md:table-cell'},{l:'Estado',c:''},{l:'',c:''}].map(({l,c})=>(
+                  <th key={l} className={`px-4 py-3 text-left text-[11px] font-semibold th-text-m uppercase tracking-wider ${c}`}>{l}</th>
                 ))}
               </tr>
             </thead>
@@ -336,8 +337,8 @@ export default function Users() {
                       </div>
                     </td>
                     <td className="px-4 py-3"><RoleBadge role={u.role}/></td>
-                    <td className="px-4 py-3 text-[12px] th-text-s">{u.companies?.name || <span className="th-text-m">—</span>}</td>
-                    <td className="px-4 py-3 text-[12px] th-text-s">
+                    <td className="px-4 py-3 text-[12px] th-text-s hidden sm:table-cell">{u.companies?.name || <span className="th-text-m">—</span>}</td>
+                    <td className="px-4 py-3 text-[12px] th-text-s hidden md:table-cell">
                       {u.supervisor_id
                         ? users.find(x=>x.id===u.supervisor_id)?.full_name || '—'
                         : <span className="th-text-m">—</span>}
@@ -367,6 +368,7 @@ export default function Users() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
