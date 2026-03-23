@@ -7,6 +7,7 @@ import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { APP_VERSION } from '../../version'
 import { supabase } from '../../lib/supabaseClient'
+import { markSdkBusy, markSdkReady } from '../../lib/sdkReady'
 
 const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Inicio' },
@@ -279,12 +280,14 @@ export default function Shell({ children }) {
 
     const schedulePendingReload = () => {
       pendingReload = true
+      markSdkBusy()  // avisar a saves que el SDK está ocupado
       // Fallback: si TOKEN_REFRESHED no dispara en 1s, el token era válido
       // y el lock ya se liberó — recargar ahora
       if (fallbackTimer) clearTimeout(fallbackTimer)
       fallbackTimer = setTimeout(() => {
         if (pendingReload) {
           pendingReload = false
+          markSdkReady()  // lock libre, saves pueden proceder
           reloadAllData()
         }
       }, 1000)
@@ -296,7 +299,7 @@ export default function Shell({ children }) {
       if (event === 'TOKEN_REFRESHED' && pendingReload) {
         pendingReload = false
         if (fallbackTimer) clearTimeout(fallbackTimer)
-        // Pequeño delay para asegurar que el lock se liberó completamente
+        markSdkReady()  // lock libre, saves pueden proceder
         setTimeout(reloadAllData, 100)
       }
     })

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
+import { waitForSdkReady } from '../../lib/sdkReady'
 import { q } from '../../lib/dbUtils'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LOG } from '../../lib/logEvent'
@@ -79,6 +80,10 @@ function UserModal({ user, companies, onSave, onClose }) {
     setSaving(true); setError('')
 
     try {
+      // Esperar a que el SDK termine _recoverAndRefresh() si el usuario
+      // acaba de regresar de otro tab. Máximo 5s de espera.
+      await waitForSdkReady(5000)
+
       if (isNew) {
         // ── Obtener token fresco para la Edge Function ─────────────────
         // supabase.from() intercepta 401 y reintenta automáticamente.

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight, MapPin, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
+import { waitForSdkReady } from '../../lib/sdkReady'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
 import { q } from '../../lib/dbUtils'
@@ -27,6 +28,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
   const save = async () => {
     if (!form.name.trim() || !form.org_code.trim()) { setError('Nombre y código son obligatorios'); return }
     setSaving(true); setError('')
+    await waitForSdkReady(5000)
     try {
       const payload = { name: form.name.trim(), org_code: form.org_code.trim().toUpperCase(), country: form.country, active: form.active }
       let companyId = company?.id
@@ -63,6 +65,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     if (!company?.id) return
     if (!window.confirm(`¿Eliminar empresa "${company.name}"? Esta acción eliminará también sus asociaciones de regiones.`)) return
     setSaving(true)
+    await waitForSdkReady(5000)
     try {
       await q(supabase.from('company_regions').delete().eq('company_id', company.id))
       const { error: err } = await q(supabase.from('companies').delete().eq('id', company.id))
