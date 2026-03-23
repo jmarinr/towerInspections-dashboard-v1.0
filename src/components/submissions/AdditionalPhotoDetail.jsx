@@ -171,19 +171,30 @@ export default function AdditionalPhotoDetail({ submission, assets, editMode = f
   const photos  = raw.photos || {}
 
   // Mapear assets de Supabase → { [acronym]: [{ public_url, label }] }
-  const assetMap = {}
+  // Construir mapa de assets por acrónimo.
+  // Usamos un objeto intermedio para evitar arrays sparse (huecos en índices no contiguos).
+  // groupAssetsBySection hace: if (!asset.public_url) continue — replicamos ese filtro.
+  const assetMapRaw = {}  // { [acronym]: { [idx]: asset } }
   if (assets) {
     for (const a of assets) {
+      if (!a.public_url) continue
       const type  = a.asset_type || a.type || ''
       const parts = type.split(':')
-      // formato: photos:{ACRONYM}:{index}
       if (parts[0] === 'photos' && parts[1]) {
-        const acronym = parts[1].toUpperCase()  // normalizar a mayúsculas
+        const acronym = parts[1].toUpperCase()
         const idx     = parseInt(parts[2] ?? '0')
-        if (!assetMap[acronym]) assetMap[acronym] = []
-        assetMap[acronym][idx] = a
+        if (!assetMapRaw[acronym]) assetMapRaw[acronym] = {}
+        assetMapRaw[acronym][idx] = a
       }
     }
+  }
+  // Convertir a arrays densos ordenados por índice (sin huecos undefined)
+  const assetMap = {}
+  for (const [acronym, byIdx] of Object.entries(assetMapRaw)) {
+    assetMap[acronym] = Object.keys(byIdx)
+      .map(Number)
+      .sort((a, b) => a - b)
+      .map(i => byIdx[i])
   }
 
   // Progreso global
