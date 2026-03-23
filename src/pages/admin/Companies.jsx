@@ -3,6 +3,7 @@ import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight, MapPin, Tra
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
+import { q } from '../../lib/dbUtils'
 
 const COUNTRIES = ['CR','PA','MX','CO','PR','GT','SV','HN','NI','DO']
 const onFocusIn  = e => { e.target.style.borderColor='#0284C7'; e.target.style.boxShadow='0 0 0 3px rgba(2,132,199,.15)' }
@@ -30,17 +31,17 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
       const payload = { name: form.name.trim(), org_code: form.org_code.trim().toUpperCase(), country: form.country, active: form.active }
       let companyId = company?.id
       if (isNew) {
-        const { data, error: err } = await supabase.from('companies').insert(payload).select('id').single()
+        const { data, error: err } = await q(supabase.from('companies').insert(payload).select('id').single())
         if (err) { setError(err.message); return }
         companyId = data.id
       } else {
-        const { error: err } = await supabase.from('companies').update(payload).eq('id', companyId)
+        const { error: err } = await q(supabase.from('companies').update(payload).eq('id', companyId))
         if (err) { setError(err.message); return }
       }
-      const { error: delErr } = await supabase.from('company_regions').delete().eq('company_id', companyId)
+      const { error: delErr } = await q(supabase.from('company_regions').delete().eq('company_id', companyId))
       if (delErr) { setError(delErr.message); return }
       if (selectedRegions.length > 0) {
-        const { error: insErr } = await supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id })))
+        const { error: insErr } = await q(supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id }))))
         if (insErr) { setError(insErr.message); return }
       }
       onSave()
@@ -63,8 +64,8 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar empresa "${company.name}"? Esta acción eliminará también sus asociaciones de regiones.`)) return
     setSaving(true)
     try {
-      await supabase.from('company_regions').delete().eq('company_id', company.id)
-      const { error: err } = await supabase.from('companies').delete().eq('id', company.id)
+      await q(supabase.from('company_regions').delete().eq('company_id', company.id))
+      const { error: err } = await q(supabase.from('companies').delete().eq('id', company.id))
       if (err) { setError(err.message); return }
       onSave()
     } catch (e) {

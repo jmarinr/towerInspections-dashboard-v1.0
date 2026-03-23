@@ -32,36 +32,20 @@ export const useAuthStore = create((set, get) => ({
     // No registrar aquí para evitar llamadas duplicadas a _refreshOnFocus.
   },
 
-  // ── Refrescar sesión al volver al tab ────────────────────────────────
-  _refreshOnFocus: async () => {
-    // getUser() va al servidor — necesita timeout para no colgarse si la red
-    // está lenta al volver al tab (exactamente el escenario que queremos proteger).
-    const withTimeout = (promise, ms) => Promise.race([
-      promise,
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
-    ])
-
-    try {
-      const { data, error } = await withTimeout(supabase.auth.getUser(), 5000)
-      if (error || !data?.user) {
-        // Sesión verdaderamente expirada → logout limpio
-        await supabase.auth.signOut()
-        set({ isAuthed: false, user: null, isLoading: false, sessionWarning: false })
-      } else {
-        // Sesión válida (SDK ya refrescó el token si era necesario)
-        set({ sessionWarning: false })
-      }
-    } catch (e) {
-      if (e?.message === 'timeout') {
-        // Red lenta al volver al tab — no cerrar sesión, el usuario puede seguir trabajando
-        // El auto-refresh del SDK intentará refrescar el token en background
-        set({ sessionWarning: false })
-      } else {
-        // Error de red real → avisar sin cerrar sesión
-        set({ sessionWarning: true })
-      }
-    }
-  },
+  // _refreshOnFocus eliminado intencionalmente.
+  // 
+  // El SDK de Supabase JS v2 con autoRefreshToken:true maneja el refresh
+  // del token automáticamente. Llamar getUser() o getSession() desde
+  // visibilitychange adquiere el lock interno del SDK. Si el usuario
+  // hace click en Guardar mientras ese lock está ocupado, el save espera
+  // el lock indefinidamente → timeout → "Guardando..." sin ejecutar nada.
+  //
+  // El ciclo correcto es:
+  //   - Token válido → SDK lo usa directamente
+  //   - Token expirado → SDK detecta 401 → llama refreshSession() → reintenta
+  //   - Refresh token expirado → onAuthStateChange(SIGNED_OUT) → logout limpio
+  //
+  // No necesitamos hacer nada manualmente en visibilitychange.
 
   // ── Cargar perfil desde app_users ────────────────────────────────────
   _loadProfile: async (authId, isRealLogin = false) => {

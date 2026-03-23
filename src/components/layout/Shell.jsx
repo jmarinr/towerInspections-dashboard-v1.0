@@ -259,20 +259,30 @@ export default function Shell({ children }) {
 
     const interval = setInterval(poll, 30000)
 
-    // Al volver al tab: refrescar sesión + datos si pasaron más de 15s
+    // Al volver al tab: NO tocar el SDK de auth.
+    // Cualquier llamada a getUser()/getSession()/refreshSession() adquiere
+    // el lock interno del SDK. Si el usuario hace click en Guardar mientras
+    // ese lock está ocupado, el save se bloquea indefinidamente.
+    //
+    // El SDK con autoRefreshToken:true maneja el refresh del token solo.
+    // Solo refrescamos datos de submissions y admin si pasaron más de 5 minutos.
+    let hiddenAt = null
+    const handleHide = () => { if (document.visibilityState === 'hidden') hiddenAt = Date.now() }
+    document.addEventListener('visibilitychange', handleHide)
+
+    const STALE_MS = 5 * 60 * 1000  // 5 minutos
+
     const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        // 1. Verificar sesión con el servidor (getUser auto-refresca token si expiró)
-        useAuthStore.getState()._refreshOnFocus()
-        // 2. Re-pollear submissions si pasaron más de 15s
+      if (document.visibilityState !== 'visible') return
+      const awayMs = hiddenAt ? Date.now() - hiddenAt : 0
+      if (awayMs >= STALE_MS) {
         const s = useSubmissionsStore.getState()
-        if (!s.isLoading && (!s.lastFetch || Date.now() - s.lastFetch > 15000)) poll()
-        // 3. Refrescar datos de admin stores
+        if (!s.isLoading) poll()
         refreshAdminStores()
       }
     }
 
-    // Al recuperar red: refrescar todo
+    // Al recuperar red: refrescar datos (red estaba caída, tiene sentido)
     const handleOnline = () => { poll(); refreshAdminStores() }
 
     document.addEventListener('visibilitychange', handleVisibility)
@@ -280,6 +290,7 @@ export default function Shell({ children }) {
 
     return () => {
       clearInterval(interval)
+      document.removeEventListener('visibilitychange', handleHide)
       document.removeEventListener('visibilitychange', handleVisibility)
       window.removeEventListener('online', handleOnline)
     }

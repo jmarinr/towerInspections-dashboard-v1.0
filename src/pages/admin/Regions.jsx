@@ -5,6 +5,7 @@ import { Plus, Pencil, MapPin, ToggleLeft, ToggleRight, X, Check, Trash2,
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
+import { q } from '../../lib/dbUtils'
 
 // ── Modal región ──────────────────────────────────────────────────────────────
 function RegionModal({ region, onSave, onClose }) {
@@ -24,8 +25,8 @@ function RegionModal({ region, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar la región "${region.name}"? Esto también eliminará todos sus sitios.`)) return
     setSaving(true)
     try {
-      await supabase.from('sites').delete().eq('region_id', region.id)
-      const { error: err } = await supabase.from('regions').delete().eq('id', region.id)
+      await q(supabase.from('sites').delete().eq('region_id', region.id))
+      const { error: err } = await q(supabase.from('regions').delete().eq('id', region.id))
       if (err) { setError(err.message); return }
       onSave()
     } catch (e) {
@@ -39,9 +40,9 @@ function RegionModal({ region, onSave, onClose }) {
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     setSaving(true); setError('')
     try {
-      const { error: err } = isNew
-        ? await supabase.from('regions').insert({ name: name.trim() })
-        : await supabase.from('regions').update({ name: name.trim() }).eq('id', region.id)
+      const { error: err } = await q(isNew
+        ? supabase.from('regions').insert({ name: name.trim() })
+        : supabase.from('regions').update({ name: name.trim() }).eq('id', region.id))
       if (err) { setError(err.message); return }
       onSave()
     } catch (e) {
@@ -113,7 +114,7 @@ function SiteModal({ site, regionId, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar el sitio "${site.name}" (${site.site_id})?`)) return
     setSaving(true)
     try {
-      const { error: err } = await supabase.from('sites').delete().eq('id', site.id)
+      const { error: err } = await q(supabase.from('sites').delete().eq('id', site.id))
       if (err) { setError(err.message); return }
       onSave()
     } catch (e) {
@@ -137,9 +138,9 @@ function SiteModal({ site, regionId, onSave, onClose }) {
         height_m:  form.height_m !== '' ? parseFloat(form.height_m) : null,
         province:  form.province.trim() || null,
       }
-      const { error: err } = isNew
-        ? await supabase.from('sites').insert(payload)
-        : await supabase.from('sites').update(payload).eq('id', site.id)
+      const { error: err } = await q(isNew
+        ? supabase.from('sites').insert(payload)
+        : supabase.from('sites').update(payload).eq('id', site.id))
       if (err) { setError(err.message); return }
       onSave()
     } catch (e) {
@@ -224,7 +225,7 @@ function RegionCard({ region, onEditRegion, onRefresh }) {
   )
 
   const toggleActive = async (site) => {
-    const { error } = await supabase.from('sites').update({ active: !site.active }).eq('id', site.id)
+    const { error } = await q(supabase.from('sites').update({ active: !site.active }).eq('id', site.id))
     if (!error) onRefresh()
   }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Pencil, X, Check, UserCircle, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
+import { q } from '../../lib/dbUtils'
 import { useAuthStore } from '../../store/useAuthStore'
 import { LOG } from '../../lib/logEvent'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -79,42 +80,79 @@ function UserModal({ user, companies, onSave, onClose }) {
 
     try {
       if (isNew) {
-        // Obtener token desde localStorage (instantáneo, sin llamada a red).
-        // El SDK adjunta este token automáticamente en functions.invoke.
-        // Si el token está expirado, la Edge Function retorna 401 y lo mostramos
-        // con un mensaje claro gracias al fix de context.json().
-        const { data: sessionData } = await supabase.auth.getSession()
-        if (!sessionData?.session) {
-          setError('Tu sesión expiró. Por favor cierra sesión e inicia de nuevo.')
+        // ── Obtener token fresco para la Edge Function ─────────────────
+        // supabase.from() intercepta 401 y reintenta automáticamente.
+        // supabase.functions.invoke() NO tiene ese mecanismo.
+        // Si el token expiró mientras el usuario estaba en otros tabs,
+        // la Edge Function devuelve 401 "Token inválido" sin retry.
+        // Solución: verificar el token localmente y refrescarlo si es necesario
+        // ANTES de llamar a invoke().
+
+        let token = null
+        try {
+          const { data: sessionData } = await supabase.auth.getSession()
+          const session = sessionData?.session
+
+          if (!session) {
+            setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
+            return
+          }
+
+          // Verificar si el token ya expiró o expira en menos de 60 segundos
+          const expiresAt = session.expires_at   // epoch seconds
+          const nowSec    = Math.floor(Date.now() / 1000)
+          const isExpired = expiresAt && (expiresAt - nowSec) < 60
+
+          if (isExpired) {
+            // Token expirado — refrescar explícitamente con timeout de 10s
+            // q() no sirve aquí porque refreshSession retorna { data, error },
+            // no lanza excepción en caso de error de red
+            const refreshResult = await Promise.race([
+              supabase.auth.refreshSession(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('No se pudo renovar la sesión (timeout). Verifica tu conexión.')), 10000)
+              )
+            ])
+            if (refreshResult.error || !refreshResult.data?.session) {
+              setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
+              return
+            }
+            token = refreshResult.data.session.access_token
+          } else {
+            token = session.access_token
+          }
+        } catch (e) {
+          setError(e.message || 'No se pudo verificar la sesión. Verifica tu conexión.')
           return
         }
 
-        const invokePromise = supabase.functions.invoke('create-user', {
-          body: {
-            email:         form.email.trim(),
-            password:      form.password,
-            full_name:     form.full_name.trim(),
-            role:          form.role,
-            company_id:    form.company_id    || null,
-            supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
-            active:        form.active,
-          },
-        })
-        const timeoutPromise = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Tiempo de espera agotado (20s)')), 20000)
-        )
-
+        // Invocar Edge Function con token garantizado fresco
         let res
         try {
-          res = await Promise.race([invokePromise, timeoutPromise])
+          res = await Promise.race([
+            supabase.functions.invoke('create-user', {
+              body: {
+                email:         form.email.trim(),
+                password:      form.password,
+                full_name:     form.full_name.trim(),
+                role:          form.role,
+                company_id:    form.company_id    || null,
+                supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
+                active:        form.active,
+              },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Tiempo de espera agotado (20s). Verifica tu conexión.')), 20000)
+            )
+          ])
         } catch (e) {
-          setError(e.message || 'Error al conectar con el servidor')
+          setError(e.message || 'Error al conectar con el servidor.')
           return
         }
 
-        // FunctionsHttpError.context es un objeto Response (fetch API).
-        // context.json es una función async, NO datos — hay que awaitearlo.
-        // Esto explica por qué antes siempre mostraba el mensaje genérico del SDK.
+        // FunctionsHttpError.context es un Response (fetch API).
+        // context.json() es función async — hay que awaitearlo.
         if (res.error) {
           let errMsg = 'Error al crear usuario'
           try {
@@ -134,19 +172,13 @@ function UserModal({ user, companies, onSave, onClose }) {
         const wasDeactivated = user.active && !form.active
 
         // Update con timeout para evitar que se quede colgado
-        const updatePromise = supabase.from('app_users').update({
+        const { error: err } = await q(supabase.from('app_users').update({
           full_name:     form.full_name.trim(),
           role:          form.role,
           company_id:    form.company_id || null,
           supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
           active:        form.active,
-        }).eq('id', user.id)
-
-        const updateTimeout = new Promise((_, reject) =>
-          setTimeout(() => reject(new Error('Tiempo de espera agotado. Verifica tu conexión.')), 15000)
-        )
-
-        const { error: err } = await Promise.race([updatePromise, updateTimeout])
+        }).eq('id', user.id))
         if (err) { setError(err.message); return }
 
         try {
@@ -168,7 +200,7 @@ function UserModal({ user, companies, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar a ${user.full_name}? Esta acción no se puede deshacer.`)) return
     setSaving(true)
     try {
-      const { error: err } = await supabase.from('app_users').delete().eq('id', user.id)
+      const { error: err } = await q(supabase.from('app_users').delete().eq('id', user.id))
       if (err) { setError(err.message); return }
       try { LOG.userUpdated(user.email, { deleted: true }, currentUser?.email) } catch (_) {}
       onSave()

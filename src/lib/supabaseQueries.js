@@ -1,3 +1,4 @@
+import { q } from './dbUtils'
 import { supabase } from './supabaseClient'
 import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/formTypes'
 
@@ -499,14 +500,14 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
     ? { ...outer, payload: updatedInner }
     : updatedInner
 
-  const { error } = await supabase
+  const { error } = await q(supabase
     .from('submissions')
     .update({
       payload: updatedPayload,
       updated_at: new Date().toISOString(),
       ...(newFinalized !== undefined ? { finalized: newFinalized } : {}),
     })
-    .eq('id', submissionId)
+    .eq('id', submissionId))
 
   if (error) throw error
   return updatedPayload

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Save, Info } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
+import { q } from '../../lib/dbUtils'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
 
@@ -120,7 +121,7 @@ export default function Permissions() {
         const permission = rest.join(':')
         upserts.push({ role, permission, enabled, updated_at: new Date().toISOString() })
       }
-      const { error } = await supabase.from('role_permissions').upsert(upserts, { onConflict:'role,permission' })
+      const { error } = await q(supabase.from('role_permissions').upsert(upserts, { onConflict:'role,permission' }))
       if (error) { setSaveError(error.message); return }
       setSaved(true); setTimeout(() => setSaved(false), 3000)
     } catch (e) {
