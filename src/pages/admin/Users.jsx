@@ -123,14 +123,23 @@ function UserModal({ user, companies, onSave, onClose }) {
       } else {
         // Detectar si se desactivó el usuario
         const wasDeactivated = user.active && !form.active
-        const { error: err } = await supabase.from('app_users').update({
+
+        // Update con timeout para evitar que se quede colgado
+        const updatePromise = supabase.from('app_users').update({
           full_name:     form.full_name.trim(),
           role:          form.role,
           company_id:    form.company_id || null,
           supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
           active:        form.active,
         }).eq('id', user.id)
+
+        const updateTimeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Tiempo de espera agotado. Verifica tu conexión.')), 15000)
+        )
+
+        const { error: err } = await Promise.race([updatePromise, updateTimeout])
         if (err) { setError(err.message); return }
+
         try {
           if (wasDeactivated) LOG.userDeactivated(user.email, currentUser?.email)
           else LOG.userUpdated(user.email, { role: form.role, active: form.active }, currentUser?.email)
@@ -150,17 +159,15 @@ function UserModal({ user, companies, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar a ${user.full_name}? Esta acción no se puede deshacer.`)) return
     setSaving(true)
     try {
-      // Eliminar de app_users (la eliminación de auth.users requiere service role)
       const { error: err } = await supabase.from('app_users').delete().eq('id', user.id)
-      if (err) { setError(err.message); setSaving(false); return }
-      LOG.userUpdated(user.email, { deleted: true }, currentUser?.email)
+      if (err) { setError(err.message); return }
+      try { LOG.userUpdated(user.email, { deleted: true }, currentUser?.email) } catch (_) {}
+      onSave()
     } catch (e) {
-      setError(e.message)
+      setError(e.message || 'Error inesperado.')
+    } finally {
       setSaving(false)
-      return
     }
-    setSaving(false)
-    onSave()
   }
 
   return (

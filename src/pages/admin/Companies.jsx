@@ -26,21 +26,27 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
   const save = async () => {
     if (!form.name.trim() || !form.org_code.trim()) { setError('Nombre y código son obligatorios'); return }
     setSaving(true); setError('')
-    const payload = { name: form.name.trim(), org_code: form.org_code.trim().toUpperCase(), country: form.country, active: form.active }
-    let companyId = company?.id
-    if (isNew) {
-      const { data, error: err } = await supabase.from('companies').insert(payload).select('id').single()
-      if (err) { setError(err.message); setSaving(false); return }
-      companyId = data.id
-    } else {
-      const { error: err } = await supabase.from('companies').update(payload).eq('id', companyId)
-      if (err) { setError(err.message); setSaving(false); return }
+    try {
+      const payload = { name: form.name.trim(), org_code: form.org_code.trim().toUpperCase(), country: form.country, active: form.active }
+      let companyId = company?.id
+      if (isNew) {
+        const { data, error: err } = await supabase.from('companies').insert(payload).select('id').single()
+        if (err) { setError(err.message); return }
+        companyId = data.id
+      } else {
+        const { error: err } = await supabase.from('companies').update(payload).eq('id', companyId)
+        if (err) { setError(err.message); return }
+      }
+      await supabase.from('company_regions').delete().eq('company_id', companyId)
+      if (selectedRegions.length > 0) {
+        await supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id })))
+      }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado. Intenta de nuevo.')
+    } finally {
+      setSaving(false)
     }
-    await supabase.from('company_regions').delete().eq('company_id', companyId)
-    if (selectedRegions.length > 0) {
-      await supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id })))
-    }
-    setSaving(false); onSave()
   }
 
   // Escape key
@@ -54,11 +60,16 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     if (!company?.id) return
     if (!window.confirm(`¿Eliminar empresa "${company.name}"? Esta acción eliminará también sus asociaciones de regiones.`)) return
     setSaving(true)
-    await supabase.from('company_regions').delete().eq('company_id', company.id)
-    const { error: err } = await supabase.from('companies').delete().eq('id', company.id)
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    onSave()
+    try {
+      await supabase.from('company_regions').delete().eq('company_id', company.id)
+      const { error: err } = await supabase.from('companies').delete().eq('id', company.id)
+      if (err) { setError(err.message); return }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (

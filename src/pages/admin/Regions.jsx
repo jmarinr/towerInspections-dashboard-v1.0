@@ -23,22 +23,32 @@ function RegionModal({ region, onSave, onClose }) {
     if (!region?.id) return
     if (!window.confirm(`¿Eliminar la región "${region.name}"? Esto también eliminará todos sus sitios.`)) return
     setSaving(true)
-    await supabase.from('sites').delete().eq('region_id', region.id)
-    const { error: err } = await supabase.from('regions').delete().eq('id', region.id)
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    onSave()
+    try {
+      await supabase.from('sites').delete().eq('region_id', region.id)
+      const { error: err } = await supabase.from('regions').delete().eq('id', region.id)
+      if (err) { setError(err.message); return }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const save = async () => {
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     setSaving(true); setError('')
-    const { error: err } = isNew
-      ? await supabase.from('regions').insert({ name: name.trim() })
-      : await supabase.from('regions').update({ name: name.trim() }).eq('id', region.id)
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    onSave()
+    try {
+      const { error: err } = isNew
+        ? await supabase.from('regions').insert({ name: name.trim() })
+        : await supabase.from('regions').update({ name: name.trim() }).eq('id', region.id)
+      if (err) { setError(err.message); return }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -102,31 +112,41 @@ function SiteModal({ site, regionId, onSave, onClose }) {
     if (!site?.id) return
     if (!window.confirm(`¿Eliminar el sitio "${site.name}" (${site.site_id})?`)) return
     setSaving(true)
-    const { error: err } = await supabase.from('sites').delete().eq('id', site.id)
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    onSave()
+    try {
+      const { error: err } = await supabase.from('sites').delete().eq('id', site.id)
+      if (err) { setError(err.message); return }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const save = async () => {
     if (!form.site_id.trim()) { setError('El ID de sitio es obligatorio'); return }
     if (!form.name.trim())    { setError('El nombre es obligatorio'); return }
     setSaving(true); setError('')
-    const payload = {
-      region_id: regionId,
-      site_id:   form.site_id.trim().toUpperCase(),
-      name:      form.name.trim(),
-      lat:       form.lat      !== '' ? parseFloat(form.lat)      : null,
-      lng:       form.lng      !== '' ? parseFloat(form.lng)      : null,
-      height_m:  form.height_m !== '' ? parseFloat(form.height_m) : null,
-      province:  form.province.trim() || null,
+    try {
+      const payload = {
+        region_id: regionId,
+        site_id:   form.site_id.trim().toUpperCase(),
+        name:      form.name.trim(),
+        lat:       form.lat      !== '' ? parseFloat(form.lat)      : null,
+        lng:       form.lng      !== '' ? parseFloat(form.lng)      : null,
+        height_m:  form.height_m !== '' ? parseFloat(form.height_m) : null,
+        province:  form.province.trim() || null,
+      }
+      const { error: err } = isNew
+        ? await supabase.from('sites').insert(payload)
+        : await supabase.from('sites').update(payload).eq('id', site.id)
+      if (err) { setError(err.message); return }
+      onSave()
+    } catch (e) {
+      setError(e.message || 'Error inesperado.')
+    } finally {
+      setSaving(false)
     }
-    const { error: err } = isNew
-      ? await supabase.from('sites').insert(payload)
-      : await supabase.from('sites').update(payload).eq('id', site.id)
-    setSaving(false)
-    if (err) { setError(err.message); return }
-    onSave()
   }
 
   const inputCls = 'w-full px-3 py-2 text-[13px] rounded-lg th-text-p'
