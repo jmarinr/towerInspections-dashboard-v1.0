@@ -62,7 +62,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" onClick={onClose}>
       <div className="rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col"
         style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }} onClick={e=>e.stopPropagation()}>
         <div className="px-5 py-4 flex items-center justify-between" style={{ borderBottom:'1px solid var(--border)' }}>
@@ -128,7 +128,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
             </button>
           </div>
         </div>
-        <div className="px-5 py-4 flex gap-2 justify-end" style={{ borderTop:'1px solid var(--border-light)' }}>
+        <div className="px-5 py-4 flex gap-2 justify-end flex-shrink-0" style={{ borderTop:'1px solid var(--border-light)' }}>
           {!isNew && (
             <button onClick={handleDelete} disabled={saving}
               className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50"

@@ -440,10 +440,10 @@ function SaveEditModal({ changes, onConfirm, onCancel, saving }) {
   const entries = Object.entries(changes)
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4"
       onClick={onCancel}>
       <div className="rounded-2xl shadow-elevated w-full max-w-md flex flex-col"
-        style={{ background: 'var(--bg-card)', maxHeight: 'min(90vh, 600px)' }}
+        style={{ background: 'var(--bg-card)', maxHeight: 'min(75dvh, 560px)' }}
         onClick={e => e.stopPropagation()}>
 
         {/* Header — fijo */}

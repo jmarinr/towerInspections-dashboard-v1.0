@@ -42,13 +42,13 @@ function RegionModal({ region, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background:'rgba(0,0,0,0.5)' }}>
-      <div className="w-full max-w-sm rounded-2xl" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid var(--border)' }}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" style={{ background:'rgba(0,0,0,0.5)' }}>
+      <div className="w-full max-w-sm rounded-2xl flex flex-col max-h-[80dvh] sm:max-h-[85dvh]" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--border)' }}>
           <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nueva región' : 'Editar región'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg th-text-m" style={{ background:'var(--bg-base)' }}><X size={15}/></button>
         </div>
-        <div className="px-5 py-4 space-y-3">
+        <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
           {error && <div className="text-[12px] px-3 py-2 rounded-lg" style={{ background:'rgba(239,68,68,0.08)', color:'#dc2626', border:'1px solid rgba(239,68,68,0.2)' }}>{error}</div>}
           <div>
             <label className="block text-[11px] font-semibold th-text-m uppercase tracking-wider mb-1.5">Nombre de la región <span style={{ color:'#dc2626' }}>*</span></label>
@@ -59,7 +59,7 @@ function RegionModal({ region, onSave, onClose }) {
               onKeyDown={e=>e.key==='Enter'&&save()} />
           </div>
         </div>
-        <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop:'1px solid var(--border-light)' }}>
+        <div className="flex justify-end gap-2 px-5 py-4 flex-shrink-0" style={{ borderTop:'1px solid var(--border-light)' }}>
           {!isNew && (
             <button onClick={handleDelete} disabled={saving}
               className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50"
@@ -134,9 +134,9 @@ function SiteModal({ site, regionId, onSave, onClose }) {
   const lbl = txt => <label className="block text-[11px] font-semibold th-text-m uppercase tracking-wider mb-1">{txt}</label>
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background:'rgba(0,0,0,0.5)' }}>
-      <div className="w-full max-w-md rounded-2xl max-h-[90dvh] flex flex-col" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid var(--border)' }}>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" style={{ background:'rgba(0,0,0,0.5)' }}>
+      <div className="w-full max-w-md rounded-2xl max-h-[80dvh] sm:max-h-[85dvh] flex flex-col" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
+        <div className="flex items-center justify-between px-5 py-4 flex-shrink-0" style={{ borderBottom:'1px solid var(--border)' }}>
           <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nuevo sitio' : 'Editar sitio'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg th-text-m" style={{ background:'var(--bg-base)' }}><X size={15}/></button>
         </div>
@@ -171,7 +171,7 @@ function SiteModal({ site, regionId, onSave, onClose }) {
             </div>
           </div>
         </div>
-        <div className="flex justify-end gap-2 px-5 py-4" style={{ borderTop:'1px solid var(--border-light)' }}>
+        <div className="flex justify-end gap-2 px-5 py-4 flex-shrink-0" style={{ borderTop:'1px solid var(--border-light)' }}>
           {!isNew && (
             <button onClick={handleDelete} disabled={saving}
               className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50"

@@ -159,16 +159,16 @@ function UserModal({ user, companies, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="rounded-2xl w-full max-w-md max-h-[90dvh] overflow-y-auto"
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-4 pb-28 sm:pb-4" onClick={onClose}>
+      <div className="rounded-2xl w-full max-w-md max-h-[80dvh] sm:max-h-[85dvh] flex flex-col"
         style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}
         onClick={e=>e.stopPropagation()}>
-        <div className="px-5 py-4 flex items-center justify-between sticky top-0 z-10 rounded-t-2xl"
+        <div className="px-5 py-4 flex items-center justify-between flex-shrink-0 rounded-t-2xl"
           style={{ background:'var(--bg-card)', borderBottom:'1px solid var(--border)' }}>
           <h2 className="text-[15px] font-semibold th-text-p">{isNew ? 'Nuevo usuario' : 'Editar usuario'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg th-text-m" style={{ background:'var(--bg-base)' }}><X size={15}/></button>
         </div>
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 overflow-y-auto flex-1">
           {error && <div className="text-[12px] text-bad px-3 py-2 rounded-lg" style={{ background:'#fef2f2', border:'1px solid #fecaca' }}>{error}</div>}
 
           <FieldLabel label="Nombre completo">
@@ -225,7 +225,7 @@ function UserModal({ user, companies, onSave, onClose }) {
             </button>
           </div>
         </div>
-        <div className="px-5 pb-5 flex gap-2 justify-end" style={{ borderTop:'1px solid var(--border)' }}>
+        <div className="px-5 py-4 flex gap-2 justify-end flex-shrink-0" style={{ borderTop:'1px solid var(--border)' }}>
           {!isNew && (
             <button onClick={handleDelete} disabled={saving}
               className="h-9 px-3 rounded-lg text-[13px] font-medium flex items-center gap-1.5 mr-auto disabled:opacity-50 transition-colors"
