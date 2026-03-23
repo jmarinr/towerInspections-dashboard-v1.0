@@ -117,25 +117,15 @@ function UserModal({ user, companies, onSave, onClose }) {
           return
         }
 
-        // Llamada directa a la Edge Function con fetch nativo.
-        // NO usar supabase.functions.invoke() — pasa por el SDK que puede
-        // estar bloqueado por el lock interno de _recoverAndRefresh().
-        // fetch() va directo a la red, sin intermediarios, sin lock.
-        let edgeResponse
+        // Invocar Edge Function pasando el token capturado explícitamente.
+        // supabase.functions.invoke() no adquiere el lock de auth —
+        // solo hace un fetch con los headers que le pasamos.
+        // El lock solo lo adquieren getSession/getUser/refreshSession.
+        let invokeRes
         try {
-          const controller = new AbortController()
-          const timeoutId  = setTimeout(() => controller.abort(), 20000)
-          edgeResponse = await fetch(
-            `${SUPABASE_URL}/functions/v1/create-user`,
-            {
-              method:  'POST',
-              signal:  controller.signal,
-              headers: {
-                'Content-Type':  'application/json',
-                'Authorization': `Bearer ${token}`,
-                'apikey':        SUPABASE_ANON_KEY,
-              },
-              body: JSON.stringify({
+          invokeRes = await Promise.race([
+            supabase.functions.invoke('create-user', {
+              body: {
                 email:         form.email.trim(),
                 password:      form.password,
                 full_name:     form.full_name.trim(),
@@ -143,24 +133,26 @@ function UserModal({ user, companies, onSave, onClose }) {
                 company_id:    form.company_id    || null,
                 supervisor_id: form.role === 'inspector' && form.supervisor_id ? form.supervisor_id : null,
                 active:        form.active,
-              }),
-            }
-          )
-          clearTimeout(timeoutId)
+              },
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Tiempo de espera agotado (20s).')), 20000)
+            )
+          ])
         } catch (e) {
-          const msg = e.name === 'AbortError'
-            ? 'Tiempo de espera agotado. Verifica tu conexión.'
-            : 'Error al conectar con el servidor.'
-          setError(msg)
+          setError(e.message || 'Error al conectar con el servidor.')
           return
         }
 
-        if (!edgeResponse.ok) {
+        if (invokeRes.error) {
           let errMsg = 'Error al crear usuario'
           try {
-            const body = await edgeResponse.json()
+            const body = await invokeRes.error.context.json()
             errMsg = body?.error || errMsg
-          } catch { /* usar mensaje default */ }
+          } catch {
+            errMsg = invokeRes.error.message || errMsg
+          }
           setError(errMsg)
           return
         }
