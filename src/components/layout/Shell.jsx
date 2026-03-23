@@ -281,7 +281,7 @@ export default function Shell({ children }) {
       if (fallbackTimer) clearTimeout(fallbackTimer)
       fallbackTimer = setTimeout(() => {
         markSdkReady()
-      }, 5000)
+      }, 8000)
     }
 
     // TOKEN_REFRESHED = SDK terminó, lock liberado

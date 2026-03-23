@@ -86,23 +86,16 @@ function UserModal({ user, companies, onSave, onClose }) {
 
       if (isNew) {
         // ── Obtener token para la Edge Function ────────────────────────
-        // IMPORTANTE: NO usar supabase.auth.getSession() aquí.
-        // getSession() adquiere el lock interno del SDK — si _recoverAndRefresh()
-        // está corriendo (visibilitychange), getSession() bloquea indefinidamente.
-        //
-        // En cambio, leemos el token directamente de localStorage:
-        // sin red, sin lock, instantáneo.
-        //
-        // waitForSdkReady() ya esperó a que el SDK termine antes de llegar aquí,
-        // así que el token en localStorage ya está fresco si necesitaba refresh.
-        const { token, isExpired } = getTokenFromStorage()
+        // waitForSdkReady() garantiza que el lock del SDK está libre aquí.
+        // Ahora sí es seguro llamar getSession() — resolverá instantáneamente
+        // con el token fresco que el SDK acaba de escribir en localStorage.
+        let token = null
+        try {
+          const { data: sessionData } = await supabase.auth.getSession()
+          token = sessionData?.session?.access_token || null
+        } catch { /* continuar, el fetch fallará con error claro */ }
 
         if (!token) {
-          setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
-          return
-        }
-
-        if (isExpired) {
           setError('Tu sesión expiró. Cierra sesión e inicia de nuevo.')
           return
         }
