@@ -9,7 +9,7 @@
  *   carrier   →  carrier|||{cIdx}|||nombre, carrier|||{cIdx}|||item|||{rIdx}|||orientacion
  */
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Package, Building2, Radio, MapPin, Grid3x3, Camera } from 'lucide-react'
+import { ChevronDown, ChevronRight, Package, Building2, Radio, MapPin, Grid3x3, Camera, Upload, Trash2, AlertCircle } from 'lucide-react'
 
 const v   = (x) => (x !== undefined && x !== null && x !== '') ? String(x) : null
 const vd  = (x) => v(x) ?? '—'
@@ -291,18 +291,21 @@ function InventoryTable({ items, accent = '#DC2626', editMode, pendingEdits, onC
 }
 
 // ── Photo grid ────────────────────────────────────────────────────────────────
-function PhotoGrid({ photos, showEmpty = false }) {
+function PhotoGrid({ photos, showEmpty = false, editMode = false, onUpload, onDelete }) {
+  // photos: array of [label, url, assetType]
   const real = photos.filter(([, url]) => url)
-  // showEmpty: show placeholder slots for missing photos
-  // Default: only show slots that have actual photos
-  const toRender = showEmpty ? photos : real
-  if (!toRender.length) return null
+  // In editMode always show all slots so user can upload/delete
+  const toRender = (editMode || showEmpty) ? photos : real
+  if (!toRender.length && !editMode) return null
+
   return (
     <div className="mt-4">
       <div className="flex items-center gap-2 mb-3">
         <Camera size={11} style={{ color:'var(--text-muted)' }} />
-        <span className="text-[9.5px] font-bold uppercase tracking-[0.08em]" style={{ color:'var(--text-muted)' }}>Registro fotográfico</span>
-        {real.length < photos.length && (
+        <span className="text-[9.5px] font-bold uppercase tracking-[0.08em]" style={{ color:'var(--text-muted)' }}>
+          Registro fotográfico
+        </span>
+        {real.length < photos.length && !editMode && (
           <span className="text-[9px] px-1.5 py-0.5 rounded-full ml-1"
             style={{ background:'var(--bg-base)', color:'var(--text-muted)', border:'1px solid var(--border)' }}>
             {real.length}/{photos.length} fotos
@@ -310,24 +313,61 @@ function PhotoGrid({ photos, showEmpty = false }) {
         )}
       </div>
       <div className="grid grid-cols-3 gap-3">
-        {toRender.map(([label, url], i) => (
+        {toRender.map(([label, url, assetType], i) => (
           <div key={i} className="space-y-1.5">
             <div className="text-[10px] font-medium truncate" style={{ color:'var(--text-muted)' }}>{label}</div>
-            <div className="aspect-video rounded-xl overflow-hidden flex items-center justify-center"
-              style={{ border:'1px solid var(--border)', background:'var(--bg-base)' }}>
+            <div className="relative group aspect-video rounded-xl overflow-hidden flex items-center justify-center"
+              style={{ border: url ? '1px solid var(--border)' : '2px dashed var(--border)', background:'var(--bg-base)' }}>
+
+              {/* Photo or placeholder */}
               {url
                 ? <img src={url} alt={label} className="w-full h-full object-cover"
-                    onError={e => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex' }} />
+                    onError={e => {
+                      e.currentTarget.style.display = 'none'
+                      e.currentTarget.nextElementSibling.style.display = 'flex'
+                    }} />
                 : null}
+
+              {/* Broken URL fallback */}
               {url
-                ? <div style={{ display:'none' }} className="w-full h-full items-center justify-center flex-col gap-1">
-                    <Grid3x3 size={16} style={{ color:'var(--border)' }} />
+                ? <div style={{ display:'none' }} className="w-full h-full flex flex-col items-center justify-center gap-1">
+                    <AlertCircle size={16} style={{ color:'var(--text-muted)' }} />
                     <span className="text-[9px]" style={{ color:'var(--text-muted)' }}>No disponible</span>
                   </div>
-                : <div className="flex flex-col items-center justify-center gap-1">
+                : <div className="flex flex-col items-center justify-center gap-1 w-full h-full">
                     <Grid3x3 size={16} style={{ color:'var(--border)' }} />
                     <span className="text-[9px]" style={{ color:'var(--text-muted)' }}>Sin foto</span>
                   </div>}
+
+              {/* Edit mode overlay */}
+              {editMode && (
+                <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ background:'rgba(0,0,0,0.5)' }}>
+                  {/* Upload button */}
+                  <label className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all"
+                    style={{ background:'white' }} title={url ? 'Reemplazar foto' : 'Subir foto'}>
+                    <Upload size={14} style={{ color:'#0284C7' }} />
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0]
+                        if (f && assetType) onUpload?.(f, assetType)
+                        e.target.value = ''
+                      }} />
+                  </label>
+                  {/* Delete button — only if photo exists */}
+                  {url && (
+                    <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                      style={{ background:'white' }} title="Eliminar foto"
+                      onClick={() => {
+                        if (window.confirm(`¿Eliminar foto "${label}"? Esta acción no se puede deshacer.`)) {
+                          onDelete?.(assetType)
+                        }
+                      }}>
+                      <Trash2 size={14} style={{ color:'#EF4444' }} />
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -454,7 +494,7 @@ function FloorClientCard({ cliente, index, editMode, pendingEdits, onChange }) {
 
 // ── Carrier card ──────────────────────────────────────────────────────────────
 const CA = '#7C3AED'
-function CarrierCard({ carrier, index, assetPhotoMap, editMode, pendingEdits, onChange }) {
+function CarrierCard({ carrier, index, assetPhotoMap, editMode, pendingEdits, onChange, onPhotoUpload, onPhotoDelete }) {
   const pk    = (f) => `carrier|||${index}|||${f}`
   const name  = pendingEdits[pk('nombre')] ?? (carrier.nombre || `Carrier ${index + 1}`)
   const f1    = assetPhotoMap?.[`carrier:${index}:foto1`] || carrier.foto1
@@ -482,14 +522,23 @@ function CarrierCard({ carrier, index, assetPhotoMap, editMode, pendingEdits, on
           editMode={editMode} pendingEdits={pendingEdits} onChange={onChange}
           keyPrefix={`carrier|||${index}|||item`}
         />
-        <PhotoGrid photos={[[`Foto 1 — ${name}`, f1], [`Foto 2 — ${name}`, f2], [`Foto 3 — ${name}`, f3]]} />
+        <PhotoGrid
+          editMode={editMode}
+          onUpload={onPhotoUpload}
+          onDelete={onPhotoDelete}
+          photos={[
+            [`Foto 1 — ${name}`, f1, `carrier:${index}:foto1`],
+            [`Foto 2 — ${name}`, f2, `carrier:${index}:foto2`],
+            [`Foto 3 — ${name}`, f3, `carrier:${index}:foto3`],
+          ]}
+        />
       </div>
     </div>
   )
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function EquipmentV2Detail({ submission, assets, editMode = false, pendingEdits = {}, onFieldChange }) {
+export default function EquipmentV2Detail({ submission, assets, editMode = false, pendingEdits = {}, onFieldChange, onPhotoUpload, onPhotoDelete }) {
   const raw      = submission?.payload?.payload?.data || submission?.payload?.data || {}
   const siteInfo = raw.siteInfo  || {}
   const torre    = raw.torre     || {}
@@ -524,10 +573,19 @@ export default function EquipmentV2Detail({ submission, assets, editMode = false
           <InventoryTable items={torre.items} accent="#DC2626"
             editMode={editMode} pendingEdits={ep} onChange={oc}
             keyPrefix="torre|||item" />
-          {(fD || fT || fC) && (
+          {(fD || fT || fC || editMode) && (
             <>
               <Divider label="Registro fotográfico" />
-              <PhotoGrid photos={[['Distribución en torre', fD], ['Torre completa', fT], ['Croquis del edificio', fC]]} />
+              <PhotoGrid
+                editMode={editMode}
+                onUpload={onPhotoUpload}
+                onDelete={onPhotoDelete}
+                photos={[
+                  ['Distribución en torre', fD, 'equipmentV2:fotoDistribucionTorre'],
+                  ['Torre completa',        fT, 'equipmentV2:fotoTorreCompleta'],
+                  ['Croquis del edificio',  fC, 'equipmentV2:fotoCroquisEdificio'],
+                ]}
+              />
             </>
           )}
         </div>
@@ -540,12 +598,15 @@ export default function EquipmentV2Detail({ submission, assets, editMode = false
               <FloorClientCard key={i} cliente={c} index={i}
                 editMode={editMode} pendingEdits={ep} onChange={oc} />
             ))}
-            {fP && (
+            {(fP || editMode) && (
               <>
                 <Divider label="Plano de planta y equipos" />
-                <div className="rounded-xl overflow-hidden" style={{ border:'1px solid var(--border)' }}>
-                  <img src={fP} alt="Plano de planta" className="w-full object-contain" style={{ maxHeight:480 }} />
-                </div>
+                <PhotoGrid
+                  editMode={editMode}
+                  onUpload={onPhotoUpload}
+                  onDelete={onPhotoDelete}
+                  photos={[['Plano de planta', fP, 'equipmentV2:fotoPlanoPlanta']]}
+                />
               </>
             )}
           </div>
@@ -557,7 +618,8 @@ export default function EquipmentV2Detail({ submission, assets, editMode = false
           <div className="space-y-3">
             {carriers.map((c, i) => (
               <CarrierCard key={i} carrier={c} index={i} assetPhotoMap={assetPhotoMap}
-                editMode={editMode} pendingEdits={ep} onChange={oc} />
+                editMode={editMode} pendingEdits={ep} onChange={oc}
+                onPhotoUpload={onPhotoUpload} onPhotoDelete={onPhotoDelete} />
             ))}
           </div>
         </Panel>

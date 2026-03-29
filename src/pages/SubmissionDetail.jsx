@@ -27,6 +27,8 @@ import {
   updateSubmissionPayload,
   insertSubmissionEdit,
   fetchSubmissionEdits,
+  upsertSubmissionAssetRecord,
+  deleteSubmissionAsset,
 } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
 import { LOG } from '../lib/logEvent'
@@ -757,6 +759,109 @@ export default function SubmissionDetail() {
     }
   }, [submission, submissionId, user])
 
+  // ── Photo upload for equipment-v2 (asset_type-aware) ──────
+  const handlePhotoUploadV2 = useCallback(async (file, assetType) => {
+    if (!file || !submission || !submissionId) return
+    const editedBy = user?.email || user?.username || 'admin'
+    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+    try {
+      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const BUCKET = 'pti-inspect'
+      // Use same path convention as inspector app
+      const path = `${submission.org_code || 'PTI'}/${submissionId}/${assetType}.${ext}`
+
+      console.log('[PhotoUploadV2] uploading', assetType, 'path:', path)
+
+      // 1. Upload to Storage
+      const { error: storageErr } = await supabase.storage
+        .from(BUCKET)
+        .upload(path, file, { upsert: true, contentType: file.type })
+      if (storageErr) throw new Error(`Storage error: ${storageErr.message}`)
+
+      // 2. Get public URL
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
+      const publicUrl = urlData?.publicUrl
+      if (!publicUrl) throw new Error('No se pudo obtener URL pública')
+
+      console.log('[PhotoUploadV2] uploaded OK, url:', publicUrl)
+
+      // 3. Upsert submission_assets with exact asset_type
+      await upsertSubmissionAssetRecord({
+        submissionId,
+        assetType,
+        assetKey:  path,
+        bucket:    BUCKET,
+        path,
+        publicUrl,
+        mime:      file.type || 'image/jpeg',
+      })
+      console.log('[PhotoUploadV2] submission_assets upserted for', assetType)
+
+      // 4. Audit log — submission_edits
+      await insertSubmissionEdit(
+        submissionId,
+        editedBy,
+        { [assetType]: { from: '—', to: publicUrl, label: `Foto subida: ${assetType}` } },
+        `Foto subida desde panel admin: ${assetType} (${file.name})`
+      ).catch(e => console.warn('[Audit] submission_edits insert failed:', e.message))
+
+      // 5. System log
+      LOG.submissionEdited(submissionId, siteName, editedBy, [`foto:${assetType}`])
+
+      console.log('[PhotoUploadV2] all logs written, reloading detail')
+
+      // 6. Reload to show new photo
+      await loadDetail(submissionId)
+
+    } catch (e) {
+      console.error('[PhotoUploadV2] error:', e)
+      LOG.systemError(e, `photo_upload_v2:${assetType}:${submissionId}`)
+      setSaveError(`Error al subir foto: ${e.message}`)
+      setTimeout(() => setSaveError(null), 5000)
+    }
+  }, [submission, submissionId, user])
+
+  // ── Photo delete for equipment-v2 ──────────────────────────
+  const handlePhotoDeleteV2 = useCallback(async (assetType) => {
+    if (!submissionId || !assetType) return
+    const editedBy = user?.email || user?.username || 'admin'
+    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+
+    // Find current URL for audit log before deleting
+    const currentAsset = assets?.find(a => a.asset_type === assetType)
+    const prevUrl = currentAsset?.public_url || '—'
+
+    console.log('[PhotoDeleteV2] deleting', assetType, 'submissionId:', submissionId)
+
+    try {
+      // 1. Delete from Storage + submission_assets
+      await deleteSubmissionAsset(submissionId, assetType)
+      console.log('[PhotoDeleteV2] asset deleted from DB and Storage')
+
+      // 2. Audit log — submission_edits
+      await insertSubmissionEdit(
+        submissionId,
+        editedBy,
+        { [assetType]: { from: prevUrl, to: '—', label: `Foto eliminada: ${assetType}` } },
+        `Foto eliminada desde panel admin: ${assetType}`
+      ).catch(e => console.warn('[Audit] submission_edits insert failed:', e.message))
+
+      // 3. System log
+      LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
+
+      console.log('[PhotoDeleteV2] all logs written, reloading detail')
+
+      // 4. Reload
+      await loadDetail(submissionId)
+
+    } catch (e) {
+      console.error('[PhotoDeleteV2] error:', e)
+      LOG.systemError(e, `photo_delete_v2:${assetType}:${submissionId}`)
+      setSaveError(`Error al eliminar foto: ${e.message}`)
+      setTimeout(() => setSaveError(null), 5000)
+    }
+  }, [submission, submissionId, user, assets])
+
   // ── Finalized toggle ────────────────────────────────────────
   const handleFinalizedToggle = async () => {
     if (!user?.canWrite) return
@@ -1205,7 +1310,9 @@ export default function SubmissionDetail() {
         {normalizeFormCode(submission.form_code) === 'equipment-v2' ? (
           <div className="px-0">
             <EquipmentV2Detail submission={submission} assets={assets}
-              editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange} />
+              editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange}
+              onPhotoUpload={handlePhotoUploadV2}
+              onPhotoDelete={handlePhotoDeleteV2} />
           </div>
         ) : normalizeFormCode(submission.form_code) === 'additional-photo-report' ? (
           <div className="px-0">

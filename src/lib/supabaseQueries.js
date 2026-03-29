@@ -561,6 +561,74 @@ export async function insertSubmissionEdit(submissionId, editedBy, changes, note
 /**
  * Fetch edit history for a submission.
  */
+
+/**
+ * Upsert a photo asset for a submission.
+ * Uses (submission_id, asset_type) as the conflict key.
+ * This matches how the inspector app saves photos — same asset_type = same slot.
+ */
+export async function upsertSubmissionAssetRecord({
+  submissionId, assetType, assetKey, bucket, path, publicUrl, mime,
+}) {
+  const { error } = await q(
+    supabase.from('submission_assets').upsert(
+      {
+        submission_id: submissionId,
+        asset_type:    assetType,
+        asset_key:     assetKey || path,
+        bucket:        bucket || 'pti-inspect',
+        path,
+        public_url:    publicUrl,
+        mime:          mime || 'image/jpeg',
+      },
+      { onConflict: 'submission_id,asset_type' }
+    )
+  )
+  if (error) throw error
+}
+
+/**
+ * Delete a photo asset from Storage and from submission_assets.
+ * Steps:
+ *   1. Find the asset record by (submission_id, asset_type)
+ *   2. Remove the file from Storage
+ *   3. Delete the DB record
+ * Throws if either step fails.
+ */
+export async function deleteSubmissionAsset(submissionId, assetType) {
+  // 1. Find the asset record
+  const { data: asset, error: fetchErr } = await q(
+    supabase
+      .from('submission_assets')
+      .select('id, path, bucket')
+      .eq('submission_id', submissionId)
+      .eq('asset_type', assetType)
+      .maybeSingle()
+  )
+  if (fetchErr) throw new Error(`Error buscando asset: ${fetchErr.message}`)
+  if (!asset) throw new Error(`Asset no encontrado: ${assetType}`)
+
+  // 2. Remove file from Storage (best-effort — don't fail if file already gone)
+  if (asset.path) {
+    const bucket = asset.bucket || 'pti-inspect'
+    const { error: storageErr } = await supabase.storage
+      .from(bucket)
+      .remove([asset.path])
+    if (storageErr) {
+      console.warn('[deleteSubmissionAsset] Storage remove failed (continuing):', storageErr.message)
+    }
+  }
+
+  // 3. Delete the DB record
+  const { error: dbErr } = await q(
+    supabase
+      .from('submission_assets')
+      .delete()
+      .eq('id', asset.id)
+  )
+  if (dbErr) throw new Error(`Error eliminando asset de DB: ${dbErr.message}`)
+}
+
 export async function fetchSubmissionEdits(submissionId) {
   const { data, error } = await supabase
     .from('submission_edits')
