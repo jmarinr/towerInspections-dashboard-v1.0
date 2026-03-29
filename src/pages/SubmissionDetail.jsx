@@ -868,9 +868,11 @@ export default function SubmissionDetail() {
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
     const currentAsset = assets?.find(a => a.asset_type === assetType)
     const prevUrl = currentAsset?.public_url || '—'
-    console.log('[PhotoDelete] deleting', assetType, 'from submission', submissionId)
+    // Usar el submission_id REAL del asset — puede ser un sibling, no necesariamente el main
+    const targetSubmissionId = currentAsset?.submission_id || submissionId
+    console.log('[PhotoDelete] deleting', assetType, 'from submission', targetSubmissionId)
     try {
-      await deleteSubmissionAsset(submissionId, assetType)
+      await deleteSubmissionAsset(targetSubmissionId, assetType)
       console.log('[PhotoDelete] deleted from DB and Storage')
 
       // For additional-photo-report: also clear the entry in payload photos array
@@ -1044,15 +1046,16 @@ export default function SubmissionDetail() {
     const editedBy = user?.email || user?.username || 'admin'
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
 
-    // Find current URL for audit log before deleting
+    // Usar el submission_id REAL del asset — puede ser un sibling, no el main
     const currentAsset = assets?.find(a => a.asset_type === assetType)
     const prevUrl = currentAsset?.public_url || '—'
+    const targetSubmissionId = currentAsset?.submission_id || submissionId
 
-    console.log('[PhotoDeleteV2] deleting', assetType, 'submissionId:', submissionId)
+    console.log('[PhotoDeleteV2] deleting', assetType, 'from submission:', targetSubmissionId)
 
     try {
-      // 1. Delete from Storage + submission_assets
-      await deleteSubmissionAsset(submissionId, assetType)
+      // 1. Delete from Storage + submission_assets (del submission correcto)
+      await deleteSubmissionAsset(targetSubmissionId, assetType)
       console.log('[PhotoDeleteV2] asset deleted from DB and Storage')
 
       // 2. Audit log — submission_edits
