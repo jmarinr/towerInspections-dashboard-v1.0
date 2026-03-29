@@ -36,9 +36,14 @@ export async function generatePMExecutedPdf(submission, assets = []) {
   const inner = payload?.payload || payload
   const data = inner?.data || inner || {}
   const meta = inner?.meta || {}
-  const fd = data.formData || data.datos || data
+  const fd = data.siteInfo || data.formData || data.datos || data
 
-  const v = (k) => { for (const s of [fd, data]) { if (s?.[k] && !String(s[k]).startsWith('data:') && s[k] !== '__photo__') return String(s[k]) } return '' }
+  const v = (k) => {
+    for (const s of [data.siteInfo, data.formData, data.datos, fd, data]) {
+      if (s?.[k] && !String(s[k]).startsWith('data:') && s[k] !== '__photo__') return String(s[k])
+    }
+    return ''
+  }
 
   // Build photo URL map
   const photoMap = {}
