@@ -346,7 +346,7 @@ function PhotoGrid({ photos, showEmpty = false, editMode = false, onUpload, onDe
                   <label className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
                     style={{ background:'white' }} title={url ? 'Reemplazar foto' : 'Subir foto'}>
                     <Upload size={13} style={{ color:'#0284C7' }} />
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                    <input type="file" accept="image/*" className="hidden"
                       onChange={e => {
                         const f = e.target.files?.[0]
                         if (f && assetType) onUpload?.(f, assetType)

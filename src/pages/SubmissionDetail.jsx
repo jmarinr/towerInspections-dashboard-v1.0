@@ -140,7 +140,7 @@ function PhotoGallery({ photos, editMode = false, onUpload, onDelete }) {
           <label className="w-14 h-14 rounded-lg border-2 border-dashed border-accent/40 hover:border-accent bg-accent/5 flex flex-col items-center justify-center cursor-pointer transition-all group" title="Subir foto">
             <Upload size={13} className="text-accent/50 group-hover:text-accent transition-colors" />
             <span className="text-[9px] text-accent/50 group-hover:text-accent mt-0.5 transition-colors">Subir</span>
-            <input type="file" accept="image/*" capture="environment" className="hidden"
+            <input type="file" accept="image/*" className="hidden"
               onChange={e => e.target.files[0] && onUpload?.(e.target.files[0])} />
           </label>
         )}
@@ -610,6 +610,48 @@ function EditHistory({ submissionId }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────────────────────────
+
+/**
+ * Sanitiza un string para usarlo como segmento de path en Supabase Storage.
+ * Elimina: emojis, tildes/diacríticos, espacios, y cualquier carácter no-ASCII.
+ * Supabase Storage solo acepta: letras, dígitos, guiones y guiones bajos.
+ */
+const sanitizePath = (str) =>
+  String(str || '')
+    .normalize('NFD')                   // descomponer chars acentuados (á → a + ́)
+    .replace(/[\u0300-\u036f]/g, '')    // eliminar diacríticos
+    .replace(/[^\w\-]/g, '_')           // reemplazar todo lo no-alfanumérico (excepto -) con _
+    .replace(/_{2,}/g, '_')             // colapsar underscores múltiples
+    .replace(/^_+|_+$/g, '')            // trim underscores al inicio/fin
+    .substring(0, 60)                   // limitar longitud
+    || 'foto'                           // fallback si queda vacío
+
+/**
+ * Detecta la extensión del archivo de forma robusta.
+ * Prefiere la extensión del nombre de archivo; si no tiene, usa el MIME type.
+ * Necesario para móviles donde el archivo puede llamarse solo "image" sin extensión.
+ */
+const MIME_TO_EXT = {
+  'image/jpeg': 'jpg',
+  'image/jpg':  'jpg',
+  'image/png':  'png',
+  'image/webp': 'webp',
+  'image/gif':  'gif',
+  'image/heic': 'heic',
+  'image/heif': 'heic',
+  'image/avif': 'avif',
+}
+const getExt = (file) => {
+  if (file.name?.includes('.')) {
+    const raw = file.name.split('.').pop().toLowerCase()
+    if (raw && raw.length <= 5) return raw
+  }
+  return MIME_TO_EXT[file.type] || 'jpg'
+}
+
+// ─────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────
 export default function SubmissionDetail() {
@@ -726,9 +768,11 @@ export default function SubmissionDetail() {
   const handlePhotoUpload = useCallback(async (file, sectionHint) => {
     if (!file || !submission) return
     try {
-      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const ext  = getExt(file)
       const ts   = Date.now()
-      const path = `${submission.org_code || 'PTI'}/${submissionId}/dashboard_${sectionHint || 'foto'}_${ts}.${ext}`
+      // sanitizePath elimina emojis, tildes, espacios y caracteres inválidos para Storage
+      const safeHint = sanitizePath(sectionHint || 'foto')
+      const path = `${submission.org_code || 'PTI'}/${submissionId}/dashboard_${safeHint}_${ts}.${ext}`
 
       // 1. Subir al Storage
       const BUCKET = 'pti-inspect'
@@ -834,13 +878,15 @@ export default function SubmissionDetail() {
     const editedBy = user?.email || user?.username || 'admin'
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
     try {
-      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const ext  = getExt(file)
       const BUCKET = 'pti-inspect'
       const ts = Date.now()
-      // asset_type compatible with groupAssetsBySection parser: photos:{ACRONYM}:{idx}
-      // Use ts as idx to avoid collisions with inspector photos
+      // asset_type compatible con el parser de groupAssetsBySection: photos:{ACRONYM}:{idx}
+      // Los ':' son VÁLIDOS en la columna asset_type de la DB, pero INVÁLIDOS en Storage paths.
       const assetType = `photos:${acronym.toUpperCase()}:${ts}`
-      const path = `${submission.org_code || 'PTI'}/${submissionId}/additional/${assetType}.${ext}`
+      // Para el path de Storage usamos '_' en lugar de ':' para evitar StorageApiError.
+      const safeName = `photos_${acronym.toUpperCase()}_${ts}`
+      const path = `${submission.org_code || 'PTI'}/${submissionId}/additional/${safeName}.${ext}`
 
       console.log('[PhotoUploadAdditional] uploading', assetType, 'path:', path)
 
@@ -888,10 +934,11 @@ export default function SubmissionDetail() {
     const editedBy = user?.email || user?.username || 'admin'
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
     try {
-      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const ext  = getExt(file)
       const BUCKET = 'pti-inspect'
-      // Use same path convention as inspector app
-      const path = `${submission.org_code || 'PTI'}/${submissionId}/${assetType}.${ext}`
+      // Sanitizar assetType para el path de Storage (puede contener ':' u otros chars inválidos)
+      const safeName = sanitizePath(assetType.replace(/:/g, '_'))
+      const path = `${submission.org_code || 'PTI'}/${submissionId}/${safeName}.${ext}`
 
       console.log('[PhotoUploadV2] uploading', assetType, 'path:', path)
 

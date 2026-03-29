@@ -169,7 +169,7 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index, o
                     title={`Subir foto a ${cat.title}`}>
                     <Plus size={20} style={{ color: 'var(--accent)' }} className="group-hover:scale-110 transition-transform" />
                     <span className="text-[9px] font-medium mt-1" style={{ color: 'var(--accent)' }}>Agregar</span>
-                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                    <input type="file" accept="image/*" className="hidden"
                       onChange={e => {
                         const f = e.target.files?.[0]
                         if (f) onPhotoUpload?.(f, cat.id)
