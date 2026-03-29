@@ -849,19 +849,21 @@ export default function SubmissionDetail() {
         `Foto subida desde panel: ${file.name}`)
         .catch(e => console.warn('[Audit]', e.message))
 
-      // 5. System log
       LOG.submissionEdited(submissionId,
         extractSiteInfo(submission)?.nombreSitio || submissionId,
         editedBy, [`foto:${sectionHint}`])
 
-      // 6. Reload para mostrar la foto nueva
-      setTimedOut(false)  // evita que timer expirado bloquee el re-render
-      await refreshDetail(submissionId)
+      // El optimistic update ya hizo visible la foto — NO llamar refreshDetail
+      // porque sobrescribiría el estado optimista con el estado del servidor
+      // (que aún no tiene la foto si la DB la rechazó por RLS).
+      setTimedOut(false)
       setUploadStatus('success')
       setTimeout(() => setUploadStatus(null), 2500)
 
     } catch (e) {
       console.error('Photo upload error:', e)
+      // Revertir optimistic en caso de error de Storage
+      removeAsset(`dashboard:${sanitizePath(sectionHint || 'foto')}:`)
       setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
       setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 4000)
@@ -910,13 +912,13 @@ export default function SubmissionDetail() {
       ).catch(e => console.warn('[Audit]', e.message))
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
-      console.log('[PhotoDelete] audit logged, reloading')
-      setTimedOut(false)  // evita que timer expirado bloquee el re-render
-      await refreshDetail(submissionId)
+      // El optimistic removeAsset() ya quitó la foto del UI — NO llamar refreshDetail
+      // para evitar que el servidor la restaure si hay lag de replicación.
+      setTimedOut(false)
     } catch (e) {
       console.error('[PhotoDelete] error:', e)
       LOG.systemError(e, `photo_delete:${assetType}:${submissionId}`)
-      // Rollback: si el delete en servidor falló, recargar el estado real
+      // Rollback: el delete falló en servidor → recargar estado real para restaurar la foto
       await refreshDetail(submissionId)
       setSaveError(`Error al eliminar foto: ${e.message}`)
       setTimeout(() => setSaveError(null), 5000)
@@ -974,12 +976,13 @@ export default function SubmissionDetail() {
       ).catch(e => console.warn('[Audit]', e.message))
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_adicional:${acronym}`])
-      setTimedOut(false)  // evita que timer expirado bloquee el re-render
-      await refreshDetail(submissionId)
+      // NO refreshDetail — mantener estado optimista
+      setTimedOut(false)
       setUploadStatus('success')
       setTimeout(() => setUploadStatus(null), 2500)
     } catch (e) {
       console.error('[PhotoUploadAdditional] error:', e)
+      removeAsset(`photos:${acronym?.toUpperCase()}:`)
       LOG.systemError(e, `photo_upload_additional:${acronym}:${submissionId}`)
       setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
@@ -1041,16 +1044,15 @@ export default function SubmissionDetail() {
       // 5. System log
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto:${assetType}`])
 
-      console.log('[PhotoUploadV2] all logs written, reloading detail')
-
-      // 6. Reload to show new photo
-      setTimedOut(false)  // evita que timer expirado bloquee el re-render
-      await refreshDetail(submissionId)
+      // NO refreshDetail — mantener estado optimista (refreshDetail sobrescribiría
+      // el addAsset() con el estado del servidor que puede no tener la foto aún por RLS)
+      setTimedOut(false)
       setUploadStatus('success')
       setTimeout(() => setUploadStatus(null), 2500)
 
     } catch (e) {
       console.error('[PhotoUploadV2] error:', e)
+      removeAsset(assetType)
       LOG.systemError(e, `photo_upload_v2:${assetType}:${submissionId}`)
       setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
@@ -1088,16 +1090,14 @@ export default function SubmissionDetail() {
 
       // 3. System log
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
-
-      console.log('[PhotoDeleteV2] all logs written, reloading detail')
-
-      // 4. Reload
-      setTimedOut(false)  // evita que timer expirado bloquee el re-render
-      await refreshDetail(submissionId)
+      // El optimistic removeAsset() ya quitó la foto — NO llamar refreshDetail
+      setTimedOut(false)
 
     } catch (e) {
       console.error('[PhotoDeleteV2] error:', e)
       LOG.systemError(e, `photo_delete_v2:${assetType}:${submissionId}`)
+      // Rollback: delete falló → restaurar la foto desde el servidor
+      await refreshDetail(submissionId)
       setSaveError(`Error al eliminar foto: ${e.message}`)
       setTimeout(() => setSaveError(null), 5000)
     }
