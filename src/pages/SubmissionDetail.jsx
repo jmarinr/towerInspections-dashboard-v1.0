@@ -718,7 +718,7 @@ export default function SubmissionDetail() {
     // Forzar refresh de la lista en background para que al volver el estado sea actual
     useSubmissionsStore.getState().load(true)
     useSubmissionsStore.setState({ error: null })
-    const t = setTimeout(() => setTimedOut(true), 20000)
+    const t = setTimeout(() => setTimedOut(true), 45000)
     return () => { clearDetail(); clearTimeout(t) }
   }, [submissionId])
 

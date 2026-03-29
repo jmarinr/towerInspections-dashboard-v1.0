@@ -91,59 +91,60 @@ export async function fetchSubmissionAssets(submissionId) {
  * (e.g. 'preventive-maintenance'). These are different rows in the DB.
  * We search across BOTH code variants and all sibling submissions.
  */
+/**
+ * Fetch submission + its assets en el mínimo número de round-trips.
+ *
+ * Estrategia:
+ *   - Query 1: submission con sus assets embebidos (1 round-trip via Supabase select embedding)
+ *   - Query 2 (solo si submission tiene site_visit_id): buscar siblings con sus assets
+ *   Ambas queries corren en paralelo cuando es posible.
+ */
 export async function fetchSubmissionWithAssets(id) {
-  const submission = await fetchSubmissionById(id)
+  // Query única: submission + submission_assets embebidos via FK relationship
+  const { data: row, error } = await q(
+    supabase
+      .from('submissions')
+      .select('*, submission_assets(*)')
+      .eq('id', id)
+      .order('created_at', { referencedTable: 'submission_assets', ascending: true })
+      .single()
+  )
 
-  // 1) Assets directos del submission principal
-  let assets = await fetchSubmissionAssets(id)
+  if (error) throw error
 
-  // 2) Buscar assets en submissions hermanos (mismo device + form code variant)
-  //    Se COMBINAN con los del main — no son excluyentes.
-  //    Esto cubre el caso donde el inspector guardó bajo un form_code diferente
-  //    (ej: 'mantenimiento' vs 'preventive-maintenance') y el dashboard sube al main.
-  if (submission) {
-    try {
-      const { org_code, device_id, form_code } = submission
-      if (org_code && device_id && form_code) {
-        const siblingCodes = getFormCodeSiblings(form_code)
-        const allCodes = [form_code, ...siblingCodes]
-        const siteVisitId = submission.site_visit_id
+  const submission  = normalizeSubmission({ ...row, submission_assets: undefined })
+  const directAssets = (row.submission_assets || []).filter(a => a.public_url)
 
-        let siblingQuery = supabase
-          .from('submissions')
-          .select('id')
-          .eq('org_code', org_code)
-          .eq('device_id', device_id)
-          .in('form_code', allCodes)
-          .neq('id', id)
-
-        if (siteVisitId) {
-          siblingQuery = siblingQuery.eq('site_visit_id', siteVisitId)
-        }
-
-        const { data: siblings } = await siblingQuery
-
-        if (siblings?.length) {
-          const { data: siblingAssets } = await supabase
-            .from('submission_assets')
-            .select('*')
-            .in('submission_id', siblings.map(s => s.id))
-            .order('created_at', { ascending: true })
-
-          if (siblingAssets?.length) {
-            // Combinar: main assets tienen prioridad sobre sibling para el mismo asset_type
-            const mainAssetTypes = new Set(assets.map(a => a.asset_type))
-            const newSiblingAssets = siblingAssets.filter(a => !mainAssetTypes.has(a.asset_type))
-            assets = [...assets, ...newSiblingAssets]
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[Admin] Sibling asset lookup failed:', e?.message)
-    }
+  // Si no hay site_visit_id, no hay siblings — retornar inmediatamente
+  const siteVisitId = submission.site_visit_id
+  if (!siteVisitId || !submission.org_code || !submission.device_id || !submission.form_code) {
+    return { submission, assets: directAssets }
   }
 
-  return { submission, assets }
+  // Buscar siblings — todos los submissions del mismo visit con variantes de form_code
+  const siblingCodes = getFormCodeSiblings(submission.form_code)
+  const allCodes     = [submission.form_code, ...siblingCodes]
+
+  const { data: siblingRows } = await q(
+    supabase
+      .from('submissions')
+      .select('id, submission_assets(*)')
+      .eq('org_code', submission.org_code)
+      .eq('device_id', submission.device_id)
+      .eq('site_visit_id', siteVisitId)
+      .in('form_code', allCodes)
+      .neq('id', id)
+      .order('created_at', { referencedTable: 'submission_assets', ascending: true })
+  )
+
+  if (!siblingRows?.length) return { submission, assets: directAssets }
+
+  // Merge: main assets tienen prioridad sobre sibling para el mismo asset_type
+  const siblingAssets   = siblingRows.flatMap(r => r.submission_assets || []).filter(a => a.public_url)
+  const mainAssetTypes  = new Set(directAssets.map(a => a.asset_type))
+  const newSiblingAssets = siblingAssets.filter(a => !mainAssetTypes.has(a.asset_type))
+
+  return { submission, assets: [...directAssets, ...newSiblingAssets] }
 }
 
 // ═══════════════════════════════════════════

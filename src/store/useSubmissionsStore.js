@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { fetchSubmissions, fetchSubmissionWithAssets, fetchDashboardStats, fetchSubmissionById } from '../lib/supabaseQueries'
+import { fetchSubmissions, fetchSubmissionWithAssets, fetchDashboardStats } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
 import { logEvent } from '../lib/logEvent'
 
