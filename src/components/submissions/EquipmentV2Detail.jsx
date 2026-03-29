@@ -495,9 +495,10 @@ const CA = '#7C3AED'
 function CarrierCard({ carrier, index, assetPhotoMap, editMode, pendingEdits, onChange, onPhotoUpload, onPhotoDelete }) {
   const pk    = (f) => `carrier|||${index}|||${f}`
   const name  = pendingEdits[pk('nombre')] ?? (carrier.nombre || `Carrier ${index + 1}`)
-  const f1    = assetPhotoMap?.[`carrier:${index}:foto1`] || carrier.foto1
-  const f2    = assetPhotoMap?.[`carrier:${index}:foto2`] || carrier.foto2
-  const f3    = assetPhotoMap?.[`carrier:${index}:foto3`] || carrier.foto3
+  const ru    = (url) => (url && typeof url === 'string' && url.startsWith('http')) ? url : null
+  const f1    = assetPhotoMap?.[`carrier:${index}:foto1`] || ru(carrier.foto1)
+  const f2    = assetPhotoMap?.[`carrier:${index}:foto2`] || ru(carrier.foto2)
+  const f3    = assetPhotoMap?.[`carrier:${index}:foto3`] || ru(carrier.foto3)
 
   return (
     <div className="rounded-xl overflow-hidden" style={{ border:'1px solid var(--border)', borderLeft:`3px solid ${CA}` }}>
@@ -551,10 +552,15 @@ export default function EquipmentV2Detail({ submission, assets, editMode = false
     if (key && url) assetPhotoMap[key] = url
   })
 
-  const fD = assetPhotoMap['equipmentV2:fotoDistribucionTorre'] || fotos.fotoDistribucionTorre
-  const fT = assetPhotoMap['equipmentV2:fotoTorreCompleta']     || fotos.fotoTorreCompleta
-  const fC = assetPhotoMap['equipmentV2:fotoCroquisEdificio']   || fotos.fotoCroquisEdificio
-  const fP = assetPhotoMap['equipmentV2:fotoPlanoPlanta']       || fotos.fotoPlanoPlanta
+  // Filtra URLs inválidas del payload: placeholders del inspector app como
+  // "/__photo_uploaded__", "blob:null", o cualquier cosa que no sea http(s)
+  const realUrl = (url) =>
+    url && typeof url === 'string' && url.startsWith('http') ? url : null
+
+  const fD = assetPhotoMap['equipmentV2:fotoDistribucionTorre'] || realUrl(fotos.fotoDistribucionTorre)
+  const fT = assetPhotoMap['equipmentV2:fotoTorreCompleta']     || realUrl(fotos.fotoTorreCompleta)
+  const fC = assetPhotoMap['equipmentV2:fotoCroquisEdificio']   || realUrl(fotos.fotoCroquisEdificio)
+  const fP = assetPhotoMap['equipmentV2:fotoPlanoPlanta']       || realUrl(fotos.fotoPlanoPlanta)
 
   const ep = editMode ? pendingEdits : {}
   const oc = editMode ? onFieldChange : () => {}
