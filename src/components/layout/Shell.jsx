@@ -245,16 +245,16 @@ export default function Shell({ children }) {
 
   useEffect(() => { init() }, [])
 
-  // Polling cada 30s + recarga automática al volver al tab
+  // Polling cada 30s + refresh suave al volver al tab (sin reload de página)
   useEffect(() => {
     const poll = () => useSubmissionsStore.getState().load(true)
     const interval = setInterval(poll, 30000)
 
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return
-      // Si hay un modal abierto, no recargar — el usuario perdería sus datos
-      const hasOpenModal = !!document.querySelector('[data-modal="open"]')
-      if (!hasOpenModal) window.location.reload()
+      // Soft refresh: recargar datos en background sin destruir la UI
+      // (antes hacía window.location.reload() que causaba el error de timeout)
+      poll()
     }
 
     const handleOnline = () => poll()

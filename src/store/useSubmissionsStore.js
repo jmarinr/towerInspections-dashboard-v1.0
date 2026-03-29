@@ -26,15 +26,27 @@ export const useSubmissionsStore = create((set, get) => ({
     if (state.isLoading) return
     if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
 
-    // Si ya hay datos, no mostrar spinner — refrescar en background silenciosamente
+    // Solo mostrar spinner si no hay datos previos — si ya hay datos, refrescar silenciosamente
     const showSpinner = isEmpty
     set({ isLoading: showSpinner, loadingStartedAt: showSpinner ? Date.now() : null, error: null })
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {
-        set({ isLoading: false, loadingStartedAt: null, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
+        set({ isLoading: false, loadingStartedAt: null })
+        // Solo mostrar error si no hay datos que mostrar
+        if (get().submissions.length === 0) {
+          set({ error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+        }
+        // Retry automático a los 5s si hay error y no hay datos
+        if (get().submissions.length === 0) {
+          setTimeout(() => {
+            if (useSubmissionsStore.getState().submissions.length === 0) {
+              useSubmissionsStore.getState().load(true)
+            }
+          }, 5000)
+        }
       }
-    }, 20000)
+    }, 45000)
 
     try {
       const data = await fetchSubmissions()
@@ -137,15 +149,12 @@ export const useSubmissionsStore = create((set, get) => ({
   isLoadingStats:  false,
 
   loadStats: async () => {
-    // Guard: no iniciar si ya hay una carga en curso
     if (get().isLoadingStats) return
     const hasStats = !!get().stats
-    set({ isLoadingStats: !hasStats }) // spinner solo si no hay stats previas
+    set({ isLoadingStats: !hasStats })
     const timeout = setTimeout(() => {
-      if (get().isLoadingStats) {
-        set({ isLoadingStats: false })
-      }
-    }, 20000)
+      if (get().isLoadingStats) set({ isLoadingStats: false })
+    }, 45000)
     try {
       const stats = await fetchDashboardStats()
       clearTimeout(timeout)

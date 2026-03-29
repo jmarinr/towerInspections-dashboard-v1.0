@@ -137,11 +137,6 @@ export default function Submissions() {
     if (!authReady) return
     useSubmissionsStore.setState({ error: null })
     load(true); loadOrders()
-    const t = setTimeout(() => {
-      if (useSubmissionsStore.getState().submissions.length === 0 &&
-          !useSubmissionsStore.getState().error) load(true)
-    }, 3000)
-    return () => clearTimeout(t)
   }, [authReady])
 
   const filtered = useMemo(
