@@ -104,22 +104,37 @@ function StatusBadge({ value }) {
 // ─────────────────────────────────────────────────────────────
 // PHOTO GALLERY  (with optional upload button)
 // ─────────────────────────────────────────────────────────────
-function PhotoGallery({ photos, editMode = false, onUpload }) {
+function PhotoGallery({ photos, editMode = false, onUpload, onDelete }) {
   const [zoom, setZoom] = useState(null)
   if (!photos?.length && !editMode) return null
   return (
     <>
       <div className="flex gap-1.5 flex-wrap mt-2">
         {(photos || []).map(p => (
-          <button key={p.id} onClick={() => setZoom(p)}
-            className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all th-bg-base">
-            <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy"
-              onError={e => {
-                e.currentTarget.style.display = 'none'
-                const ph = e.currentTarget.parentElement
-                if (ph) { ph.style.background = 'var(--bg-base)'; ph.title = 'Foto no disponible' }
-              }} />
-          </button>
+          <div key={p.id} className="relative group">
+            <button onClick={() => setZoom(p)}
+              className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all th-bg-base">
+              <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy"
+                onError={e => {
+                  e.currentTarget.style.display = 'none'
+                  const ph = e.currentTarget.parentElement
+                  if (ph) { ph.style.background = 'var(--bg-base)'; ph.title = 'Foto no disponible' }
+                }} />
+            </button>
+            {editMode && (
+              <button
+                title="Eliminar foto"
+                onClick={() => {
+                  if (window.confirm(`¿Eliminar esta foto? Esta acción no se puede deshacer.`)) {
+                    onDelete?.(p.asset_type, p.id)
+                  }
+                }}
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                style={{ background: '#EF4444', border: '1.5px solid white' }}>
+                <X size={8} color="white" />
+              </button>
+            )}
+          </div>
         ))}
         {editMode && (
           <label className="w-14 h-14 rounded-lg border-2 border-dashed border-accent/40 hover:border-accent bg-accent/5 flex flex-col items-center justify-center cursor-pointer transition-all group" title="Subir foto">
@@ -277,7 +292,7 @@ function ChecklistItemEditable({ item, pendingEdits, onChange }) {
 // ─────────────────────────────────────────────────────────────
 const READONLY_SECTIONS_SET = new Set(['👤 Enviado por', '📍 Inicio de inspección'])
 
-function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload, allowUpload = false }) {
+function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload, onPhotoDelete, allowUpload = false }) {
   const [open, setOpen] = useState(true)
 
   const isSectionReadonly = READONLY_SECTIONS_SET.has(title)
@@ -436,7 +451,7 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
           {(photoCount > 0 || (editMode && allowUpload)) && (
             <div className={(isNewFormat || isCL || legacyEntries.length > 0) ? 'mt-3 pt-3' : 'mt-3'}
               style={(isNewFormat || isCL || legacyEntries.length > 0) ? { borderTop: '1px solid var(--border-light)' } : {}}>
-              <PhotoGallery photos={photos} editMode={editMode && allowUpload} onUpload={onPhotoUpload} />
+              <PhotoGallery photos={photos} editMode={editMode && allowUpload} onUpload={onPhotoUpload} onDelete={onPhotoDelete} />
             </div>
           )}
         </div>
@@ -762,6 +777,108 @@ export default function SubmissionDetail() {
       console.error('Photo upload error:', e)
       setSaveError(`Error al subir foto: ${e.message}`)
       setTimeout(() => setSaveError(null), 4000)
+    }
+  }, [submission, submissionId, user])
+
+  // ── Photo delete for standard forms (SectionCard-based) ──
+  const handlePhotoDelete = useCallback(async (assetType) => {
+    if (!submissionId || !assetType) return
+    const editedBy = user?.email || user?.username || 'admin'
+    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+    const currentAsset = assets?.find(a => a.asset_type === assetType)
+    const prevUrl = currentAsset?.public_url || '—'
+    console.log('[PhotoDelete] deleting', assetType, 'from submission', submissionId)
+    try {
+      await deleteSubmissionAsset(submissionId, assetType)
+      console.log('[PhotoDelete] deleted from DB and Storage')
+
+      // For additional-photo-report: also clear the entry in payload photos array
+      const fc = normalizeFormCode(submission?.form_code || '')
+      if (fc === 'additional-photo-report' && assetType) {
+        // asset_type = photos:ACC:0  or legacy SITE_ACC_DATE_(1)
+        const parts = assetType.split(':')
+        if (parts[0] === 'photos' && parts[1] && parts[2] !== undefined) {
+          const acronym = parts[1]
+          const idx = parseInt(parts[2])
+          const inner = submission.payload?.payload || submission.payload || {}
+          const data  = inner?.data || {}
+          const photos = data?.photos || {}
+          const arr = [...(photos[acronym] || [])]
+          arr[idx] = null
+          // Update payload to reflect removal
+          await updateSubmissionPayload(submissionId, submission.payload, {})
+            .catch(() => {}) // best-effort — DB row already deleted
+        }
+      }
+
+      await insertSubmissionEdit(
+        submissionId, editedBy,
+        { [assetType]: { from: prevUrl, to: '—', label: `Foto eliminada: ${assetType}` } },
+        `Foto eliminada desde panel admin: ${assetType}`
+      ).catch(e => console.warn('[Audit]', e.message))
+
+      LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
+      console.log('[PhotoDelete] audit logged, reloading')
+      await loadDetail(submissionId)
+    } catch (e) {
+      console.error('[PhotoDelete] error:', e)
+      LOG.systemError(e, `photo_delete:${assetType}:${submissionId}`)
+      setSaveError(`Error al eliminar foto: ${e.message}`)
+      setTimeout(() => setSaveError(null), 5000)
+    }
+  }, [submission, submissionId, user, assets])
+
+  // ── Photo upload for additional-photo-report ────────────────
+  const handlePhotoUploadAdditional = useCallback(async (file, acronym) => {
+    if (!file || !submission || !submissionId || !acronym) return
+    const editedBy = user?.email || user?.username || 'admin'
+    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+    try {
+      const ext  = (file.name.split('.').pop() || 'jpg').toLowerCase()
+      const BUCKET = 'pti-inspect'
+      const ts = Date.now()
+      // asset_type compatible with groupAssetsBySection parser: photos:{ACRONYM}:{idx}
+      // Use ts as idx to avoid collisions with inspector photos
+      const assetType = `photos:${acronym.toUpperCase()}:${ts}`
+      const path = `${submission.org_code || 'PTI'}/${submissionId}/additional/${assetType}.${ext}`
+
+      console.log('[PhotoUploadAdditional] uploading', assetType, 'path:', path)
+
+      const { error: storageErr } = await supabase.storage
+        .from(BUCKET).upload(path, file, { upsert: true, contentType: file.type })
+      if (storageErr) throw new Error(`Storage error: ${storageErr.message}`)
+
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
+      const publicUrl = urlData?.publicUrl
+      if (!publicUrl) throw new Error('No se pudo obtener URL pública')
+
+      console.log('[PhotoUploadAdditional] uploaded OK:', publicUrl)
+
+      await upsertSubmissionAssetRecord({
+        submissionId,
+        assetType,
+        assetKey: path,
+        bucket: BUCKET,
+        path,
+        publicUrl,
+        mime: file.type || 'image/jpeg',
+      })
+      console.log('[PhotoUploadAdditional] submission_assets upserted')
+
+      await insertSubmissionEdit(
+        submissionId, editedBy,
+        { [assetType]: { from: '—', to: publicUrl, label: `Foto subida: ${acronym}` } },
+        `Foto subida desde panel admin en categoría ${acronym} (${file.name})`
+      ).catch(e => console.warn('[Audit]', e.message))
+
+      LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_adicional:${acronym}`])
+      console.log('[PhotoUploadAdditional] audit logged, reloading')
+      await loadDetail(submissionId)
+    } catch (e) {
+      console.error('[PhotoUploadAdditional] error:', e)
+      LOG.systemError(e, `photo_upload_additional:${acronym}:${submissionId}`)
+      setSaveError(`Error al subir foto: ${e.message}`)
+      setTimeout(() => setSaveError(null), 5000)
     }
   }, [submission, submissionId, user])
 
@@ -1323,7 +1440,9 @@ export default function SubmissionDetail() {
         ) : normalizeFormCode(submission.form_code) === 'additional-photo-report' ? (
           <div className="px-0">
             <AdditionalPhotoDetail submission={submission} assets={assets}
-              editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange} />
+              editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange}
+              onPhotoUpload={handlePhotoUploadAdditional}
+              onPhotoDelete={handlePhotoDelete} />
           </div>
         ) : (
           <>
@@ -1335,6 +1454,7 @@ export default function SubmissionDetail() {
                 pendingEdits={pendingEdits}
                 onFieldChange={handleFieldChange}
                 onPhotoUpload={(file) => handlePhotoUpload(file, t)}
+                onPhotoDelete={(assetType) => handlePhotoDelete(assetType)}
                 allowUpload={sectionAllowsUpload(t)}
               />
             ))}
@@ -1356,7 +1476,8 @@ export default function SubmissionDetail() {
               <span className="text-[10px] th-text-m th-bg-base px-1.5 py-0.5 rounded">{unmatched.length}</span>
             </div>
             <PhotoGallery photos={unmatched} editMode={editMode}
-              onUpload={(file) => handlePhotoUpload(file, 'otras')} />
+              onUpload={(file) => handlePhotoUpload(file, 'otras')}
+              onDelete={(assetType) => handlePhotoDelete(assetType)} />
           </div>
         )}
 

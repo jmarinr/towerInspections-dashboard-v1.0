@@ -4,7 +4,7 @@
  * Soporta modo lectura y modo edición (notas solamente — las fotos se manejan vía upload)
  */
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Camera, CheckCircle2, Clock, Image } from 'lucide-react'
+import { ChevronDown, ChevronRight, Camera, CheckCircle2, Clock, Image, Upload, Trash2, Plus } from 'lucide-react'
 import { PHOTO_CATEGORIES } from '../../data/additionalPhotoConfig'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ const inpCls = (changed) =>
      : 'border-[var(--border)] th-bg-base focus:border-sky-500'}`
 
 // ── Panel colapsable ──────────────────────────────────────────────────────────
-function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index }) {
+function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index, onPhotoUpload, onPhotoDelete }) {
   const [open, setOpen] = useState(index < 3) // primeras 3 abiertas por default
 
   const captured  = photos.filter(p => p?.public_url).length
@@ -112,20 +112,37 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index })
                 const url      = photo?.public_url || photo?.storage_url || photo?.url || null
                 return (
                   <div key={i} className="space-y-1">
-                    <div className="aspect-square rounded-lg overflow-hidden flex items-center justify-center"
+                    <div className="relative aspect-square rounded-lg overflow-hidden flex items-center justify-center"
                       style={{ background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
                       {url ? (
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                          <img src={url} alt={subLabel}
-                            className="w-full h-full object-cover hover:opacity-90 transition-opacity"
-                            onError={e => {
-                              e.currentTarget.style.display = 'none'
-                              const container = e.currentTarget.closest('a')?.parentElement
-                              if (container) {
-                                container.innerHTML = '<div class="flex flex-col items-center gap-1 h-full justify-center"><span style="color:var(--text-muted);font-size:9px">No disponible</span></div>'
-                              }
-                            }} />
-                        </a>
+                        <>
+                          <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                            <img src={url} alt={subLabel}
+                              className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                              onError={e => {
+                                e.currentTarget.style.display = 'none'
+                                const container = e.currentTarget.closest('a')?.parentElement
+                                if (container) {
+                                  container.innerHTML = '<div class="flex flex-col items-center gap-1 h-full justify-center"><span style="color:var(--text-muted);font-size:9px">No disponible</span></div>'
+                                }
+                              }} />
+                          </a>
+                          {editMode && (
+                            <button
+                              title="Eliminar foto"
+                              onClick={() => {
+                                const assetType = photo?.asset_type
+                                if (!assetType) return
+                                if (window.confirm(`¿Eliminar "${subLabel}"? Esta acción no se puede deshacer.`)) {
+                                  onPhotoDelete?.(assetType)
+                                }
+                              }}
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center z-10"
+                              style={{ background: '#EF4444', border: '1.5px solid white' }}>
+                              <Trash2 size={10} color="white" />
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <div className="flex flex-col items-center gap-1">
                           <Image size={20} style={{ color: 'var(--border)' }} />
@@ -143,6 +160,24 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index })
                   </div>
                 )
               })}
+
+              {/* Upload button in editMode */}
+              {editMode && (
+                <div className="space-y-1">
+                  <label className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group"
+                    style={{ borderColor: 'var(--accent)', background: 'var(--accent-light)' }}
+                    title={`Subir foto a ${cat.title}`}>
+                    <Plus size={20} style={{ color: 'var(--accent)' }} className="group-hover:scale-110 transition-transform" />
+                    <span className="text-[9px] font-medium mt-1" style={{ color: 'var(--accent)' }}>Agregar</span>
+                    <input type="file" accept="image/*" capture="environment" className="hidden"
+                      onChange={e => {
+                        const f = e.target.files?.[0]
+                        if (f) onPhotoUpload?.(f, cat.id)
+                        e.target.value = ''
+                      }} />
+                  </label>
+                </div>
+              )}
 
               {/* Slots vacíos hasta completar mínimo */}
               {Array.from({ length: Math.max(0, minPhotos - photos.length) }).map((_, i) => (
@@ -172,7 +207,7 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index })
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function AdditionalPhotoDetail({ submission, assets, editMode = false, pendingEdits = {}, onFieldChange }) {
+export default function AdditionalPhotoDetail({ submission, assets, editMode = false, pendingEdits = {}, onFieldChange, onPhotoUpload, onPhotoDelete }) {
   const raw     = submission?.payload?.payload?.data || submission?.payload?.data || {}
   const notes   = raw.notes || ''
   const photos  = raw.photos || {}
@@ -298,6 +333,8 @@ export default function AdditionalPhotoDetail({ submission, assets, editMode = f
             pendingEdits={pendingEdits}
             onChange={onFieldChange}
             index={i}
+            onPhotoUpload={onPhotoUpload}
+            onPhotoDelete={onPhotoDelete}
           />
         )
       })}
