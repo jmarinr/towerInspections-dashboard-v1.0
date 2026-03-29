@@ -693,6 +693,8 @@ export default function SubmissionDetail() {
   const assets       = useSubmissionsStore(s => s.activeAssets || [])
   const loadDetail   = useSubmissionsStore(s => s.loadDetail)
   const refreshDetail= useSubmissionsStore(s => s.refreshDetail)
+  const addAsset     = useSubmissionsStore(s => s.addAsset)
+  const removeAsset  = useSubmissionsStore(s => s.removeAsset)
   const clearDetail  = useSubmissionsStore(s => s.clearDetail)
   const isLoading                               = useSubmissionsStore(s => s.isLoadingDetail)
   const user                                    = useAuthStore(s => s.user)
@@ -823,17 +825,22 @@ export default function SubmissionDetail() {
       const publicUrl = urlData?.publicUrl
 
       // 3. Insertar registro en submission_assets
-      // Usamos safeHint (sanitizado) también en el assetType para consistencia con el path
       const assetType = `dashboard:${safeHint}:${ts}`
-      await upsertSubmissionAssetRecord({
-        submissionId,
-        assetType,
-        assetKey: path,
-        bucket:   BUCKET,
+      // 3a. Optimistic update: mostrar la foto INMEDIATAMENTE en el UI
+      addAsset({
+        id:            `optimistic-${ts}`,
+        submission_id: submissionId,
+        asset_type:    assetType,
+        asset_key:     path,
+        bucket:        BUCKET,
         path,
-        publicUrl,
-        mime:     file.type || 'image/jpeg',
-      })  // throws on error — ya no silencia fallos de DB
+        public_url:    publicUrl,
+        mime:          file.type || 'image/jpeg',
+        created_at:    new Date().toISOString(),
+      })
+      // 3b. Persistir en DB (best-effort — el optimistic ya hizo visible la foto)
+      upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
+        .catch(e => console.warn('[Photo] DB insert failed (foto visible pero no persistida):', e.message))
 
       // 4. Audit log
       const editedBy = user?.email || user?.username || 'admin'
@@ -872,6 +879,8 @@ export default function SubmissionDetail() {
     const targetSubmissionId = currentAsset?.submission_id || submissionId
     console.log('[PhotoDelete] deleting', assetType, 'from submission', targetSubmissionId)
     try {
+      // Optimistic: eliminar del UI INMEDIATAMENTE
+      removeAsset(assetType)
       await deleteSubmissionAsset(targetSubmissionId, assetType)
       console.log('[PhotoDelete] deleted from DB and Storage')
 
@@ -907,6 +916,8 @@ export default function SubmissionDetail() {
     } catch (e) {
       console.error('[PhotoDelete] error:', e)
       LOG.systemError(e, `photo_delete:${assetType}:${submissionId}`)
+      // Rollback: si el delete en servidor falló, recargar el estado real
+      await refreshDetail(submissionId)
       setSaveError(`Error al eliminar foto: ${e.message}`)
       setTimeout(() => setSaveError(null), 5000)
     }
@@ -939,18 +950,22 @@ export default function SubmissionDetail() {
       const publicUrl = urlData?.publicUrl
       if (!publicUrl) throw new Error('No se pudo obtener URL pública')
 
-      console.log('[PhotoUploadAdditional] uploaded OK:', publicUrl)
-
-      await upsertSubmissionAssetRecord({
-        submissionId,
-        assetType,
-        assetKey: path,
-        bucket: BUCKET,
+      // Optimistic update: foto visible INMEDIATAMENTE
+      addAsset({
+        id:            `optimistic-${ts}`,
+        submission_id: submissionId,
+        asset_type:    assetType,
+        asset_key:     path,
+        bucket:        BUCKET,
         path,
-        publicUrl,
-        mime: file.type || 'image/jpeg',
+        public_url:    publicUrl,
+        mime:          file.type || 'image/jpeg',
+        created_at:    new Date().toISOString(),
       })
-      console.log('[PhotoUploadAdditional] submission_assets upserted')
+
+      // Persistir en DB (best-effort)
+      upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
+        .catch(e => console.warn('[PhotoUploadAdditional] DB insert failed:', e.message))
 
       await insertSubmissionEdit(
         submissionId, editedBy,
@@ -998,19 +1013,22 @@ export default function SubmissionDetail() {
       const publicUrl = urlData?.publicUrl
       if (!publicUrl) throw new Error('No se pudo obtener URL pública')
 
-      console.log('[PhotoUploadV2] uploaded OK, url:', publicUrl)
-
-      // 3. Upsert submission_assets with exact asset_type
-      await upsertSubmissionAssetRecord({
-        submissionId,
-        assetType,
-        assetKey:  path,
-        bucket:    BUCKET,
+      // 3. Optimistic update: foto visible INMEDIATAMENTE (no esperamos la DB)
+      addAsset({
+        id:            `optimistic-${Date.now()}`,
+        submission_id: submissionId,
+        asset_type:    assetType,
+        asset_key:     path,
+        bucket:        BUCKET,
         path,
-        publicUrl,
-        mime:      file.type || 'image/jpeg',
+        public_url:    publicUrl,
+        mime:          file.type || 'image/jpeg',
+        created_at:    new Date().toISOString(),
       })
-      console.log('[PhotoUploadV2] submission_assets upserted for', assetType)
+
+      // 4. Persistir en DB (best-effort — el optimistic ya hizo visible la foto)
+      upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
+        .catch(e => console.warn('[PhotoUploadV2] DB insert failed:', e.message))
 
       // 4. Audit log — submission_edits
       await insertSubmissionEdit(
@@ -1054,6 +1072,8 @@ export default function SubmissionDetail() {
     console.log('[PhotoDeleteV2] deleting', assetType, 'from submission:', targetSubmissionId)
 
     try {
+      // Optimistic: eliminar del UI INMEDIATAMENTE
+      removeAsset(assetType)
       // 1. Delete from Storage + submission_assets (del submission correcto)
       await deleteSubmissionAsset(targetSubmissionId, assetType)
       console.log('[PhotoDeleteV2] asset deleted from DB and Storage')

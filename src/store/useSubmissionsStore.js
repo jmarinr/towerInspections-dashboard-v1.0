@@ -120,6 +120,16 @@ export const useSubmissionsStore = create((set, get) => ({
     }
   },
 
+  /** Agrega un asset optimistamente al estado local (antes de que el servidor confirme). */
+  addAsset: (asset) => set(s => ({
+    activeAssets: [...(s.activeAssets || []), asset],
+  })),
+
+  /** Elimina un asset optimistamente del estado local por asset_type. */
+  removeAsset: (assetType) => set(s => ({
+    activeAssets: (s.activeAssets || []).filter(a => a.asset_type !== assetType),
+  })),
+
   clearDetail: () => set({ activeSubmission: null, activeAssets: [] }),
 
   // ── Stats ─────────────────────────────────────────────────────────────────
