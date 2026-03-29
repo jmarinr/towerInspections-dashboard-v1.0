@@ -827,6 +827,14 @@ export function groupAssetsBySection(assets, formCode) {
         label = labelize(type)
       }
 
+    // ── Fotos subidas desde el panel Admin (dashboard:sectionHint:ts) ──
+    // Mapear al título de sección más cercano del payload
+    } else if (parts[0] === 'dashboard') {
+      // parts[1] es el safeHint (sección sanitizada), usarlo como título approx.
+      const hint = (parts[1] || '').replace(/_/g, ' ').trim()
+      sectionTitle = hint ? `📷 ${hint}` : '📷 Fotos del panel'
+      label = `Foto (panel admin)`
+
     // ── Genérico ──
     } else {
       label = parts.slice(1).join(' · ') || type

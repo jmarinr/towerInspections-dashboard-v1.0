@@ -822,20 +822,18 @@ export default function SubmissionDetail() {
         .getPublicUrl(path)
       const publicUrl = urlData?.publicUrl
 
-      // 3. Insertar registro en submission_assets con schema correcto
-      const assetType = `dashboard:${sectionHint || 'foto'}:${ts}`
-      const { error: dbErr } = await supabase
-        .from('submission_assets')
-        .insert({
-          submission_id: submissionId,
-          asset_key:     path,
-          asset_type:    assetType,
-          bucket:        BUCKET,
-          path:          path,
-          public_url:    publicUrl,
-          mime:          file.type || 'image/jpeg',
-        })
-      if (dbErr) console.warn('[Photo] submission_assets insert failed:', dbErr.message)
+      // 3. Insertar registro en submission_assets
+      // Usamos safeHint (sanitizado) también en el assetType para consistencia con el path
+      const assetType = `dashboard:${safeHint}:${ts}`
+      await upsertSubmissionAssetRecord({
+        submissionId,
+        assetType,
+        assetKey: path,
+        bucket:   BUCKET,
+        path,
+        publicUrl,
+        mime:     file.type || 'image/jpeg',
+      })  // throws on error — ya no silencia fallos de DB
 
       // 4. Audit log
       const editedBy = user?.email || user?.username || 'admin'

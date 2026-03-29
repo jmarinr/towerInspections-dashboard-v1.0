@@ -94,22 +94,21 @@ export async function fetchSubmissionAssets(submissionId) {
 export async function fetchSubmissionWithAssets(id) {
   const submission = await fetchSubmissionById(id)
 
-  // 1) Direct assets
+  // 1) Assets directos del submission principal
   let assets = await fetchSubmissionAssets(id)
 
-  // 2) If none found, search sibling submissions (same device, any form code variant)
-  if (assets.length === 0 && submission) {
+  // 2) Buscar assets en submissions hermanos (mismo device + form code variant)
+  //    Se COMBINAN con los del main — no son excluyentes.
+  //    Esto cubre el caso donde el inspector guardó bajo un form_code diferente
+  //    (ej: 'mantenimiento' vs 'preventive-maintenance') y el dashboard sube al main.
+  if (submission) {
     try {
       const { org_code, device_id, form_code } = submission
       if (org_code && device_id && form_code) {
-        // Get all form code variants (Spanish + English)
-        // using static import
         const siblingCodes = getFormCodeSiblings(form_code)
         const allCodes = [form_code, ...siblingCodes]
-
-        // Find sibling submissions — SAME site_visit_id AND same device and form code variant
-        // Filtering by site_visit_id prevents showing photos from other orders
         const siteVisitId = submission.site_visit_id
+
         let siblingQuery = supabase
           .from('submissions')
           .select('id')
@@ -118,7 +117,6 @@ export async function fetchSubmissionWithAssets(id) {
           .in('form_code', allCodes)
           .neq('id', id)
 
-        // Only restrict to same visit if we have a valid site_visit_id
         if (siteVisitId) {
           siblingQuery = siblingQuery.eq('site_visit_id', siteVisitId)
         }
@@ -132,7 +130,12 @@ export async function fetchSubmissionWithAssets(id) {
             .in('submission_id', siblings.map(s => s.id))
             .order('created_at', { ascending: true })
 
-          if (siblingAssets?.length) assets = siblingAssets
+          if (siblingAssets?.length) {
+            // Combinar: main assets tienen prioridad sobre sibling para el mismo asset_type
+            const mainAssetTypes = new Set(assets.map(a => a.asset_type))
+            const newSiblingAssets = siblingAssets.filter(a => !mainAssetTypes.has(a.asset_type))
+            assets = [...assets, ...newSiblingAssets]
+          }
         }
       }
     } catch (e) {
@@ -647,28 +650,51 @@ export async function insertSubmissionEdit(submissionId, editedBy, changes, note
  */
 
 /**
- * Upsert a photo asset for a submission.
- * Uses (submission_id, asset_type) as the conflict key.
- * This matches how the inspector app saves photos — same asset_type = same slot.
+ * Inserta o actualiza un asset de foto en submission_assets.
+ * Estrategia: intenta INSERT primero. Si hay conflicto en (submission_id, asset_type),
+ * hace UPDATE. Así evitamos depender de un UNIQUE CONSTRAINT específico que puede
+ * no existir en todas las instancias de la DB.
  */
 export async function upsertSubmissionAssetRecord({
   submissionId, assetType, assetKey, bucket, path, publicUrl, mime,
 }) {
-  const { error } = await q(
-    supabase.from('submission_assets').upsert(
-      {
-        submission_id: submissionId,
-        asset_type:    assetType,
-        asset_key:     assetKey || path,
-        bucket:        bucket || 'pti-inspect',
-        path,
-        public_url:    publicUrl,
-        mime:          mime || 'image/jpeg',
-      },
-      { onConflict: 'submission_id,asset_type' }
-    )
+  const payload = {
+    submission_id: submissionId,
+    asset_type:    assetType,
+    asset_key:     assetKey || path,
+    bucket:        bucket || 'pti-inspect',
+    path,
+    public_url:    publicUrl,
+    mime:          mime || 'image/jpeg',
+  }
+
+  // 1. Intentar INSERT directo
+  const { error: insertErr } = await q(
+    supabase.from('submission_assets').insert(payload)
   )
-  if (error) throw error
+
+  if (!insertErr) return  // éxito
+
+  // 2. Si falló por duplicado (23505 = unique_violation en Postgres), hacer UPDATE
+  if (insertErr.code === '23505' || insertErr.message?.includes('duplicate') || insertErr.message?.includes('unique')) {
+    const { error: updateErr } = await q(
+      supabase.from('submission_assets')
+        .update({
+          asset_key:  assetKey || path,
+          path,
+          public_url: publicUrl,
+          mime:       mime || 'image/jpeg',
+          bucket:     bucket || 'pti-inspect',
+        })
+        .eq('submission_id', submissionId)
+        .eq('asset_type', assetType)
+    )
+    if (updateErr) throw new Error(`Error actualizando asset: ${updateErr.message}`)
+    return
+  }
+
+  // 3. Cualquier otro error → lanzar
+  throw new Error(`Error insertando asset: ${insertErr.message}`)
 }
 
 /**
