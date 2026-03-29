@@ -339,14 +339,13 @@ function PhotoGrid({ photos, showEmpty = false, editMode = false, onUpload, onDe
                     <span className="text-[9px]" style={{ color:'var(--text-muted)' }}>Sin foto</span>
                   </div>}
 
-              {/* Edit mode overlay */}
+              {/* Edit mode controls — always visible on mobile/touch */}
               {editMode && (
-                <div className="absolute inset-0 flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ background:'rgba(0,0,0,0.5)' }}>
-                  {/* Upload button */}
-                  <label className="w-8 h-8 rounded-lg flex items-center justify-center cursor-pointer transition-all"
+                <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 py-1.5"
+                  style={{ background:'rgba(0,0,0,0.55)' }}>
+                  <label className="w-7 h-7 rounded-lg flex items-center justify-center cursor-pointer"
                     style={{ background:'white' }} title={url ? 'Reemplazar foto' : 'Subir foto'}>
-                    <Upload size={14} style={{ color:'#0284C7' }} />
+                    <Upload size={13} style={{ color:'#0284C7' }} />
                     <input type="file" accept="image/*" capture="environment" className="hidden"
                       onChange={e => {
                         const f = e.target.files?.[0]
@@ -354,16 +353,15 @@ function PhotoGrid({ photos, showEmpty = false, editMode = false, onUpload, onDe
                         e.target.value = ''
                       }} />
                   </label>
-                  {/* Delete button — only if photo exists */}
                   {url && (
-                    <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                    <button className="w-7 h-7 rounded-lg flex items-center justify-center"
                       style={{ background:'white' }} title="Eliminar foto"
                       onClick={() => {
                         if (window.confirm(`¿Eliminar foto "${label}"? Esta acción no se puede deshacer.`)) {
                           onDelete?.(assetType)
                         }
                       }}>
-                      <Trash2 size={14} style={{ color:'#EF4444' }} />
+                      <Trash2 size={13} style={{ color:'#EF4444' }} />
                     </button>
                   )}
                 </div>

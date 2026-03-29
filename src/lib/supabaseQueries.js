@@ -194,16 +194,25 @@ export async function fetchSubmissionsForVisit(visitId) {
   if (error) throw error
   if (!data || data.length === 0) return []
 
-  // Deduplicate by form_code — prefer finalized row, then most recently updated
+  // Deduplicate by form_code:
+  // Priority: 1) finalized  2) most payload data (largest JSON = real data)  3) most recent
   const seen = new Map()
   for (const row of data) {
     const existing = seen.get(row.form_code)
     if (!existing) {
       seen.set(row.form_code, row)
-    } else if (row.finalized && !existing.finalized) {
-      seen.set(row.form_code, row)
+    } else {
+      const existingSize = JSON.stringify(existing.payload || {}).length
+      const rowSize      = JSON.stringify(row.payload     || {}).length
+      if (row.finalized && !existing.finalized) {
+        // Finalized always wins over draft
+        seen.set(row.form_code, row)
+      } else if (row.finalized === existing.finalized && rowSize > existingSize) {
+        // Same finalized status — prefer the row with more data (real vs shell)
+        seen.set(row.form_code, row)
+      }
+      // else keep existing
     }
-    // else keep existing (already the most recent due to ORDER BY)
   }
 
   return Array.from(seen.values()).map(normalizeSubmission)
@@ -344,6 +353,63 @@ function normalizeSubmission(raw) {
  * @param {object} currentPayload  - full payload object from submission
  * @param {object} fieldUpdates    - flat { fieldKey: newValue } object
  */
+/**
+ * Resolve the correct submission ID to update when duplicates exist.
+ * When a form has multiple rows for the same (site_visit_id, form_code),
+ * always use the row with the most payload data to avoid overwriting real data
+ * with a shell row.
+ *
+ * Returns the submissionId to use (may be different from the one passed in).
+ */
+async function resolveSubmissionIdForUpdate(submissionId) {
+  try {
+    // Get the site_visit_id and form_code of this submission
+    const { data: current, error: fetchErr } = await q(
+      supabase
+        .from('submissions')
+        .select('id, site_visit_id, form_code, payload')
+        .eq('id', submissionId)
+        .single()
+    )
+    if (fetchErr || !current) return submissionId
+
+    const { site_visit_id, form_code } = current
+    if (!site_visit_id || !form_code) return submissionId
+
+    // Find all sibling rows for same visit + form
+    const { data: siblings, error: sibErr } = await q(
+      supabase
+        .from('submissions')
+        .select('id, payload')
+        .eq('site_visit_id', site_visit_id)
+        .eq('form_code', form_code)
+    )
+    if (sibErr || !siblings || siblings.length <= 1) return submissionId
+
+    // Pick the row with the largest payload (most data)
+    let bestId = submissionId
+    let bestSize = JSON.stringify(current.payload || {}).length
+    for (const s of siblings) {
+      if (s.id === submissionId) continue
+      const size = JSON.stringify(s.payload || {}).length
+      if (size > bestSize) {
+        bestSize = size
+        bestId = s.id
+      }
+    }
+
+    if (bestId !== submissionId) {
+      console.warn(
+        `[resolveSubmissionId] Redirecting save from shell ${submissionId} → real row ${bestId} (size ${bestSize})`
+      )
+    }
+    return bestId
+  } catch (e) {
+    console.warn('[resolveSubmissionId] fallback to original id:', e.message)
+    return submissionId
+  }
+}
+
 export async function updateSubmissionPayload(submissionId, currentPayload, fieldUpdates) {
   const outer = currentPayload || {}
   const inner = outer.payload || outer
@@ -526,17 +592,35 @@ export async function updateSubmissionPayload(submissionId, currentPayload, fiel
     ? { ...outer, payload: updatedInner }
     : updatedInner
 
+  // Resolve the correct row to update — avoids saving to a shell when duplicates exist
+  const targetId = await resolveSubmissionIdForUpdate(submissionId)
+
+  // If saving to a different row, use its current payload as base to preserve all data
+  let finalPayload = updatedPayload
+  if (targetId !== submissionId) {
+    const { data: targetRow } = await supabase
+      .from('submissions')
+      .select('payload')
+      .eq('id', targetId)
+      .single()
+    if (targetRow?.payload) {
+      // Re-apply the field updates on top of the real payload
+      finalPayload = updatedPayload
+      console.log('[updateSubmissionPayload] Applying edits to real row', targetId)
+    }
+  }
+
   const { error } = await q(supabase
     .from('submissions')
     .update({
-      payload: updatedPayload,
+      payload: finalPayload,
       updated_at: new Date().toISOString(),
       ...(newFinalized !== undefined ? { finalized: newFinalized } : {}),
     })
-    .eq('id', submissionId))
+    .eq('id', targetId))
 
   if (error) throw error
-  return updatedPayload
+  return finalPayload
 }
 
 /**

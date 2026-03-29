@@ -129,7 +129,7 @@ function PhotoGallery({ photos, editMode = false, onUpload, onDelete }) {
                     onDelete?.(p.asset_type, p.id)
                   }
                 }}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full flex items-center justify-center z-10"
                 style={{ background: '#EF4444', border: '1.5px solid white' }}>
                 <X size={8} color="white" />
               </button>
