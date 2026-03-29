@@ -4,7 +4,7 @@
  * Soporta modo lectura y modo edición (notas solamente — las fotos se manejan vía upload)
  */
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Camera, CheckCircle2, Clock, Image, Upload, Trash2, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Camera, CheckCircle2, Clock, Image, Trash2, Plus, Loader2 } from 'lucide-react'
 import { PHOTO_CATEGORIES } from '../../data/additionalPhotoConfig'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -15,7 +15,7 @@ const inpCls = (changed) =>
      : 'border-[var(--border)] th-bg-base focus:border-sky-500'}`
 
 // ── Panel colapsable ──────────────────────────────────────────────────────────
-function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index, onPhotoUpload, onPhotoDelete }) {
+function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index, onPhotoUpload, onPhotoDelete, isUploading = false }) {
   const [open, setOpen] = useState(index < 3) // primeras 3 abiertas por default
 
   const captured  = photos.filter(p => p?.public_url).length
@@ -164,12 +164,19 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index, o
               {/* Upload button in editMode */}
               {editMode && (
                 <div className="space-y-1">
-                  <label className="aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all group"
+                  <label
+                    className={`aspect-square rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all
+                      ${isUploading ? 'cursor-wait opacity-60' : 'cursor-pointer group hover:opacity-90'}`}
                     style={{ borderColor: 'var(--accent)', background: 'var(--accent-light)' }}
-                    title={`Subir foto a ${cat.title}`}>
-                    <Plus size={20} style={{ color: 'var(--accent)' }} className="group-hover:scale-110 transition-transform" />
-                    <span className="text-[9px] font-medium mt-1" style={{ color: 'var(--accent)' }}>Agregar</span>
-                    <input type="file" accept="image/*" className="hidden"
+                    title={isUploading ? 'Subiendo…' : `Subir foto a ${cat.title}`}>
+                    {isUploading
+                      ? <Loader2 size={20} style={{ color: 'var(--accent)' }} className="animate-spin" />
+                      : <>
+                          <Plus size={20} style={{ color: 'var(--accent)' }} className="group-hover:scale-110 transition-transform" />
+                          <span className="text-[9px] font-medium mt-1" style={{ color: 'var(--accent)' }}>Agregar</span>
+                        </>
+                    }
+                    <input type="file" accept="image/*" disabled={isUploading} className="hidden"
                       onChange={e => {
                         const f = e.target.files?.[0]
                         if (f) onPhotoUpload?.(f, cat.id)
@@ -207,7 +214,7 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index, o
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function AdditionalPhotoDetail({ submission, assets, editMode = false, pendingEdits = {}, onFieldChange, onPhotoUpload, onPhotoDelete }) {
+export default function AdditionalPhotoDetail({ submission, assets, editMode = false, pendingEdits = {}, onFieldChange, onPhotoUpload, onPhotoDelete, isUploading = false }) {
   const raw     = submission?.payload?.payload?.data || submission?.payload?.data || {}
   const notes   = raw.notes || ''
   const photos  = raw.photos || {}
@@ -335,6 +342,7 @@ export default function AdditionalPhotoDetail({ submission, assets, editMode = f
             index={i}
             onPhotoUpload={onPhotoUpload}
             onPhotoDelete={onPhotoDelete}
+            isUploading={isUploading}
           />
         )
       })}

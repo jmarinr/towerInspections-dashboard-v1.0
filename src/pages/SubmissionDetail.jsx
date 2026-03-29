@@ -4,6 +4,7 @@ import {
   ArrowLeft, Download, ExternalLink, X, ChevronDown, ChevronRight,
   Camera, MapPin, Calendar, User2, CheckCircle2, AlertTriangle, XCircle,
   Minus, Clock, Eye, Pencil, Save, RotateCcw, History, ShieldCheck, Upload, RefreshCw,
+  Loader2,
 } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
@@ -102,9 +103,30 @@ function StatusBadge({ value }) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// UPLOAD TOAST  — fixed bottom-right feedback
+// ─────────────────────────────────────────────────────────────
+function UploadToast({ status }) {
+  // status: null | 'uploading' | 'success' | 'error'
+  if (!status) return null
+  const cfg = {
+    uploading: { bg: '#1e40af', icon: <Loader2 size={14} className="animate-spin" />, text: 'Subiendo foto…' },
+    success:   { bg: '#15803d', icon: <CheckCircle2 size={14} />,                      text: 'Foto subida exitosamente' },
+    error:     { bg: '#b91c1c', icon: <XCircle size={14} />,                            text: 'Error al subir foto' },
+  }[status]
+
+  return (
+    <div className="fixed bottom-6 right-4 z-[80] flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-elevated text-white text-[13px] font-medium"
+      style={{ background: cfg.bg, minWidth: 220, transition: 'all .2s' }}>
+      {cfg.icon}
+      {cfg.text}
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────
 // PHOTO GALLERY  (with optional upload button)
 // ─────────────────────────────────────────────────────────────
-function PhotoGallery({ photos, editMode = false, onUpload, onDelete }) {
+function PhotoGallery({ photos, editMode = false, onUpload, onDelete, isUploading = false }) {
   const [zoom, setZoom] = useState(null)
   if (!photos?.length && !editMode) return null
   return (
@@ -137,10 +159,20 @@ function PhotoGallery({ photos, editMode = false, onUpload, onDelete }) {
           </div>
         ))}
         {editMode && (
-          <label className="w-14 h-14 rounded-lg border-2 border-dashed border-accent/40 hover:border-accent bg-accent/5 flex flex-col items-center justify-center cursor-pointer transition-all group" title="Subir foto">
-            <Upload size={13} className="text-accent/50 group-hover:text-accent transition-colors" />
-            <span className="text-[9px] text-accent/50 group-hover:text-accent mt-0.5 transition-colors">Subir</span>
-            <input type="file" accept="image/*" className="hidden"
+          <label
+            className={`w-14 h-14 rounded-lg border-2 border-dashed flex flex-col items-center justify-center transition-all
+              ${isUploading
+                ? 'border-accent/40 bg-accent/5 cursor-wait opacity-70'
+                : 'border-accent/40 hover:border-accent bg-accent/5 cursor-pointer group'}`}
+            title={isUploading ? 'Subiendo…' : 'Subir foto'}>
+            {isUploading
+              ? <Loader2 size={13} className="animate-spin text-accent" />
+              : <>
+                  <Upload size={13} className="text-accent/50 group-hover:text-accent transition-colors" />
+                  <span className="text-[9px] text-accent/50 group-hover:text-accent mt-0.5 transition-colors">Subir</span>
+                </>
+            }
+            <input type="file" accept="image/*" disabled={isUploading} className="hidden"
               onChange={e => e.target.files[0] && onUpload?.(e.target.files[0])} />
           </label>
         )}
@@ -292,7 +324,7 @@ function ChecklistItemEditable({ item, pendingEdits, onChange }) {
 // ─────────────────────────────────────────────────────────────
 const READONLY_SECTIONS_SET = new Set(['👤 Enviado por', '📍 Inicio de inspección'])
 
-function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload, onPhotoDelete, allowUpload = false }) {
+function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFieldChange, onPhotoUpload, onPhotoDelete, allowUpload = false, isUploading = false }) {
   const [open, setOpen] = useState(true)
 
   const isSectionReadonly = READONLY_SECTIONS_SET.has(title)
@@ -451,7 +483,7 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
           {(photoCount > 0 || (editMode && allowUpload)) && (
             <div className={(isNewFormat || isCL || legacyEntries.length > 0) ? 'mt-3 pt-3' : 'mt-3'}
               style={(isNewFormat || isCL || legacyEntries.length > 0) ? { borderTop: '1px solid var(--border-light)' } : {}}>
-              <PhotoGallery photos={photos} editMode={editMode && allowUpload} onUpload={onPhotoUpload} onDelete={onPhotoDelete} />
+              <PhotoGallery photos={photos} editMode={editMode && allowUpload} onUpload={onPhotoUpload} onDelete={onPhotoDelete} isUploading={isUploading} />
             </div>
           )}
         </div>
@@ -668,6 +700,7 @@ export default function SubmissionDetail() {
   const [pdfLoading,    setPdfLoading]    = useState(false)
   const [photosLoading, setPhotosLoading] = useState(false)
   const [timedOut,      setTimedOut]      = useState(false)
+  const [uploadStatus,  setUploadStatus]  = useState(null) // null | 'uploading' | 'success' | 'error'
 
   // Edit state
   const [editMode,      setEditMode]      = useState(false)
@@ -768,6 +801,7 @@ export default function SubmissionDetail() {
   // ── Photo upload from dashboard ─────────────────────────────
   const handlePhotoUpload = useCallback(async (file, sectionHint) => {
     if (!file || !submission) return
+    setUploadStatus('uploading')
     try {
       const ext  = getExt(file)
       const ts   = Date.now()
@@ -818,11 +852,14 @@ export default function SubmissionDetail() {
       // 6. Reload para mostrar la foto nueva
       setTimedOut(false)  // evita que timer expirado bloquee el re-render
       await refreshDetail(submissionId)
+      setUploadStatus('success')
+      setTimeout(() => setUploadStatus(null), 2500)
 
     } catch (e) {
       console.error('Photo upload error:', e)
+      setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
-      setTimeout(() => setSaveError(null), 4000)
+      setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 4000)
     }
   }, [submission, submissionId, user])
 
@@ -880,6 +917,7 @@ export default function SubmissionDetail() {
     if (!file || !submission || !submissionId || !acronym) return
     const editedBy = user?.email || user?.username || 'admin'
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+    setUploadStatus('uploading')
     try {
       const ext  = getExt(file)
       const BUCKET = 'pti-inspect'
@@ -921,14 +959,16 @@ export default function SubmissionDetail() {
       ).catch(e => console.warn('[Audit]', e.message))
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_adicional:${acronym}`])
-      console.log('[PhotoUploadAdditional] audit logged, reloading')
       setTimedOut(false)  // evita que timer expirado bloquee el re-render
       await refreshDetail(submissionId)
+      setUploadStatus('success')
+      setTimeout(() => setUploadStatus(null), 2500)
     } catch (e) {
       console.error('[PhotoUploadAdditional] error:', e)
       LOG.systemError(e, `photo_upload_additional:${acronym}:${submissionId}`)
+      setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
-      setTimeout(() => setSaveError(null), 5000)
+      setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 5000)
     }
   }, [submission, submissionId, user])
 
@@ -937,6 +977,7 @@ export default function SubmissionDetail() {
     if (!file || !submission || !submissionId) return
     const editedBy = user?.email || user?.username || 'admin'
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+    setUploadStatus('uploading')
     try {
       const ext  = getExt(file)
       const BUCKET = 'pti-inspect'
@@ -987,12 +1028,15 @@ export default function SubmissionDetail() {
       // 6. Reload to show new photo
       setTimedOut(false)  // evita que timer expirado bloquee el re-render
       await refreshDetail(submissionId)
+      setUploadStatus('success')
+      setTimeout(() => setUploadStatus(null), 2500)
 
     } catch (e) {
       console.error('[PhotoUploadV2] error:', e)
       LOG.systemError(e, `photo_upload_v2:${assetType}:${submissionId}`)
+      setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
-      setTimeout(() => setSaveError(null), 5000)
+      setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 5000)
     }
   }, [submission, submissionId, user])
 
@@ -1316,6 +1360,9 @@ export default function SubmissionDetail() {
 
   return (
     <>
+      {/* Upload status toast */}
+      <UploadToast status={uploadStatus} />
+
       {/* Save modal */}
       {showModal && (
         <SaveEditModal
@@ -1497,7 +1544,8 @@ export default function SubmissionDetail() {
             <AdditionalPhotoDetail submission={submission} assets={assets}
               editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange}
               onPhotoUpload={handlePhotoUploadAdditional}
-              onPhotoDelete={handlePhotoDelete} />
+              onPhotoDelete={handlePhotoDelete}
+              isUploading={uploadStatus === 'uploading'} />
           </div>
         ) : (
           <>
@@ -1511,6 +1559,7 @@ export default function SubmissionDetail() {
                 onPhotoUpload={(file) => handlePhotoUpload(file, t)}
                 onPhotoDelete={(assetType) => handlePhotoDelete(assetType)}
                 allowUpload={sectionAllowsUpload(t)}
+                isUploading={uploadStatus === 'uploading'}
               />
             ))}
 
@@ -1532,7 +1581,8 @@ export default function SubmissionDetail() {
             </div>
             <PhotoGallery photos={unmatched} editMode={editMode}
               onUpload={(file) => handlePhotoUpload(file, 'otras')}
-              onDelete={(assetType) => handlePhotoDelete(assetType)} />
+              onDelete={(assetType) => handlePhotoDelete(assetType)}
+              isUploading={uploadStatus === 'uploading'} />
           </div>
         )}
 
