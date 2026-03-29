@@ -137,7 +137,13 @@ function PhotoGallery({ photos, editMode = false, onUpload }) {
             <button onClick={() => setZoom(null)} className="absolute -top-10 right-0 text-white/60 hover:text-white transition-colors">
               <X size={22}/>
             </button>
-            <img src={zoom.public_url} alt={zoom.label} className="w-full rounded-xl shadow-elevated" />
+            <img src={zoom.public_url} alt={zoom.label} className="w-full rounded-xl shadow-elevated"
+              onError={e => {
+                e.currentTarget.style.display = 'none'
+                const p = e.currentTarget.parentElement
+                if (p) p.insertAdjacentHTML('beforeend',
+                  '<div class="flex flex-col items-center justify-center gap-2 py-16 text-white/60"><span>Foto no disponible</span></div>')
+              }} />
             {zoom.label && <div className="text-center mt-2 text-white/80 text-[13px]">{zoom.label}</div>}
             <a href={zoom.public_url} target="_blank" rel="noopener noreferrer"
               className="mt-1 flex items-center justify-center gap-1 text-white/40 hover:text-white text-xs transition-colors">

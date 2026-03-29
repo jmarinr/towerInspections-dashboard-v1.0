@@ -117,7 +117,14 @@ function CategoryPanel({ cat, photos, editMode, pendingEdits, onChange, index })
                       {url ? (
                         <a href={url} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
                           <img src={url} alt={subLabel}
-                            className="w-full h-full object-cover hover:opacity-90 transition-opacity" />
+                            className="w-full h-full object-cover hover:opacity-90 transition-opacity"
+                            onError={e => {
+                              e.currentTarget.style.display = 'none'
+                              const container = e.currentTarget.closest('a')?.parentElement
+                              if (container) {
+                                container.innerHTML = '<div class="flex flex-col items-center gap-1 h-full justify-center"><span style="color:var(--text-muted);font-size:9px">No disponible</span></div>'
+                              }
+                            }} />
                         </a>
                       ) : (
                         <div className="flex flex-col items-center gap-1">
@@ -278,7 +285,9 @@ export default function AdditionalPhotoDetail({ submission, assets, editMode = f
       {PHOTO_CATEGORIES.map((cat, i) => {
         const catAssets = assetMap[cat.id] || []
         // Mezclar assets de Supabase con los del payload (base64 del inspector)
-        const fromData  = (photos[cat.id] || []).map(url => url ? { public_url: url } : null)
+        // Filter out placeholder values — only use real URLs (http/https)
+        const fromData  = (photos[cat.id] || [])
+          .map(url => (url && typeof url === 'string' && url.startsWith('http')) ? { public_url: url } : null)
         const merged    = catAssets.length > 0 ? catAssets : fromData.filter(Boolean)
         return (
           <CategoryPanel
