@@ -106,17 +106,16 @@ function StatusBadge({ value }) {
 // UPLOAD TOAST  — fixed bottom-right feedback
 // ─────────────────────────────────────────────────────────────
 function UploadToast({ status }) {
-  // status: null | 'uploading' | 'success' | 'error'
   if (!status) return null
   const cfg = {
-    uploading: { bg: '#1e40af', icon: <Loader2 size={14} className="animate-spin" />, text: 'Subiendo foto…' },
-    success:   { bg: '#15803d', icon: <CheckCircle2 size={14} />,                      text: 'Foto subida exitosamente' },
-    error:     { bg: '#b91c1c', icon: <XCircle size={14} />,                            text: 'Error al subir foto' },
+    uploading: { bg: '#1e40af', icon: <Loader2 size={15} className="animate-spin flex-shrink-0" />, text: 'Subiendo foto…' },
+    success:   { bg: '#15803d', icon: <CheckCircle2 size={15} className="flex-shrink-0" />,          text: '✓ Foto guardada correctamente' },
+    error:     { bg: '#b91c1c', icon: <XCircle size={15} className="flex-shrink-0" />,                text: 'Error al subir foto' },
   }[status]
 
   return (
-    <div className="fixed bottom-6 right-4 z-[80] flex items-center gap-2.5 px-4 py-2.5 rounded-xl shadow-elevated text-white text-[13px] font-medium"
-      style={{ background: cfg.bg, minWidth: 220, transition: 'all .2s' }}>
+    <div className="fixed bottom-6 right-4 z-[80] flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-elevated text-white text-[13px] font-semibold"
+      style={{ background: cfg.bg, minWidth: 240, maxWidth: 320, transition: 'all .2s', boxShadow: '0 4px 24px rgba(0,0,0,0.25)' }}>
       {cfg.icon}
       {cfg.text}
     </div>
@@ -858,7 +857,7 @@ export default function SubmissionDetail() {
       // (que aún no tiene la foto si la DB la rechazó por RLS).
       setTimedOut(false)
       setUploadStatus('success')
-      setTimeout(() => setUploadStatus(null), 2500)
+      setTimeout(() => setUploadStatus(null), 4000)
 
     } catch (e) {
       console.error('Photo upload error:', e)
@@ -979,7 +978,7 @@ export default function SubmissionDetail() {
       // NO refreshDetail — mantener estado optimista
       setTimedOut(false)
       setUploadStatus('success')
-      setTimeout(() => setUploadStatus(null), 2500)
+      setTimeout(() => setUploadStatus(null), 4000)
     } catch (e) {
       console.error('[PhotoUploadAdditional] error:', e)
       removeAsset(`photos:${acronym?.toUpperCase()}:`)
@@ -1048,7 +1047,7 @@ export default function SubmissionDetail() {
       // el addAsset() con el estado del servidor que puede no tener la foto aún por RLS)
       setTimedOut(false)
       setUploadStatus('success')
-      setTimeout(() => setUploadStatus(null), 2500)
+      setTimeout(() => setUploadStatus(null), 4000)
 
     } catch (e) {
       console.error('[PhotoUploadV2] error:', e)
@@ -1282,11 +1281,20 @@ export default function SubmissionDetail() {
   }
 
   // Photo matching
+  // Normaliza un string para comparación: quita emojis, tildes y pone en minúsculas
+  const normalizeTitle = (s) =>
+    String(s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '') // quitar diacríticos (á→a, é→e, etc.)
+      .replace(/[^\w\s]/g, '')          // quitar emojis y símbolos
+      .trim()
+      .toLowerCase()
+
   const findPhotos = (title) => {
     if (photosBySection[title]) return photosBySection[title]
-    const c = title.replace(/^[^\w]*/, '').trim().toLowerCase()
+    const c = normalizeTitle(title)
     for (const [k, p] of Object.entries(photosBySection)) {
-      const kc = k.replace(/^[^\w]*/, '').trim().toLowerCase()
+      const kc = normalizeTitle(k)
       if (kc.includes(c) || c.includes(kc)) return p
     }
     return null
