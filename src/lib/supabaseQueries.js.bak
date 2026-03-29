@@ -107,23 +107,14 @@ export async function fetchSubmissionWithAssets(id) {
         const siblingCodes = getFormCodeSiblings(form_code)
         const allCodes = [form_code, ...siblingCodes]
 
-        // Find sibling submissions — SAME site_visit_id AND same device and form code variant
-        // Filtering by site_visit_id prevents showing photos from other orders
-        const siteVisitId = submission.site_visit_id
-        let siblingQuery = supabase
+        // Find all submissions with same device and any code variant
+        const { data: siblings } = await supabase
           .from('submissions')
           .select('id')
           .eq('org_code', org_code)
           .eq('device_id', device_id)
           .in('form_code', allCodes)
           .neq('id', id)
-
-        // Only restrict to same visit if we have a valid site_visit_id
-        if (siteVisitId) {
-          siblingQuery = siblingQuery.eq('site_visit_id', siteVisitId)
-        }
-
-        const { data: siblings } = await siblingQuery
 
         if (siblings?.length) {
           const { data: siblingAssets } = await supabase
@@ -192,21 +183,7 @@ export async function fetchSubmissionsForVisit(visitId) {
     .order('updated_at', { ascending: false })
 
   if (error) throw error
-  if (!data || data.length === 0) return []
-
-  // Deduplicate by form_code — prefer finalized row, then most recently updated
-  const seen = new Map()
-  for (const row of data) {
-    const existing = seen.get(row.form_code)
-    if (!existing) {
-      seen.set(row.form_code, row)
-    } else if (row.finalized && !existing.finalized) {
-      seen.set(row.form_code, row)
-    }
-    // else keep existing (already the most recent due to ORDER BY)
-  }
-
-  return Array.from(seen.values()).map(normalizeSubmission)
+  return (data || []).map(normalizeSubmission)
 }
 
 /**
@@ -225,14 +202,11 @@ export async function fetchSubmissionsWithAssetsForVisit(visitId) {
           const siblingCodes = getFormCodeSiblings(sub.form_code)
           const allCodes = [sub.form_code, ...siblingCodes]
 
-          // Only look for siblings within the SAME order (site_visit_id)
-          // to avoid showing photos from other orders
           const { data: siblings } = await supabase
             .from('submissions')
             .select('id')
             .eq('org_code', sub.org_code)
             .eq('device_id', sub.device_id)
-            .eq('site_visit_id', visitId)
             .in('form_code', allCodes)
             .neq('id', sub.id)
 

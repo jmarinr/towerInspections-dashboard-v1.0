@@ -703,27 +703,30 @@ export default function SubmissionDetail() {
       const path = `${submission.org_code || 'PTI'}/${submissionId}/dashboard_${sectionHint || 'foto'}_${ts}.${ext}`
 
       // 1. Subir al Storage
+      const BUCKET = 'pti-inspect'
       const { error: storageErr } = await supabase.storage
-        .from('inspection-assets')
+        .from(BUCKET)
         .upload(path, file, { upsert: true, contentType: file.type })
       if (storageErr) throw storageErr
 
       // 2. Obtener URL pública
       const { data: urlData } = supabase.storage
-        .from('inspection-assets')
+        .from(BUCKET)
         .getPublicUrl(path)
       const publicUrl = urlData?.publicUrl
 
-      // 3. Insertar registro en submission_assets
+      // 3. Insertar registro en submission_assets con schema correcto
       const assetType = `dashboard:${sectionHint || 'foto'}:${ts}`
       const { error: dbErr } = await supabase
         .from('submission_assets')
         .insert({
           submission_id: submissionId,
+          asset_key:     path,
           asset_type:    assetType,
-          storage_path:  path,
+          bucket:        BUCKET,
+          path:          path,
           public_url:    publicUrl,
-          uploaded_by:   user?.email || user?.username || 'admin',
+          mime:          file.type || 'image/jpeg',
         })
       if (dbErr) console.warn('[Photo] submission_assets insert failed:', dbErr.message)
 
