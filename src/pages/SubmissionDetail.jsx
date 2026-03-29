@@ -660,6 +660,7 @@ export default function SubmissionDetail() {
   const submission   = useSubmissionsStore(s => s.activeSubmission)
   const assets       = useSubmissionsStore(s => s.activeAssets || [])
   const loadDetail   = useSubmissionsStore(s => s.loadDetail)
+  const refreshDetail= useSubmissionsStore(s => s.refreshDetail)
   const clearDetail  = useSubmissionsStore(s => s.clearDetail)
   const isLoading                               = useSubmissionsStore(s => s.isLoadingDetail)
   const user                                    = useAuthStore(s => s.user)
@@ -815,7 +816,8 @@ export default function SubmissionDetail() {
         editedBy, [`foto:${sectionHint}`])
 
       // 6. Reload para mostrar la foto nueva
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
 
     } catch (e) {
       console.error('Photo upload error:', e)
@@ -863,7 +865,8 @@ export default function SubmissionDetail() {
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
       console.log('[PhotoDelete] audit logged, reloading')
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
     } catch (e) {
       console.error('[PhotoDelete] error:', e)
       LOG.systemError(e, `photo_delete:${assetType}:${submissionId}`)
@@ -919,7 +922,8 @@ export default function SubmissionDetail() {
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_adicional:${acronym}`])
       console.log('[PhotoUploadAdditional] audit logged, reloading')
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
     } catch (e) {
       console.error('[PhotoUploadAdditional] error:', e)
       LOG.systemError(e, `photo_upload_additional:${acronym}:${submissionId}`)
@@ -981,7 +985,8 @@ export default function SubmissionDetail() {
       console.log('[PhotoUploadV2] all logs written, reloading detail')
 
       // 6. Reload to show new photo
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
 
     } catch (e) {
       console.error('[PhotoUploadV2] error:', e)
@@ -1022,7 +1027,8 @@ export default function SubmissionDetail() {
       console.log('[PhotoDeleteV2] all logs written, reloading detail')
 
       // 4. Reload
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
 
     } catch (e) {
       console.error('[PhotoDeleteV2] error:', e)
@@ -1047,7 +1053,8 @@ export default function SubmissionDetail() {
         },
       }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a Borrador desde el panel')
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
     } catch (e) {
       console.error(e)
     } finally {
@@ -1082,7 +1089,8 @@ export default function SubmissionDetail() {
         editedBy,
         Object.keys(changes)
       )
-      await loadDetail(submissionId)
+      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+      await refreshDetail(submissionId)
 
       setShowModal(false); setEditMode(false); setPendingEdits({})
       setSaveSuccess(true)

@@ -100,7 +100,23 @@ export const useSubmissionsStore = create((set, get) => ({
       const { submission, assets } = await fetchSubmissionWithAssets(id)
       set({ activeSubmission: submission, activeAssets: assets, isLoadingDetail: false })
     } catch (err) {
+      console.error('[loadDetail] error:', err?.message)
       set({ isLoadingDetail: false, error: err?.message || 'Error al cargar detalle' })
+    }
+  },
+
+  /**
+   * Refresca el detalle activo SIN limpiar activeSubmission/activeAssets.
+   * Usar después de subir/eliminar fotos para evitar el "flash" de pantalla vacía
+   * que ocurre cuando loadDetail setea activeSubmission: null al inicio.
+   */
+  refreshDetail: async (id) => {
+    try {
+      const { submission, assets } = await fetchSubmissionWithAssets(id)
+      set({ activeSubmission: submission, activeAssets: assets })
+    } catch (err) {
+      console.error('[refreshDetail] error:', err?.message)
+      // No limpiar activeSubmission en error — mantener datos actuales visibles
     }
   },
 
