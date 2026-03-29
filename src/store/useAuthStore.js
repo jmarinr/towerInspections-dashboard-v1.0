@@ -50,23 +50,11 @@ export const useAuthStore = create((set, get) => ({
   // ── Cargar perfil desde app_users ────────────────────────────────────
   _loadProfile: async (authId, isRealLogin = false) => {
     try {
-      // Try auth_user_id first (correct column), fall back to id for legacy users
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('app_users')
         .select('id, email, full_name, role, company_id, active, companies(name, org_code)')
         .eq('id', authId)
-        .maybeSingle()
-
-      if (!data && !error) {
-        // Try auth_user_id (newer schema)
-        const res2 = await supabase
-          .from('app_users')
-          .select('id, email, full_name, role, company_id, active, companies(name, org_code)')
-          .eq('id', authId)
-          .single()
-        data = res2.data
-        error = res2.error
-      }
+        .single()
 
       if (error) {
         // PGRST116 = 0 rows → usuario no existe en app_users → logout
