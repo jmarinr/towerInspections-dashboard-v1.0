@@ -799,33 +799,51 @@ export default function SubmissionDetail() {
     setShowModal(true)
   }
 
-  // ── Photo upload from dashboard ─────────────────────────────
-  const handlePhotoUpload = useCallback(async (file, sectionHint) => {
+  // ─────────────────────────────────────────────────────────────
+  // PHOTO UPLOAD — handler universal para todos los formularios
+  // ─────────────────────────────────────────────────────────────
+  // `assetTypeOrHint` puede ser:
+  //   • Un asset_type EXACTO con ':' (ej: 'equipmentV2:fotoTorre', 'carrier:0:foto1')
+  //     → usado por EquipmentV2Detail que conoce el slot exacto
+  //   • Un hint de sección sin ':' (ej: '🗼 Información de la Torre')
+  //     → usado por SectionCard; genera 'dashboard:safeHint:ts'
+  const handlePhotoUpload = useCallback(async (file, assetTypeOrHint) => {
     if (!file || !submission) return
     setUploadStatus('uploading')
+
+    const ts      = Date.now()
+    const ext     = getExt(file)
+    const BUCKET  = 'pti-inspect'
+    const orgPath = `${submission.org_code || 'PTI'}/${submissionId}`
+
+    // Determinar assetType y path según si es tipo exacto o hint de sección
+    const isExactType = String(assetTypeOrHint || '').includes(':')
+    let assetType, path
+
+    if (isExactType) {
+      // Tipo exacto (equipment-v2, carrier, etc.) — preservar el slot original
+      assetType = assetTypeOrHint
+      const safeName = sanitizePath(assetType.replace(/:/g, '_'))
+      path = `${orgPath}/${safeName}.${ext}`
+    } else {
+      // Hint de sección (SectionCard) — crear slot nuevo con timestamp único
+      const safeHint = sanitizePath(assetTypeOrHint || 'foto')
+      assetType = `dashboard:${safeHint}:${ts}`
+      path      = `${orgPath}/dashboard_${safeHint}_${ts}.${ext}`
+    }
+
     try {
-      const ext  = getExt(file)
-      const ts   = Date.now()
-      // sanitizePath elimina emojis, tildes, espacios y caracteres inválidos para Storage
-      const safeHint = sanitizePath(sectionHint || 'foto')
-      const path = `${submission.org_code || 'PTI'}/${submissionId}/dashboard_${safeHint}_${ts}.${ext}`
-
-      // 1. Subir al Storage
-      const BUCKET = 'pti-inspect'
+      // 1. Storage
       const { error: storageErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file, { upsert: true, contentType: file.type })
-      if (storageErr) throw storageErr
+        .from(BUCKET).upload(path, file, { upsert: true, contentType: file.type })
+      if (storageErr) throw new Error(`Storage: ${storageErr.message}`)
 
-      // 2. Obtener URL pública
-      const { data: urlData } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(path)
+      // 2. URL pública
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
       const publicUrl = urlData?.publicUrl
+      if (!publicUrl) throw new Error('No se pudo obtener URL pública')
 
-      // 3. Insertar registro en submission_assets
-      const assetType = `dashboard:${safeHint}:${ts}`
-      // 3a. Optimistic update: mostrar la foto INMEDIATAMENTE en el UI
+      // 3. Optimistic: foto visible INMEDIATAMENTE
       addAsset({
         id:            `optimistic-${ts}`,
         submission_id: submissionId,
@@ -837,121 +855,102 @@ export default function SubmissionDetail() {
         mime:          file.type || 'image/jpeg',
         created_at:    new Date().toISOString(),
       })
-      // 3b. Persistir en DB (best-effort — el optimistic ya hizo visible la foto)
-      upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
-        .catch(e => console.warn('[Photo] DB insert failed (foto visible pero no persistida):', e.message))
 
-      // 4. Audit log
+      // 4. Persistir en DB (best-effort — el optimistic ya mostró la foto)
+      upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
+        .catch(e => console.warn('[Photo] DB persist failed:', e.message))
+
+      // 5. Audit log
       const editedBy = user?.email || user?.username || 'admin'
       insertSubmissionEdit(submissionId, editedBy,
-        { __photo__: { from: '—', to: path, label: `Foto subida (${sectionHint || 'general'})` } },
+        { [assetType]: { from: '—', to: publicUrl, label: `Foto subida: ${assetType}` } },
         `Foto subida desde panel: ${file.name}`)
         .catch(e => console.warn('[Audit]', e.message))
 
-      LOG.submissionEdited(submissionId,
-        extractSiteInfo(submission)?.nombreSitio || submissionId,
-        editedBy, [`foto:${sectionHint}`])
+      LOG.submissionEdited(submissionId, extractSiteInfo(submission)?.nombreSitio || submissionId, editedBy, [`foto:${assetType}`])
 
-      // El optimistic update ya hizo visible la foto — NO llamar refreshDetail
-      // porque sobrescribiría el estado optimista con el estado del servidor
-      // (que aún no tiene la foto si la DB la rechazó por RLS).
       setTimedOut(false)
       setUploadStatus('success')
       setTimeout(() => setUploadStatus(null), 4000)
 
     } catch (e) {
-      console.error('Photo upload error:', e)
-      // Revertir optimistic en caso de error de Storage
-      removeAsset(`dashboard:${sanitizePath(sectionHint || 'foto')}:`)
+      console.error('[Photo] upload error:', e)
+      removeAsset(assetType)
       setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
       setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 4000)
     }
   }, [submission, submissionId, user])
 
-  // ── Photo delete for standard forms (SectionCard-based) ──
+  // ─────────────────────────────────────────────────────────────
+  // PHOTO DELETE — handler universal para todos los formularios
+  // ─────────────────────────────────────────────────────────────
   const handlePhotoDelete = useCallback(async (assetType) => {
     if (!submissionId || !assetType) return
-    const editedBy = user?.email || user?.username || 'admin'
-    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
-    const currentAsset = assets?.find(a => a.asset_type === assetType)
-    const prevUrl = currentAsset?.public_url || '—'
-    // Usar el submission_id REAL del asset — puede ser un sibling, no necesariamente el main
-    const targetSubmissionId = currentAsset?.submission_id || submissionId
-    console.log('[PhotoDelete] deleting', assetType, 'from submission', targetSubmissionId)
-    try {
-      // Optimistic: eliminar del UI INMEDIATAMENTE
-      removeAsset(assetType)
-      await deleteSubmissionAsset(targetSubmissionId, assetType)
-      console.log('[PhotoDelete] deleted from DB and Storage')
+    const editedBy      = user?.email || user?.username || 'admin'
+    const siteName      = extractSiteInfo(submission)?.nombreSitio || submissionId
+    const currentAsset  = assets?.find(a => a.asset_type === assetType)
+    const prevUrl       = currentAsset?.public_url || '—'
+    // Usar el submission_id REAL del asset — puede estar en un sibling submission
+    const targetSubId   = currentAsset?.submission_id || submissionId
 
-      // For additional-photo-report: also clear the entry in payload photos array
-      const fc = normalizeFormCode(submission?.form_code || '')
-      if (fc === 'additional-photo-report' && assetType) {
-        // asset_type = photos:ACC:0  or legacy SITE_ACC_DATE_(1)
+    try {
+      // Optimistic: quitar del UI INMEDIATAMENTE
+      removeAsset(assetType)
+      await deleteSubmissionAsset(targetSubId, assetType)
+
+      // Para additional-photo-report: limpiar también el payload
+      if (normalizeFormCode(submission?.form_code || '') === 'additional-photo-report') {
         const parts = assetType.split(':')
         if (parts[0] === 'photos' && parts[1] && parts[2] !== undefined) {
-          const acronym = parts[1]
-          const idx = parseInt(parts[2])
-          const inner = submission.payload?.payload || submission.payload || {}
-          const data  = inner?.data || {}
-          const photos = data?.photos || {}
-          const arr = [...(photos[acronym] || [])]
-          arr[idx] = null
-          // Update payload to reflect removal
           await updateSubmissionPayload(submissionId, submission.payload, {})
-            .catch(() => {}) // best-effort — DB row already deleted
+            .catch(() => {})
         }
       }
 
-      await insertSubmissionEdit(
-        submissionId, editedBy,
+      insertSubmissionEdit(submissionId, editedBy,
         { [assetType]: { from: prevUrl, to: '—', label: `Foto eliminada: ${assetType}` } },
-        `Foto eliminada desde panel admin: ${assetType}`
-      ).catch(e => console.warn('[Audit]', e.message))
+        `Foto eliminada desde panel admin: ${assetType}`)
+        .catch(e => console.warn('[Audit]', e.message))
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
-      // El optimistic removeAsset() ya quitó la foto del UI — NO llamar refreshDetail
-      // para evitar que el servidor la restaure si hay lag de replicación.
       setTimedOut(false)
+
     } catch (e) {
-      console.error('[PhotoDelete] error:', e)
-      LOG.systemError(e, `photo_delete:${assetType}:${submissionId}`)
-      // Rollback: el delete falló en servidor → recargar estado real para restaurar la foto
+      console.error('[Photo] delete error:', e)
+      // Rollback: el delete falló → restaurar estado real desde servidor
       await refreshDetail(submissionId)
       setSaveError(`Error al eliminar foto: ${e.message}`)
       setTimeout(() => setSaveError(null), 5000)
     }
   }, [submission, submissionId, user, assets])
 
-  // ── Photo upload for additional-photo-report ────────────────
+  // ─────────────────────────────────────────────────────────────
+  // PHOTO UPLOAD — additional-photo-report (particularidades propias)
+  // ─────────────────────────────────────────────────────────────
+  // Formato especial: assetType = 'photos:ACRONYM:ts' (timestamp como idx)
+  // Path de Storage usa '_' en lugar de ':' para evitar StorageApiError
   const handlePhotoUploadAdditional = useCallback(async (file, acronym) => {
     if (!file || !submission || !submissionId || !acronym) return
     const editedBy = user?.email || user?.username || 'admin'
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
     setUploadStatus('uploading')
     try {
-      const ext  = getExt(file)
+      const ext    = getExt(file)
       const BUCKET = 'pti-inspect'
-      const ts = Date.now()
-      // asset_type compatible con el parser de groupAssetsBySection: photos:{ACRONYM}:{idx}
-      // Los ':' son VÁLIDOS en la columna asset_type de la DB, pero INVÁLIDOS en Storage paths.
+      const ts     = Date.now()
       const assetType = `photos:${acronym.toUpperCase()}:${ts}`
-      // Para el path de Storage usamos '_' en lugar de ':' para evitar StorageApiError.
-      const safeName = `photos_${acronym.toUpperCase()}_${ts}`
-      const path = `${submission.org_code || 'PTI'}/${submissionId}/additional/${safeName}.${ext}`
-
-      console.log('[PhotoUploadAdditional] uploading', assetType, 'path:', path)
+      const safeName  = `photos_${acronym.toUpperCase()}_${ts}`
+      const path      = `${submission.org_code || 'PTI'}/${submissionId}/additional/${safeName}.${ext}`
 
       const { error: storageErr } = await supabase.storage
         .from(BUCKET).upload(path, file, { upsert: true, contentType: file.type })
-      if (storageErr) throw new Error(`Storage error: ${storageErr.message}`)
+      if (storageErr) throw new Error(`Storage: ${storageErr.message}`)
 
       const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
       const publicUrl = urlData?.publicUrl
       if (!publicUrl) throw new Error('No se pudo obtener URL pública')
 
-      // Optimistic update: foto visible INMEDIATAMENTE
       addAsset({
         id:            `optimistic-${ts}`,
         submission_id: submissionId,
@@ -964,143 +963,27 @@ export default function SubmissionDetail() {
         created_at:    new Date().toISOString(),
       })
 
-      // Persistir en DB (best-effort)
       upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
-        .catch(e => console.warn('[PhotoUploadAdditional] DB insert failed:', e.message))
+        .catch(e => console.warn('[PhotoAdditional] DB persist failed:', e.message))
 
-      await insertSubmissionEdit(
-        submissionId, editedBy,
+      insertSubmissionEdit(submissionId, editedBy,
         { [assetType]: { from: '—', to: publicUrl, label: `Foto subida: ${acronym}` } },
-        `Foto subida desde panel admin en categoría ${acronym} (${file.name})`
-      ).catch(e => console.warn('[Audit]', e.message))
+        `Foto subida desde panel en categoría ${acronym} (${file.name})`)
+        .catch(e => console.warn('[Audit]', e.message))
 
       LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_adicional:${acronym}`])
-      // NO refreshDetail — mantener estado optimista
       setTimedOut(false)
       setUploadStatus('success')
       setTimeout(() => setUploadStatus(null), 4000)
+
     } catch (e) {
-      console.error('[PhotoUploadAdditional] error:', e)
+      console.error('[PhotoAdditional] upload error:', e)
       removeAsset(`photos:${acronym?.toUpperCase()}:`)
-      LOG.systemError(e, `photo_upload_additional:${acronym}:${submissionId}`)
       setUploadStatus('error')
       setSaveError(`Error al subir foto: ${e.message}`)
-      setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 5000)
+      setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 4000)
     }
   }, [submission, submissionId, user])
-
-  // ── Photo upload for equipment-v2 (asset_type-aware) ──────
-  const handlePhotoUploadV2 = useCallback(async (file, assetType) => {
-    if (!file || !submission || !submissionId) return
-    const editedBy = user?.email || user?.username || 'admin'
-    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
-    setUploadStatus('uploading')
-    try {
-      const ext  = getExt(file)
-      const BUCKET = 'pti-inspect'
-      // Sanitizar assetType para el path de Storage (puede contener ':' u otros chars inválidos)
-      const safeName = sanitizePath(assetType.replace(/:/g, '_'))
-      const path = `${submission.org_code || 'PTI'}/${submissionId}/${safeName}.${ext}`
-
-      console.log('[PhotoUploadV2] uploading', assetType, 'path:', path)
-
-      // 1. Upload to Storage
-      const { error: storageErr } = await supabase.storage
-        .from(BUCKET)
-        .upload(path, file, { upsert: true, contentType: file.type })
-      if (storageErr) throw new Error(`Storage error: ${storageErr.message}`)
-
-      // 2. Get public URL
-      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(path)
-      const publicUrl = urlData?.publicUrl
-      if (!publicUrl) throw new Error('No se pudo obtener URL pública')
-
-      // 3. Optimistic update: foto visible INMEDIATAMENTE (no esperamos la DB)
-      addAsset({
-        id:            `optimistic-${Date.now()}`,
-        submission_id: submissionId,
-        asset_type:    assetType,
-        asset_key:     path,
-        bucket:        BUCKET,
-        path,
-        public_url:    publicUrl,
-        mime:          file.type || 'image/jpeg',
-        created_at:    new Date().toISOString(),
-      })
-
-      // 4. Persistir en DB (best-effort — el optimistic ya hizo visible la foto)
-      upsertSubmissionAssetRecord({ submissionId, assetType, assetKey: path, bucket: BUCKET, path, publicUrl, mime: file.type || 'image/jpeg' })
-        .catch(e => console.warn('[PhotoUploadV2] DB insert failed:', e.message))
-
-      // 4. Audit log — submission_edits
-      await insertSubmissionEdit(
-        submissionId,
-        editedBy,
-        { [assetType]: { from: '—', to: publicUrl, label: `Foto subida: ${assetType}` } },
-        `Foto subida desde panel admin: ${assetType} (${file.name})`
-      ).catch(e => console.warn('[Audit] submission_edits insert failed:', e.message))
-
-      // 5. System log
-      LOG.submissionEdited(submissionId, siteName, editedBy, [`foto:${assetType}`])
-
-      // NO refreshDetail — mantener estado optimista (refreshDetail sobrescribiría
-      // el addAsset() con el estado del servidor que puede no tener la foto aún por RLS)
-      setTimedOut(false)
-      setUploadStatus('success')
-      setTimeout(() => setUploadStatus(null), 4000)
-
-    } catch (e) {
-      console.error('[PhotoUploadV2] error:', e)
-      removeAsset(assetType)
-      LOG.systemError(e, `photo_upload_v2:${assetType}:${submissionId}`)
-      setUploadStatus('error')
-      setSaveError(`Error al subir foto: ${e.message}`)
-      setTimeout(() => { setUploadStatus(null); setSaveError(null) }, 5000)
-    }
-  }, [submission, submissionId, user])
-
-  // ── Photo delete for equipment-v2 ──────────────────────────
-  const handlePhotoDeleteV2 = useCallback(async (assetType) => {
-    if (!submissionId || !assetType) return
-    const editedBy = user?.email || user?.username || 'admin'
-    const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
-
-    // Usar el submission_id REAL del asset — puede ser un sibling, no el main
-    const currentAsset = assets?.find(a => a.asset_type === assetType)
-    const prevUrl = currentAsset?.public_url || '—'
-    const targetSubmissionId = currentAsset?.submission_id || submissionId
-
-    console.log('[PhotoDeleteV2] deleting', assetType, 'from submission:', targetSubmissionId)
-
-    try {
-      // Optimistic: eliminar del UI INMEDIATAMENTE
-      removeAsset(assetType)
-      // 1. Delete from Storage + submission_assets (del submission correcto)
-      await deleteSubmissionAsset(targetSubmissionId, assetType)
-      console.log('[PhotoDeleteV2] asset deleted from DB and Storage')
-
-      // 2. Audit log — submission_edits
-      await insertSubmissionEdit(
-        submissionId,
-        editedBy,
-        { [assetType]: { from: prevUrl, to: '—', label: `Foto eliminada: ${assetType}` } },
-        `Foto eliminada desde panel admin: ${assetType}`
-      ).catch(e => console.warn('[Audit] submission_edits insert failed:', e.message))
-
-      // 3. System log
-      LOG.submissionEdited(submissionId, siteName, editedBy, [`foto_eliminada:${assetType}`])
-      // El optimistic removeAsset() ya quitó la foto — NO llamar refreshDetail
-      setTimedOut(false)
-
-    } catch (e) {
-      console.error('[PhotoDeleteV2] error:', e)
-      LOG.systemError(e, `photo_delete_v2:${assetType}:${submissionId}`)
-      // Rollback: delete falló → restaurar la foto desde el servidor
-      await refreshDetail(submissionId)
-      setSaveError(`Error al eliminar foto: ${e.message}`)
-      setTimeout(() => setSaveError(null), 5000)
-    }
-  }, [submission, submissionId, user, assets])
 
   // ── Finalized toggle ────────────────────────────────────────
   const handleFinalizedToggle = async () => {
@@ -1565,8 +1448,8 @@ export default function SubmissionDetail() {
           <div className="px-0">
             <EquipmentV2Detail submission={submission} assets={assets}
               editMode={editMode} pendingEdits={pendingEdits} onFieldChange={handleFieldChange}
-              onPhotoUpload={handlePhotoUploadV2}
-              onPhotoDelete={handlePhotoDeleteV2} />
+              onPhotoUpload={handlePhotoUpload}
+              onPhotoDelete={handlePhotoDelete} />
           </div>
         ) : normalizeFormCode(submission.form_code) === 'additional-photo-report' ? (
           <div className="px-0">
