@@ -1168,25 +1168,36 @@ export default function SubmissionDetail() {
   const normalizeTitle = (s) =>
     String(s || '')
       .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '') // quitar diacríticos (á→a, é→e, etc.)
-      .replace(/[^\w\s]/g, '')          // quitar emojis y símbolos
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s]/g, '')
       .trim()
       .toLowerCase()
 
-  const findPhotos = (title) => {
-    if (photosBySection[title]) return photosBySection[title]
-    const c = normalizeTitle(title)
-    for (const [k, p] of Object.entries(photosBySection)) {
-      const kc = normalizeTitle(k)
-      if (kc.includes(c) || c.includes(kc)) return p
+  // Devuelve TODAS las claves de photosBySection que coinciden con el título dado
+  // (exact match + normalized match con tildes/emojis quitados)
+  const findMatchingKeys = (title) => {
+    const c    = normalizeTitle(title)
+    const keys = []
+    for (const k of Object.keys(photosBySection)) {
+      if (k === title || normalizeTitle(k) === c ||
+          normalizeTitle(k).includes(c) || c.includes(normalizeTitle(k))) {
+        keys.push(k)
+      }
     }
-    return null
+    return keys
   }
+
+  // Merge de todas las fotos de las secciones que coincidan
+  const findPhotos = (title) => {
+    const keys   = findMatchingKeys(title)
+    const photos = keys.flatMap(k => photosBySection[k] || [])
+    return photos.length > 0 ? photos : null
+  }
+
   const matched = new Set()
   const entries = Object.entries(cleanPayload)
   for (const [t] of entries) {
-    const p = findPhotos(t)
-    if (p) for (const [k, v] of Object.entries(photosBySection)) { if (v === p) matched.add(k) }
+    findMatchingKeys(t).forEach(k => matched.add(k))
   }
   // Para additional-photo-report, AdditionalPhotoDetail maneja todas las fotos — no mostrar "Otras fotos"
   const unmatched     = fc === 'additional-photo-report'
