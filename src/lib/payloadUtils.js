@@ -679,6 +679,19 @@ export function groupAssetsBySection(assets, formCode) {
     let sectionTitle = '📷 Otras fotos'
     let label = type
 
+    // ── Fotos subidas desde el panel Admin ──────────────────────────
+    // Formato: dashboard:{sectionHint}:{ts}
+    // Se procesa PRIMERO, antes que cualquier lógica específica del formulario,
+    // para que el sectionTitle coincida con lo que findMatchingKeys puede normalizar.
+    if (parts[0] === 'dashboard') {
+      const hint = (parts[1] || '').replace(/_/g, ' ').trim()
+      sectionTitle = hint ? `📷 ${hint}` : '📷 Fotos del panel'
+      label = 'Foto (panel admin)'
+      if (!groups[sectionTitle]) groups[sectionTitle] = []
+      groups[sectionTitle].push({ ...asset, label })
+      continue  // saltar lógica específica del formulario
+    }
+
     // ── Mantenimiento Preventivo ──
     if (fc === 'mantenimiento' || fc === 'preventive-maintenance' || fc.includes('preventive-maintenance')) {
       // asset_type puede venir de dos formas:
@@ -826,14 +839,6 @@ export function groupAssetsBySection(assets, formCode) {
         sectionTitle = '📷 Fotos adicionales'
         label = labelize(type)
       }
-
-    // ── Fotos subidas desde el panel Admin (dashboard:sectionHint:ts) ──
-    // Mapear al título de sección más cercano del payload
-    } else if (parts[0] === 'dashboard') {
-      // parts[1] es el safeHint (sección sanitizada), usarlo como título approx.
-      const hint = (parts[1] || '').replace(/_/g, ' ').trim()
-      sectionTitle = hint ? `📷 ${hint}` : '📷 Fotos del panel'
-      label = `Foto (panel admin)`
 
     // ── Genérico ──
     } else {
