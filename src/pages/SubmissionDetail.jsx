@@ -111,7 +111,12 @@ function PhotoGallery({ photos, editMode = false, onUpload }) {
         {(photos || []).map(p => (
           <button key={p.id} onClick={() => setZoom(p)}
             className="w-14 h-14 rounded-lg overflow-hidden border-2 border-white shadow-card hover:shadow-elevated hover:scale-105 transition-all th-bg-base">
-            <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy" />
+            <img src={p.public_url} alt={p.label} className="w-full h-full object-cover" loading="lazy"
+              onError={e => {
+                e.currentTarget.style.display = 'none'
+                const ph = e.currentTarget.parentElement
+                if (ph) { ph.style.background = 'var(--bg-base)'; ph.title = 'Foto no disponible' }
+              }} />
           </button>
         ))}
         {editMode && (
@@ -901,13 +906,14 @@ export default function SubmissionDetail() {
       '🧗 tramos (escaleras)',
       '🧗 certificación',
     ],
-    // PM Ejecutado — todas las actividades tienen fotos antes/después
-    'executed-maintenance': null,
-    // Inventario v1
-    'equipment': null,
+    // PM Ejecutado — solo las secciones de actividades (🔧) tienen fotos
+    // Las secciones de meta (📍 Inicio, 📋 Datos del Sitio, 👤 Enviado por) no tienen fotos
+    'executed-maintenance': ['🔧'],
+    // Inventario v1 — fotos embebidas en payload, no por sección
+    'equipment': [],
     // equipment-v2 usa componente propio (EquipmentV2Detail), no pasa por SectionCard
     // additional-photo-report usa componente propio (AdditionalPhotoDetail)
-    'additional-photo-report': null,
+    'additional-photo-report': [],
   }
 
   const fc = normalizeFormCode(submission?.form_code || '')
@@ -915,13 +921,16 @@ export default function SubmissionDetail() {
 
   const sectionAllowsUpload = (title) => {
     if (allowedSections === null) return true   // todas las secciones
-    if (!allowedSections) {
-      // No mapeado — permitir solo si ya tiene fotos
-      return false
-    }
-    const t = title.replace(/^[^\w]*/, '').trim().toLowerCase()
-    return allowedSections.some(s => t.includes(s.replace(/^[^\w]*/, '').trim().toLowerCase()) ||
-                                     s.replace(/^[^\w]*/, '').trim().toLowerCase().includes(t))
+    if (!allowedSections) return false          // no mapeado — no permitir
+
+    return allowedSections.some(s => {
+      // Prefix match: e.g. '🔧' matches any section starting with that emoji
+      if (s.length <= 2 && title.startsWith(s)) return true
+      // Full string match (case-insensitive, stripping leading emoji/symbols)
+      const t  = title.replace(/^[^\w]*/, '').trim().toLowerCase()
+      const sc = s.replace(/^[^\w]*/, '').trim().toLowerCase()
+      return t.includes(sc) || sc.includes(t)
+    })
   }
 
   // Photo matching

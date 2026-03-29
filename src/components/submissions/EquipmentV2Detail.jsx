@@ -291,24 +291,43 @@ function InventoryTable({ items, accent = '#DC2626', editMode, pendingEdits, onC
 }
 
 // ── Photo grid ────────────────────────────────────────────────────────────────
-function PhotoGrid({ photos }) {
+function PhotoGrid({ photos, showEmpty = false }) {
   const real = photos.filter(([, url]) => url)
-  if (!real.length) return null
+  // showEmpty: show placeholder slots for missing photos
+  // Default: only show slots that have actual photos
+  const toRender = showEmpty ? photos : real
+  if (!toRender.length) return null
   return (
     <div className="mt-4">
       <div className="flex items-center gap-2 mb-3">
         <Camera size={11} style={{ color:'var(--text-muted)' }} />
         <span className="text-[9.5px] font-bold uppercase tracking-[0.08em]" style={{ color:'var(--text-muted)' }}>Registro fotográfico</span>
+        {real.length < photos.length && (
+          <span className="text-[9px] px-1.5 py-0.5 rounded-full ml-1"
+            style={{ background:'var(--bg-base)', color:'var(--text-muted)', border:'1px solid var(--border)' }}>
+            {real.length}/{photos.length} fotos
+          </span>
+        )}
       </div>
       <div className="grid grid-cols-3 gap-3">
-        {photos.map(([label, url], i) => (
+        {toRender.map(([label, url], i) => (
           <div key={i} className="space-y-1.5">
             <div className="text-[10px] font-medium truncate" style={{ color:'var(--text-muted)' }}>{label}</div>
             <div className="aspect-video rounded-xl overflow-hidden flex items-center justify-center"
               style={{ border:'1px solid var(--border)', background:'var(--bg-base)' }}>
               {url
-                ? <img src={url} alt={label} className="w-full h-full object-cover" />
-                : <Grid3x3 size={16} style={{ color:'var(--border)' }} />}
+                ? <img src={url} alt={label} className="w-full h-full object-cover"
+                    onError={e => { e.currentTarget.style.display='none'; e.currentTarget.nextSibling.style.display='flex' }} />
+                : null}
+              {url
+                ? <div style={{ display:'none' }} className="w-full h-full items-center justify-center flex-col gap-1">
+                    <Grid3x3 size={16} style={{ color:'var(--border)' }} />
+                    <span className="text-[9px]" style={{ color:'var(--text-muted)' }}>No disponible</span>
+                  </div>
+                : <div className="flex flex-col items-center justify-center gap-1">
+                    <Grid3x3 size={16} style={{ color:'var(--border)' }} />
+                    <span className="text-[9px]" style={{ color:'var(--text-muted)' }}>Sin foto</span>
+                  </div>}
             </div>
           </div>
         ))}
