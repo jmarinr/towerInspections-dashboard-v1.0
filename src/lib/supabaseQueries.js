@@ -651,70 +651,27 @@ export async function insertSubmissionEdit(submissionId, editedBy, changes, note
 
 /**
  * Inserta o actualiza un asset de foto en submission_assets.
- * Estrategia robusta para manejar assets en sibling submissions:
- *   1. Intenta INSERT en el submission principal
- *   2. Si falla por conflicto (23505/409): busca el row existente por asset_type
- *      (puede estar en un sibling con distinto submission_id) y hace UPDATE
- *   3. Si no existe en ningún lado: lanza el error
+ * Requiere UNIQUE CONSTRAINT en (submission_id, asset_type) —
+ * aplicar MIGRATION_fix_assets_rls.sql antes de usar esta versión.
  */
 export async function upsertSubmissionAssetRecord({
   submissionId, assetType, assetKey, bucket, path, publicUrl, mime,
 }) {
-  const payload = {
-    submission_id: submissionId,
-    asset_type:    assetType,
-    asset_key:     assetKey || path,
-    bucket:        bucket || 'pti-inspect',
-    path,
-    public_url:    publicUrl,
-    mime:          mime || 'image/jpeg',
-  }
-
-  // 1. Intentar INSERT directo en el submission principal
-  const { error: insertErr } = await q(
-    supabase.from('submission_assets').insert(payload)
-  )
-
-  if (!insertErr) return  // éxito
-
-  // 2. Si falló por duplicado, buscar el row existente por asset_type
-  //    (puede estar en main o en un sibling con distinto submission_id)
-  const isDuplicate = insertErr.code === '23505'
-    || insertErr.message?.includes('duplicate')
-    || insertErr.message?.includes('unique')
-    || String(insertErr.status || insertErr.code) === '409'
-    || String(insertErr.statusCode) === '409'
-
-  if (isDuplicate) {
-    // Buscar el row existente sin restricción de submission_id
-    const { data: existing } = await q(
-      supabase.from('submission_assets')
-        .select('id, submission_id')
-        .eq('asset_type', assetType)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
+  const { error } = await q(
+    supabase.from('submission_assets').upsert(
+      {
+        submission_id: submissionId,
+        asset_type:    assetType,
+        asset_key:     assetKey || path,
+        bucket:        bucket || 'pti-inspect',
+        path,
+        public_url:    publicUrl,
+        mime:          mime || 'image/jpeg',
+      },
+      { onConflict: 'submission_id,asset_type' }
     )
-
-    if (existing?.id) {
-      const { error: updateErr } = await q(
-        supabase.from('submission_assets')
-          .update({
-            asset_key:  assetKey || path,
-            path,
-            public_url: publicUrl,
-            mime:       mime || 'image/jpeg',
-            bucket:     bucket || 'pti-inspect',
-          })
-          .eq('id', existing.id)
-      )
-      if (updateErr) throw new Error(`Error actualizando asset: ${updateErr.message}`)
-      return
-    }
-  }
-
-  // 3. Error no relacionado con duplicados → lanzar
-  throw new Error(`Error insertando asset: ${insertErr.message}`)
+  )
+  if (error) throw new Error(`Error guardando asset: ${error.message}`)
 }
 
 /**
