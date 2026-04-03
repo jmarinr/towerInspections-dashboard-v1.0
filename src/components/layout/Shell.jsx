@@ -245,16 +245,17 @@ export default function Shell({ children }) {
 
   useEffect(() => { init() }, [])
 
-  // Polling cada 30s + refresh suave al volver al tab (sin reload de página)
+  // Polling cada 60s + refresh suave al volver al tab solo si datos están stale (>60s)
   useEffect(() => {
     const poll = () => useSubmissionsStore.getState().load(true)
-    const interval = setInterval(poll, 30000)
+    const interval = setInterval(poll, 60000)
 
     const handleVisibility = () => {
       if (document.visibilityState !== 'visible') return
-      // Soft refresh: recargar datos en background sin destruir la UI
-      // (antes hacía window.location.reload() que causaba el error de timeout)
-      poll()
+      // Solo refrescar si los datos tienen más de 60s — evita queries al cambiar de tab brevemente
+      const lastFetch = useSubmissionsStore.getState().lastFetch
+      const age = lastFetch ? Date.now() - lastFetch : Infinity
+      if (age > 60000) poll()
     }
 
     const handleOnline = () => poll()

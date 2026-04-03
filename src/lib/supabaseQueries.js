@@ -276,20 +276,21 @@ export async function fetchSubmissionsWithAssetsForVisit(visitId) {
  * Dashboard stats.
  */
 export async function fetchDashboardStats() {
-  // Fetch both tables in parallel
+  // Fetch solo columnas necesarias — sin payload JSON para evitar transferir MBs innecesarios
   const [subRes, visitRes] = await Promise.all([
-    supabase.from('submissions').select('*').order('updated_at', { ascending: false }),
-    supabase.from('site_visits').select('*').order('started_at', { ascending: false }).then(r => r).catch(() => ({ data: [], error: null })),
+    supabase.from('submissions')
+      .select('id, form_code, updated_at, finalized, org_code, created_at, device_id, site_visit_id, app_version')
+      .order('updated_at', { ascending: false }),
+    supabase.from('site_visits')
+      .select('id, status, started_at, order_number, site_name, inspector_name, inspector_username')
+      .order('started_at', { ascending: false })
+      .then(r => r).catch(() => ({ data: [], error: null })),
   ])
 
   if (subRes.error) throw subRes.error
-  const rows = (subRes.data || []).map(normalizeSubmission)
-    .filter(s => {
-      const p = s.payload || {}
-      const inner = p.payload || p
-      return inner.data || inner.meta || p._meta || p.form_code
-    })
-    .filter(s => isFormVisible(s.form_code))
+  // Con select parcial, normalizeSubmission no tiene payload — filtrar por form_code directamente
+  const rows = (subRes.data || [])
+    .filter(s => s.form_code && isFormVisible(s.form_code))
   const visits = visitRes.data || []
 
   // Normalize form codes for grouping
@@ -305,7 +306,7 @@ export async function fetchDashboardStats() {
   const now = Date.now()
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000
   const recentCount = rows.filter(r => new Date(r.updated_at).getTime() > weekAgo).length
-  const recent = rows.slice(0, 5)
+  const recent = rows.slice(0, 5).map(r => ({ ...r, site: { idSitio: r.id?.slice(0,8), nombreSitio: '' }, submittedBy: null }))
 
   // Visit stats
   const totalVisits = visits.length

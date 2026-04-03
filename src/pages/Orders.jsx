@@ -85,10 +85,6 @@ export default function Orders() {
     if (!authReady) return
     useOrdersStore.setState({ error: null }) // limpiar error previo antes de cargar
     load(true)
-    const t = setTimeout(() => {
-      if (useOrdersStore.getState().orders.length === 0 && !useOrdersStore.getState().error) load(true)
-    }, 3000)
-    return () => clearTimeout(t)
   }, [authReady])
   const filtered = useMemo(() => getFiltered(), [orders, filterStatus, search])
   const hasFilter = search || filterStatus !== 'all'

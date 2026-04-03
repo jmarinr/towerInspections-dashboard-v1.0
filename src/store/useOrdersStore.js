@@ -16,7 +16,9 @@ export const useOrdersStore = create((set, get) => ({
     const state = get()
     const isEmpty = state.orders.length === 0
     if (state.isLoading) return
-    if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
+    const age = state.lastFetch ? Date.now() - state.lastFetch : Infinity
+    if (!isEmpty && age < 5000) return
+    if (!force && !isEmpty && age < 10000) return
 
     const showSpinner = isEmpty
     set({ isLoading: showSpinner, loadingStartedAt: showSpinner ? Date.now() : null, error: null })

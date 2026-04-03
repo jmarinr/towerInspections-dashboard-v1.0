@@ -38,7 +38,11 @@ export const useSubmissionsStore = create((set, get) => ({
     const isEmpty = state.submissions.length === 0
     // Guard: no iniciar si ya hay una carga en curso
     if (state.isLoading) return
-    if (!force && !isEmpty && state.lastFetch && Date.now() - state.lastFetch < 10000) return
+    // Cache inteligente: incluso con force=true, respetar datos muy frescos (<5s)
+    // Previene queries duplicadas cuando múltiples componentes llaman load() al navegar
+    const age = state.lastFetch ? Date.now() - state.lastFetch : Infinity
+    if (!isEmpty && age < 5000) return
+    if (!force && !isEmpty && age < 10000) return
 
     // Solo mostrar spinner si no hay datos previos — si ya hay datos, refrescar silenciosamente
     const showSpinner = isEmpty
@@ -169,6 +173,44 @@ export const useSubmissionsStore = create((set, get) => ({
 
   loadStats: async () => {
     if (get().isLoadingStats) return
+
+    // Optimización: si ya tenemos submissions cargados (<5min), calcular stats localmente
+    // sin hacer una query adicional a la DB
+    const submissions = get().submissions
+    const lastFetch   = get().lastFetch
+    const statsAge    = get().stats?._ts ? Date.now() - get().stats._ts : Infinity
+    if (submissions.length > 0 && lastFetch && statsAge < 300000) return // stats frescas <5min
+
+    if (submissions.length > 0 && lastFetch && Date.now() - lastFetch < 60000) {
+      // Calcular stats desde los datos ya en memoria
+      const byFormCode = {}
+      const now = Date.now()
+      const weekAgo = now - 7 * 24 * 60 * 60 * 1000
+      let recentCount = 0
+      for (const s of submissions) {
+        const fc = s.form_code || 'unknown'
+        byFormCode[fc] = (byFormCode[fc] || 0) + 1
+        if (new Date(s.updated_at).getTime() > weekAgo) recentCount++
+      }
+      set({
+        stats: {
+          total: submissions.length,
+          byFormCode,
+          recentCount,
+          recent: submissions.slice(0, 5),
+          totalVisits: 0, openVisits: 0, closedVisits: 0, recentVisits: [],
+          _ts: Date.now(),
+          _fromCache: true,
+        },
+        isLoadingStats: false,
+      })
+      // Refrescar en background con datos reales para completar las stats de visitas
+      fetchDashboardStats()
+        .then(stats => set({ stats: { ...stats, _ts: Date.now() } }))
+        .catch(() => {})
+      return
+    }
+
     const hasStats = !!get().stats
     set({ isLoadingStats: !hasStats })
     const timeout = setTimeout(() => {
@@ -177,7 +219,7 @@ export const useSubmissionsStore = create((set, get) => ({
     try {
       const stats = await fetchDashboardStats()
       clearTimeout(timeout)
-      set({ stats, isLoadingStats: false })
+      set({ stats: { ...stats, _ts: Date.now() }, isLoadingStats: false })
     } catch (err) {
       clearTimeout(timeout)
       set({ isLoadingStats: false, error: err?.message || 'Error al cargar estadísticas' })
