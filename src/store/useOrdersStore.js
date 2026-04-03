@@ -15,7 +15,13 @@ export const useOrdersStore = create((set, get) => ({
   load: async (force = false) => {
     const state = get()
     const isEmpty = state.orders.length === 0
-    if (state.isLoading) return
+    // Si isLoading lleva >15s activo, es un estado huérfano — resetear y continuar
+    if (state.isLoading) {
+      const loadAge = state.loadingStartedAt ? Date.now() - state.loadingStartedAt : 0
+      if (loadAge < 15000) return
+      // Estado huérfano detectado — resetear y continuar con la carga
+      set({ isLoading: false, loadingStartedAt: null })
+    }
     const age = state.lastFetch ? Date.now() - state.lastFetch : Infinity
     if (!isEmpty && age < 5000) return
     if (!force && !isEmpty && age < 10000) return
@@ -27,7 +33,7 @@ export const useOrdersStore = create((set, get) => ({
       if (get().isLoading) {
         set({ isLoading: false, loadingStartedAt: null, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
       }
-    }, 40000)
+    }, 15000)  // 15s consistente con el timeout de fetchSiteVisits
 
     try {
       const data = await fetchSiteVisits()

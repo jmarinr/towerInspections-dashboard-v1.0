@@ -136,7 +136,9 @@ export default function Submissions() {
   useEffect(() => {
     if (!authReady) return
     useSubmissionsStore.setState({ error: null })
-    load(true); loadOrders()
+    load(true)
+    // Cargar orders solo si no están en caché — no bloquear submissions por esto
+    if (useOrdersStore.getState().orders.length === 0) loadOrders()
   }, [authReady])
 
   const filtered = useMemo(

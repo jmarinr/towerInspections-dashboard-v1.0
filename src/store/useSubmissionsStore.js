@@ -3,6 +3,7 @@ import { fetchSubmissions, fetchSubmissionWithAssets, fetchDashboardStats } from
 import { supabase } from '../lib/supabaseClient'
 import { logEvent } from '../lib/logEvent'
 import { useAuthStore } from './useAuthStore'
+import { normalizeFormCode } from '../data/formTypes'
 
 /**
  * Devuelve el org_code a filtrar según el rol del usuario:
@@ -37,7 +38,12 @@ export const useSubmissionsStore = create((set, get) => ({
     const state = get()
     const isEmpty = state.submissions.length === 0
     // Guard: no iniciar si ya hay una carga en curso
-    if (state.isLoading) return
+    // Si isLoading lleva >15s activo, es un estado huérfano — resetear y continuar
+    if (state.isLoading) {
+      const loadAge = state.loadingStartedAt ? Date.now() - state.loadingStartedAt : 0
+      if (loadAge < 15000) return
+      set({ isLoading: false, loadingStartedAt: null })
+    }
     // Cache inteligente: incluso con force=true, respetar datos muy frescos (<5s)
     // Previene queries duplicadas cuando múltiples componentes llaman load() al navegar
     const age = state.lastFetch ? Date.now() - state.lastFetch : Infinity
@@ -110,7 +116,7 @@ export const useSubmissionsStore = create((set, get) => ({
     return submissions.filter(s => {
       // Filtro por empresa (double-check client-side como safety net)
       if (orgCode && s.org_code && s.org_code !== orgCode) return false
-      const codeOk = filterFormCode === 'all' || s.form_code === filterFormCode
+      const codeOk = filterFormCode === 'all' || normalizeFormCode(s.form_code) === filterFormCode
       if (!codeOk) return false
       if (!q) return true
       const site = s.site || {}

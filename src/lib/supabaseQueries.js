@@ -168,7 +168,8 @@ export async function fetchSiteVisits({ status, limit = 200 } = {}) {
     query = query.eq('status', status)
   }
 
-  const { data, error } = await query
+  // q() wrapper protege contra queries que se cuelgan indefinidamente
+  const { data, error } = await q(query, 15000)
   if (error) throw error
   return data || []
 }
