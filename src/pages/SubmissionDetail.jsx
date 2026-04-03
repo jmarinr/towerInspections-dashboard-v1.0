@@ -1364,7 +1364,7 @@ export default function SubmissionDetail() {
                   : <><Download size={13}/>Fotos ({totalPhotos})</>}
               </button>
             )}
-            {!editMode && (
+            {!editMode && fc !== 'additional-photo-report' && (
               <button onClick={handlePdf} disabled={pdfLoading}
                 className="h-8 px-3.5 text-[12px] font-semibold rounded-lg flex items-center gap-1.5 transition-all active:scale-[0.97] disabled:opacity-50"
                 style={{ background: '#0d2137', color: '#ffffff' }}

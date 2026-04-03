@@ -2,6 +2,20 @@ import { create } from 'zustand'
 import { fetchSubmissions, fetchSubmissionWithAssets, fetchDashboardStats } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
 import { logEvent } from '../lib/logEvent'
+import { useAuthStore } from './useAuthStore'
+
+/**
+ * Devuelve el org_code a filtrar según el rol del usuario:
+ *   - admin              → null (ve todo)
+ *   - supervisor sin empresa → null (ve todo)
+ *   - supervisor con empresa → org_code de su empresa
+ */
+function getOrgCodeFilter() {
+  const user = useAuthStore.getState().user
+  if (!user) return null
+  if (user.role === 'admin') return null
+  return user.company?.org_code || null
+}
 
 export const useSubmissionsStore = create((set, get) => ({
 
@@ -49,7 +63,8 @@ export const useSubmissionsStore = create((set, get) => ({
     }, 45000)
 
     try {
-      const data = await fetchSubmissions()
+      const orgCode = getOrgCodeFilter()
+      const data = await fetchSubmissions({ orgCode })
       clearTimeout(timeout)
 
       // Detectar cambios reales vs el estado anterior
@@ -85,8 +100,12 @@ export const useSubmissionsStore = create((set, get) => ({
 
   getFiltered: () => {
     const { submissions, filterFormCode, search } = get()
+    const user    = useAuthStore.getState().user
+    const orgCode = (user?.role !== 'admin' && user?.company?.org_code) ? user.company.org_code : null
     const q = search.trim().toLowerCase()
     return submissions.filter(s => {
+      // Filtro por empresa (double-check client-side como safety net)
+      if (orgCode && s.org_code && s.org_code !== orgCode) return false
       const codeOk = filterFormCode === 'all' || s.form_code === filterFormCode
       if (!codeOk) return false
       if (!q) return true

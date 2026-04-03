@@ -26,8 +26,9 @@ import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/f
 
 /**
  * Fetch all submissions.
+ * Si se pasa orgCode, filtra solo los de esa empresa (para supervisores con empresa asignada).
  */
-export async function fetchSubmissions({ formCode, limit = 200 } = {}) {
+export async function fetchSubmissions({ formCode, orgCode, limit = 200 } = {}) {
   let query = supabase
     .from('submissions')
     .select('*')
@@ -38,19 +39,21 @@ export async function fetchSubmissions({ formCode, limit = 200 } = {}) {
     query = query.eq('form_code', formCode)
   }
 
+  // Filtro por empresa: solo aplica si orgCode está definido
+  if (orgCode) {
+    query = query.eq('org_code', orgCode)
+  }
+
   const { data, error } = await query
   if (error) throw error
 
   return (data || [])
     .map(normalizeSubmission)
-    // Filter out ghost rows created by ensureSubmissionId (empty payload, no real data)
     .filter(s => {
       const p = s.payload || {}
       const inner = p.payload || p
-      // Keep if has actual form data or has been saved with real payload
       return inner.data || inner.meta || p._meta || p.form_code
     })
-    // Filter out hidden form codes (e.g. inspection-general)
     .filter(s => isFormVisible(s.form_code))
 }
 

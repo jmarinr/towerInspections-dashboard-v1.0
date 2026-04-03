@@ -4,6 +4,8 @@ import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, I
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
 import { useOrdersStore } from '../store/useOrdersStore'
+import { useAuthStore } from '../store/useAuthStore'
+import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta, normalizeFormCode, isFormVisible } from '../data/formTypes'
 import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
@@ -76,6 +78,22 @@ export default function OrderDetail() {
       <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
     </div>
   )
+
+  // Guard: supervisor con empresa solo puede ver órdenes de su empresa
+  const user         = useAuthStore.getState().user
+  const orgCode      = (user?.role !== 'admin' && user?.company?.org_code) ? user.company.org_code : null
+  if (orgCode) {
+    const allSubmissions = useSubmissionsStore.getState().submissions
+    const orderOrgCodes  = new Set(allSubmissions.filter(s => s.site_visit_id === orderId).map(s => s.org_code))
+    if (orderOrgCodes.size > 0 && !orderOrgCodes.has(orgCode)) {
+      return (
+        <div className="text-center py-20">
+          <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>
+          <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
+        </div>
+      )
+    }
+  }
 
   const open        = order.status === 'open'
   const finalized   = submissions.filter(s => s.finalized || isFinalized(s)).length
