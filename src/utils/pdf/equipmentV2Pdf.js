@@ -330,9 +330,9 @@ class PageBuilder {
       const isMW = row.tipoEquipo === 'MW'
       const rowValues = [
         s(row.alturaMts), s(row.orientacion), s(row.tipoEquipo), s(row.cantidad),
-        isMW ? ''         : s(row.alto),       // Alto — vacío para MW
-        isMW ? s(row.alto): '',                // Diám/Ancho col — muestra alto como diámetro para MW
-        isMW ? ''         : s(row.profundidad),
+        isMW ? ''          : s(row.alto),       // Alto — vacío para MW
+        isMW ? s(row.alto) : s(row.ancho),      // Ancho (RF) / Diámetro (MW)
+        isMW ? ''          : s(row.profundidad),
         areaFn(row.alto, row.ancho, row.tipoEquipo),
         s(row.carrier), s(row.comentario),
       ]
