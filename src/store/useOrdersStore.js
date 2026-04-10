@@ -27,7 +27,8 @@ export const useOrdersStore = create((set, get) => ({
     if (!force && !isEmpty && age < 10000) return
 
     const showSpinner = isEmpty
-    set({ isLoading: showSpinner, loadingStartedAt: showSpinner ? Date.now() : null, error: null })
+    // Siempre registrar loadingStartedAt para que el stale guard funcione correctamente
+    set({ isLoading: true, loadingStartedAt: Date.now(), error: null })
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {

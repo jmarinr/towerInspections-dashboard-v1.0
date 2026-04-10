@@ -49,6 +49,13 @@ export const useAuthStore = create((set, get) => ({
 
   // ── Cargar perfil desde app_users ────────────────────────────────────
   _loadProfile: async (authId, isRealLogin = false) => {
+    // Timeout de 15s: si app_users no responde, no dejar el login colgado indefinidamente
+    const profileTimeout = setTimeout(() => {
+      if (get().isLoading) {
+        set({ isLoading: false, sessionWarning: true })
+      }
+    }, 15000)
+
     try {
       const { data, error } = await supabase
         .from('app_users')
@@ -56,6 +63,7 @@ export const useAuthStore = create((set, get) => ({
         .eq('id', authId)
         .single()
 
+      clearTimeout(profileTimeout)
       if (error) {
         // PGRST116 = 0 rows → usuario no existe en app_users → logout
         const isNotFound = error.code === 'PGRST116' || error.details?.includes('0 rows')
@@ -99,6 +107,7 @@ export const useAuthStore = create((set, get) => ({
       if (isRealLogin) LOG.authLogin(data.email, data.role, data.company_id)
 
     } catch {
+      clearTimeout(profileTimeout)
       set({ isLoading: false, sessionWarning: true })
     }
   },
