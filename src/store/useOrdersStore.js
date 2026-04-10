@@ -15,6 +15,7 @@ export const useOrdersStore = create((set, get) => ({
   load: async (force = false) => {
     const state = get()
     const isEmpty = state.orders.length === 0
+    console.log('[Orders] load() called, force:', force, 'isEmpty:', isEmpty, 'isLoading:', state.isLoading, 'age:', state.lastFetch ? Date.now()-state.lastFetch : 'never')
     // Si isLoading lleva >15s activo, es un estado huérfano — resetear y continuar
     if (state.isLoading) {
       const loadAge = state.loadingStartedAt ? Date.now() - state.loadingStartedAt : 0
@@ -30,6 +31,7 @@ export const useOrdersStore = create((set, get) => ({
     // Siempre registrar loadingStartedAt para que el stale guard funcione correctamente
     set({ isLoading: true, loadingStartedAt: Date.now(), error: null })
 
+    console.log('[Orders] fetching site_visits...')
     const timeout = setTimeout(() => {
       if (get().isLoading) {
         set({ isLoading: false, loadingStartedAt: null })
@@ -48,9 +50,11 @@ export const useOrdersStore = create((set, get) => ({
     try {
       const data = await fetchSiteVisits()
       clearTimeout(timeout)
+      console.log('[Orders] site_visits OK, count:', data.length)
       set({ orders: data, isLoading: false, loadingStartedAt: null, lastFetch: Date.now(), error: null })
     } catch (err) {
       clearTimeout(timeout)
+      console.error('[Orders] load() error:', err?.message)
       set({ error: err?.message || 'Error al cargar órdenes', isLoading: false })
     }
   },

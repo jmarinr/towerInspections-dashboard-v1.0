@@ -37,6 +37,7 @@ export const useSubmissionsStore = create((set, get) => ({
   load: async (force = false) => {
     const state = get()
     const isEmpty = state.submissions.length === 0
+    console.log('[Submissions] load() called, force:', force, 'isEmpty:', isEmpty, 'isLoading:', state.isLoading, 'age:', state.lastFetch ? Date.now()-state.lastFetch : 'never')
     // Guard: no iniciar si ya hay una carga en curso
     // Si isLoading lleva >15s activo, es un estado huérfano — resetear y continuar
     if (state.isLoading) {
@@ -75,6 +76,7 @@ export const useSubmissionsStore = create((set, get) => ({
 
     try {
       const orgCode = getOrgCodeFilter()
+      console.log('[Submissions] fetching, orgCode:', orgCode)
       const data = await fetchSubmissions({ orgCode })
       clearTimeout(timeout)
 
@@ -102,9 +104,11 @@ export const useSubmissionsStore = create((set, get) => ({
         set({ lastRealtimeEvent: { type: 'UPDATE', id: finalized[0].id, ts: Date.now() } })
       }
 
+      console.log('[Submissions] fetch OK, count:', data.length)
       set({ submissions: data, isLoading: false, loadingStartedAt: null, lastFetch: Date.now(), error: null })
     } catch (err) {
       clearTimeout(timeout)
+      console.error('[Submissions] load() error:', err?.message)
       set({ error: err?.message || 'Error al cargar datos', isLoading: false })
     }
   },

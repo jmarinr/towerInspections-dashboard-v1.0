@@ -10,14 +10,18 @@ export const useAuthStore = create((set, get) => ({
 
   // ── Inicializar — llamar una vez al montar App ─────────────────────────
   init: async () => {
+    console.log('[Auth] init() start')
     const { data: { session } } = await supabase.auth.getSession()
     if (session?.user) {
+      console.log('[Auth] session found, loading profile...')
       await get()._loadProfile(session.user.id)
     } else {
+      console.log('[Auth] no session, isLoading=false')
       set({ isLoading: false })
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] onAuthStateChange:', event)
       if (event === 'SIGNED_IN' && session?.user) {
         const wasAuthed = get().isAuthed
         await get()._loadProfile(session.user.id, !wasAuthed)
@@ -49,6 +53,7 @@ export const useAuthStore = create((set, get) => ({
 
   // ── Cargar perfil desde app_users ────────────────────────────────────
   _loadProfile: async (authId, isRealLogin = false) => {
+    console.log('[Auth] _loadProfile start, authId:', authId?.slice(0,8))
     // Timeout de 15s: si app_users no responde, no dejar el login colgado indefinidamente
     const profileTimeout = setTimeout(() => {
       if (get().isLoading) {
@@ -64,6 +69,7 @@ export const useAuthStore = create((set, get) => ({
         .single()
 
       clearTimeout(profileTimeout)
+      console.log('[Auth] app_users query done, error:', error?.message || null)
       if (error) {
         // PGRST116 = 0 rows → usuario no existe en app_users → logout
         const isNotFound = error.code === 'PGRST116' || error.details?.includes('0 rows')
@@ -89,6 +95,7 @@ export const useAuthStore = create((set, get) => ({
         return
       }
 
+      console.log('[Auth] profile loaded OK, role:', data.role)
       set({
         isAuthed:       true,
         isLoading:      false,

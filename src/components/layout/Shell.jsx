@@ -247,10 +247,11 @@ export default function Shell({ children }) {
 
   // Polling cada 60s + refresh suave al volver al tab solo si datos están stale (>60s)
   useEffect(() => {
-    const poll = () => useSubmissionsStore.getState().load(true)
+    const poll = () => { console.log('[Shell] poll triggered'); useSubmissionsStore.getState().load(true) }
     const interval = setInterval(poll, 60000)
 
     const handleVisibility = () => {
+      console.log('[Shell] visibilitychange:', document.visibilityState)
       if (document.visibilityState !== 'visible') return
       // Solo refrescar si los datos tienen más de 60s — evita queries al cambiar de tab brevemente
       const lastFetch = useSubmissionsStore.getState().lastFetch
