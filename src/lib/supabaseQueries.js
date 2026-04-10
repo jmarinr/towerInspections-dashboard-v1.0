@@ -169,7 +169,7 @@ export async function fetchSiteVisits({ status, limit = 200 } = {}) {
   }
 
   // q() wrapper protege contra queries que se cuelgan indefinidamente
-  const { data, error } = await q(query, 15000)
+  const { data, error } = await q(query, 30000)
   if (error) throw error
   return data || []
 }

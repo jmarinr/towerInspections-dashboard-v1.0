@@ -18,7 +18,7 @@ export const useOrdersStore = create((set, get) => ({
     // Si isLoading lleva >15s activo, es un estado huérfano — resetear y continuar
     if (state.isLoading) {
       const loadAge = state.loadingStartedAt ? Date.now() - state.loadingStartedAt : 0
-      if (loadAge < 15000) return
+      if (loadAge < 20000) return
       // Estado huérfano detectado — resetear y continuar con la carga
       set({ isLoading: false, loadingStartedAt: null })
     }
@@ -31,9 +31,18 @@ export const useOrdersStore = create((set, get) => ({
 
     const timeout = setTimeout(() => {
       if (get().isLoading) {
-        set({ isLoading: false, loadingStartedAt: null, error: isEmpty ? 'Tiempo de espera agotado. Verifica tu conexión.' : null })
+        set({ isLoading: false, loadingStartedAt: null })
+        if (get().orders.length === 0) {
+          set({ error: 'Tiempo de espera agotado. Verifica tu conexión.' })
+          // Retry automático a los 5s si no hay datos
+          setTimeout(() => {
+            if (useOrdersStore.getState().orders.length === 0) {
+              useOrdersStore.getState().load(true)
+            }
+          }, 5000)
+        }
       }
-    }, 15000)  // 15s consistente con el timeout de fetchSiteVisits
+    }, 30000)  // 30s consistente con el timeout de fetchSiteVisits
 
     try {
       const data = await fetchSiteVisits()

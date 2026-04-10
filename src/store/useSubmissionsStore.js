@@ -41,7 +41,7 @@ export const useSubmissionsStore = create((set, get) => ({
     // Si isLoading lleva >15s activo, es un estado huérfano — resetear y continuar
     if (state.isLoading) {
       const loadAge = state.loadingStartedAt ? Date.now() - state.loadingStartedAt : 0
-      if (loadAge < 15000) return
+      if (loadAge < 20000) return
       set({ isLoading: false, loadingStartedAt: null })
     }
     // Cache inteligente: incluso con force=true, respetar datos muy frescos (<5s)
