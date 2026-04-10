@@ -389,6 +389,7 @@ class PageBuilder {
       this.y -= rowH
     }
 
+  }  // end drawTorreTable
 
   // ── Site info block estilo piso (líneas subrayadas, 2 columnas) ──────────
   drawSiteInfoBlockPiso(data) {
