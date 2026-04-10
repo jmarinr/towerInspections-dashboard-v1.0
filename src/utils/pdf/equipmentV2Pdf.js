@@ -313,7 +313,9 @@ class PageBuilder {
     this.y -= hdrH2
 
     // Data rows
-    const rowH = 16
+    const BASE_ROW_H = 16
+    const LINE_H     = 8   // altura de cada línea adicional
+    const FONT_SIZE  = 6
     const list = items && items.length ? items : []
     const areaFn = (alto, ancho, tipoEquipo) => {
       if (tipoEquipo === 'MW') {
@@ -325,8 +327,29 @@ class PageBuilder {
       return Number.isFinite(a) && Number.isFinite(b) ? (a * b).toFixed(4) : ''
     }
 
+    // Parte el texto en líneas que caben dentro de maxW
+    const wrapText = (text, maxW) => {
+      if (!text) return ['']
+      const words = text.split(' ')
+      const lines = []
+      let cur = ''
+      for (const word of words) {
+        const test = cur ? `${cur} ${word}` : word
+        if (this.font.widthOfTextAtSize(test, FONT_SIZE) <= maxW) {
+          cur = test
+        } else {
+          if (cur) lines.push(cur)
+          // Si la palabra sola es más larga que maxW, truncarla
+          let w = word
+          while (w.length > 1 && this.font.widthOfTextAtSize(w, FONT_SIZE) > maxW) w = w.slice(0, -1)
+          cur = w
+        }
+      }
+      if (cur) lines.push(cur)
+      return lines.length ? lines : ['']
+    }
+
     for (const row of list) {
-      this.checkSpace(rowH)
       const isMW = row.tipoEquipo === 'MW'
       const rowValues = [
         s(row.alturaMts), s(row.orientacion), s(row.tipoEquipo), s(row.cantidad),
@@ -336,20 +359,36 @@ class PageBuilder {
         areaFn(row.alto, row.ancho, row.tipoEquipo),
         s(row.carrier), s(row.comentario),
       ]
+
+      // Calcular cuántas líneas necesita el comentario (último col, índice 9)
+      const comentColW = cols[9].w - 4
+      const comentLines = wrapText(rowValues[9], comentColW)
+      const rowH = Math.max(BASE_ROW_H, BASE_ROW_H + (comentLines.length - 1) * LINE_H)
+
+      this.checkSpace(rowH)
       this.page.drawRectangle({ x: ML, y: this.y - rowH, width: CW, height: rowH, borderColor: C.border, borderWidth: 0.3 })
       let rx = ML
       rowValues.forEach((val, vi) => {
         const colW = cols[vi].w
         if (vi > 0) this.page.drawLine({ start: { x: rx, y: this.y }, end: { x: rx, y: this.y - rowH }, thickness: 0.3, color: C.border })
-        let t = val
-        while (t.length > 1 && this.font.widthOfTextAtSize(t, 6) > colW - 4) t = t.slice(0, -1)
-        this.page.drawText(t, { x: rx + 3, y: this.y - rowH + 5, size: 6, font: this.font, color: C.text })
+
+        if (vi === 9) {
+          // Columna Comentario — dibujar en múltiples líneas si es necesario
+          comentLines.forEach((line, li) => {
+            const lineY = this.y - BASE_ROW_H + 5 - li * LINE_H
+            this.page.drawText(line, { x: rx + 3, y: lineY, size: FONT_SIZE, font: this.font, color: C.text })
+          })
+        } else {
+          // Resto de columnas — una sola línea, truncar si no cabe
+          let t = val
+          while (t.length > 1 && this.font.widthOfTextAtSize(t, FONT_SIZE) > colW - 4) t = t.slice(0, -1)
+          this.page.drawText(t, { x: rx + 3, y: this.y - rowH + 5, size: FONT_SIZE, font: this.font, color: C.text })
+        }
         rx += colW
       })
       this.y -= rowH
     }
 
-  }
 
   // ── Site info block estilo piso (líneas subrayadas, 2 columnas) ──────────
   drawSiteInfoBlockPiso(data) {
