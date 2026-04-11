@@ -21,10 +21,14 @@ export const useAuthStore = create((set, get) => ({
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Auth] onAuthStateChange:', event)
+      console.log('[Auth] onAuthStateChange:', event, 'isAuthed:', get().isAuthed)
       if (event === 'SIGNED_IN' && session?.user) {
+        // Solo cargar perfil si NO estaba autenticado — evita recargar al volver al tab
+        // cuando el SDK dispara SIGNED_IN por refresco de token o restauración de sesión
         const wasAuthed = get().isAuthed
-        await get()._loadProfile(session.user.id, !wasAuthed)
+        if (!wasAuthed) {
+          await get()._loadProfile(session.user.id, true)
+        }
       } else if (event === 'TOKEN_REFRESHED') {
         set({ sessionWarning: false })
       } else if (event === 'SIGNED_OUT') {
