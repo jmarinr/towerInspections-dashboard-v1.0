@@ -16,15 +16,8 @@ async function getClientIp() {
 
 /**
  * Registrar un evento en system_logs.
- *
- * @param {object} opts
- * @param {string} opts.event_type  — 'auth.login' | 'auth.logout' | 'user.created' | etc.
- * @param {string} opts.message     — Descripción legible del evento
- * @param {'info'|'warning'|'error'|'critical'} [opts.severity]
- * @param {string} [opts.user_email]
- * @param {string} [opts.user_role]
- * @param {string} [opts.company_id]
- * @param {object} [opts.metadata]  — Datos adicionales (JSON)
+ * IMPORTANTE: No llama getUser() para evitar interferir con el flujo de auth.
+ * Usa fire-and-forget con catch silencioso — nunca bloquea el flujo principal.
  */
 export async function logEvent({
   event_type,
@@ -35,16 +28,17 @@ export async function logEvent({
   company_id = null,
   metadata   = {},
 }) {
+  // Diferir 500ms para asegurar que la sesión ya esté establecida antes de loggear
+  await new Promise(r => setTimeout(r, 500))
+
   try {
-    const { data: { user } } = await supabase.auth.getUser()
     const ip = await getClientIp()
 
-    await supabase.from('system_logs').insert({
+    const { error } = await supabase.from('system_logs').insert({
       event_type,
       message,
       severity,
-      user_id:    user?.id    || null,
-      user_email: user_email  || user?.email || null,
+      user_email,
       user_role,
       company_id,
       ip_address: ip,
@@ -54,6 +48,10 @@ export async function logEvent({
         url: window.location.pathname,
       },
     })
+
+    // Si falla por 401, no reintentar — la sesión puede estar en transición
+    if (error?.code === '401' || error?.status === 401 || error?.message?.includes('JWT')) return
+
   } catch {
     // Los logs nunca deben romper el flujo principal — falla silenciosamente
   }

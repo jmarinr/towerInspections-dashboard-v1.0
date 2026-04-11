@@ -1,1 +1,1 @@
-export const APP_VERSION = '4.11.33-debug'
+export const APP_VERSION = '4.11.33'
