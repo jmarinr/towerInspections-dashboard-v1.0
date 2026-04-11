@@ -252,11 +252,40 @@ class MaintenancePDF {
   }
 
   checklistRow(num, text, status, observation, valueText) {
-    this.checkSpace(14)
-    const x = ML, h = 14
+    const x = ML
     const colN = x + 26
     const colE = x + CW * 0.58
     const colO = x + CW * 0.72
+    const maxObsW = x + CW - colO - 8
+    const FONT_SIZE_OBS = 6
+    const BASE_H = 14
+    const LINE_H  = 7
+
+    // Partir observación en líneas que caben en la columna
+    const wrapObs = (txt) => {
+      if (!txt) return []
+      const words = String(txt).split(' ')
+      const lines = []
+      let cur = ''
+      for (const word of words) {
+        const test = cur ? `${cur} ${word}` : word
+        if (this.font.widthOfTextAtSize(test, FONT_SIZE_OBS) <= maxObsW) {
+          cur = test
+        } else {
+          if (cur) lines.push(cur)
+          let w = word
+          while (w.length > 1 && this.font.widthOfTextAtSize(w, FONT_SIZE_OBS) > maxObsW) w = w.slice(0, -1)
+          cur = w
+        }
+      }
+      if (cur) lines.push(cur)
+      return lines
+    }
+
+    const obsLines = wrapObs(observation)
+    const h = Math.max(BASE_H, BASE_H + (obsLines.length - 1) * LINE_H)
+
+    this.checkSpace(h)
 
     // Background
     this.page.drawRectangle({ x, y: this.y - h, width: CW, height: h, borderColor: C.border, borderWidth: 0.5 })
@@ -267,7 +296,7 @@ class MaintenancePDF {
     this.page.drawLine({ start: { x: colO, y: this.y }, end: { x: colO, y: this.y - h }, thickness: 0.5, color: C.border })
 
     // Number
-    this.page.drawText(String(num), { x: x + 4, y: this.y - h + 4, size: 6.5, font: this.font, color: C.text })
+    this.page.drawText(String(num), { x: x + 4, y: this.y - BASE_H + 4, size: 6.5, font: this.font, color: C.text })
 
     // Text (truncate if needed)
     let display = text
@@ -278,7 +307,7 @@ class MaintenancePDF {
       truncated = truncated.slice(0, -1)
     }
     if (truncated !== display) truncated += '...'
-    this.page.drawText(truncated, { x: colN + 4, y: this.y - h + 4, size: 6.5, font: this.font, color: C.text })
+    this.page.drawText(truncated, { x: colN + 4, y: this.y - BASE_H + 4, size: 6.5, font: this.font, color: C.text })
 
     // Status with background color
     const st = (status || '').toLowerCase()
@@ -293,17 +322,14 @@ class MaintenancePDF {
         this.page.drawRectangle({ x: colE + 0.5, y: this.y - h + 0.5, width: colO - colE - 1, height: h - 1, color: bgColor })
       }
       const label = st === 'bueno' || st === 'good' ? 'Bueno' : st === 'regular' ? 'Regular' : st === 'malo' || st === 'bad' ? 'Malo' : st === 'n/a' || st === 'na' ? 'N/A' : status
-      this.page.drawText(label, { x: colE + 4, y: this.y - h + 4, size: 6.5, font: this.fontBold, color: textColor })
+      this.page.drawText(label, { x: colE + 4, y: this.y - BASE_H + 4, size: 6.5, font: this.fontBold, color: textColor })
     }
 
-    // Observation
-    if (observation) {
-      const maxObsW = x + CW - colO - 8
-      let obs = String(observation)
-      while (this.font.widthOfTextAtSize(obs, 6) > maxObsW && obs.length > 3) obs = obs.slice(0, -1)
-      if (obs !== String(observation)) obs += '...'
-      this.page.drawText(obs, { x: colO + 4, y: this.y - h + 4, size: 6, font: this.font, color: C.textLight })
-    }
+    // Observation — multi-line
+    obsLines.forEach((line, li) => {
+      const lineY = this.y - BASE_H + 4 - li * LINE_H
+      this.page.drawText(line, { x: colO + 4, y: lineY, size: FONT_SIZE_OBS, font: this.font, color: C.textLight })
+    })
 
     this.y -= h
   }
