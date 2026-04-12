@@ -5,17 +5,28 @@ import { logEvent } from '../lib/logEvent'
 import { useAuthStore } from './useAuthStore'
 import { normalizeFormCode } from '../data/formTypes'
 
+// Org codes excluidos para el rol viewer (empresas de prueba/internas)
+const VIEWER_EXCLUDED_ORG_CODES = ['HK']
+
 /**
  * Devuelve el org_code a filtrar según el rol del usuario:
  *   - admin              → null (ve todo)
  *   - supervisor sin empresa → null (ve todo)
  *   - supervisor con empresa → org_code de su empresa
+ *   - viewer             → null (ve todo excepto los excluidos)
  */
 function getOrgCodeFilter() {
   const user = useAuthStore.getState().user
   if (!user) return null
   if (user.role === 'admin') return null
+  if (user.role === 'viewer') return null
   return user.company?.org_code || null
+}
+
+function getExcludeOrgCodes() {
+  const user = useAuthStore.getState().user
+  if (!user) return null
+  return user.role === 'viewer' ? VIEWER_EXCLUDED_ORG_CODES : null
 }
 
 export const useSubmissionsStore = create((set, get) => ({
@@ -76,8 +87,9 @@ export const useSubmissionsStore = create((set, get) => ({
 
     try {
       const orgCode = getOrgCodeFilter()
-      console.log('[Submissions] fetching, orgCode:', orgCode)
-      const data = await fetchSubmissions({ orgCode })
+      const excludeOrgCodes = getExcludeOrgCodes()
+      console.log('[Submissions] fetching, orgCode:', orgCode, 'exclude:', excludeOrgCodes)
+      const data = await fetchSubmissions({ orgCode, excludeOrgCodes })
       clearTimeout(timeout)
 
       // Detectar cambios reales vs el estado anterior
@@ -116,9 +128,11 @@ export const useSubmissionsStore = create((set, get) => ({
   getFiltered: () => {
     const { submissions, filterFormCode, search } = get()
     const user    = useAuthStore.getState().user
-    const orgCode = (user?.role !== 'admin' && user?.company?.org_code) ? user.company.org_code : null
+    const orgCode = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
     const q = search.trim().toLowerCase()
     return submissions.filter(s => {
+      // Viewer: excluir org codes internos (HenkanCX)
+      if (user?.role === 'viewer' && s.org_code && VIEWER_EXCLUDED_ORG_CODES.includes(s.org_code)) return false
       // Filtro por empresa (double-check client-side como safety net)
       if (orgCode && s.org_code && s.org_code !== orgCode) return false
       const codeOk = filterFormCode === 'all' || normalizeFormCode(s.form_code) === filterFormCode

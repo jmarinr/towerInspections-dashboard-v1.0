@@ -80,19 +80,29 @@ export default function OrderDetail() {
   )
 
   // Guard: supervisor con empresa solo puede ver órdenes de su empresa
+  // Guard: viewer no puede ver órdenes de HenkanCX (org_code HK)
   const user         = useAuthStore.getState().user
-  const orgCode      = (user?.role !== 'admin' && user?.company?.org_code) ? user.company.org_code : null
-  if (orgCode) {
-    const allSubmissions = useSubmissionsStore.getState().submissions
-    const orderOrgCodes  = new Set(allSubmissions.filter(s => s.site_visit_id === orderId).map(s => s.org_code))
-    if (orderOrgCodes.size > 0 && !orderOrgCodes.has(orgCode)) {
-      return (
-        <div className="text-center py-20">
-          <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>
-          <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
-        </div>
-      )
-    }
+  const VIEWER_EXCLUDED_ORG_CODES = ['HK']
+  const orgCode      = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
+  const allSubmissions = useSubmissionsStore.getState().submissions
+  const orderOrgCodes  = new Set(allSubmissions.filter(s => s.site_visit_id === orderId).map(s => s.org_code))
+
+  if (orgCode && orderOrgCodes.size > 0 && !orderOrgCodes.has(orgCode)) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>
+        <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
+      </div>
+    )
+  }
+
+  if (user?.role === 'viewer' && orderOrgCodes.size > 0 && [...orderOrgCodes].every(oc => VIEWER_EXCLUDED_ORG_CODES.includes(oc))) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>
+        <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
+      </div>
+    )
   }
 
   const open        = order.status === 'open'

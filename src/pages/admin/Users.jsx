@@ -12,6 +12,7 @@ const ROLE_META = {
   admin:      { label:'Admin',      bg:'#0f172a', color:'#e0f2fe' },
   supervisor: { label:'Supervisor', bg:'#e0f2fe', color:'#0369a1' },
   inspector:  { label:'Inspector',  bg:'#f0fdf4', color:'#166534' },
+  viewer:     { label:'Viewer',     bg:'#faf5ff', color:'#7e22ce' },
 }
 
 function RoleBadge({ role }) {
@@ -213,6 +214,7 @@ function UserModal({ user, companies, onSave, onClose }) {
               <option value="supervisor">Supervisor</option>
               <option value="inspector">Inspector</option>
               <option value="admin">Admin</option>
+              <option value="viewer">Viewer</option>
             </select>
           </FieldLabel>
 
@@ -288,7 +290,7 @@ export default function Users() {
   )
 
   const initials = name => name?.split(' ').slice(0,2).map(n=>n[0]).join('').toUpperCase() || '?'
-  const avColors = { admin:['#0f172a','#e0f2fe'], supervisor:['#e0f2fe','#0369a1'], inspector:['#f0fdf4','#166534'] }
+  const avColors = { admin:['#0f172a','#e0f2fe'], supervisor:['#e0f2fe','#0369a1'], inspector:['#f0fdf4','#166534'], viewer:['#faf5ff','#7e22ce'] }
 
   return (
     <div className="space-y-4">
@@ -313,6 +315,7 @@ export default function Users() {
           <option value="admin">Admin</option>
           <option value="supervisor">Supervisor</option>
           <option value="inspector">Inspector</option>
+          <option value="viewer">Viewer</option>
         </select>
         <select value={filterCompany} onChange={e=>setFilterCompany(e.target.value)}
           className="h-9 px-3 text-[12px] rounded-lg th-text-s th-bg-card"

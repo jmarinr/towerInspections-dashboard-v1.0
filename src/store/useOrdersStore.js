@@ -64,13 +64,17 @@ export const useOrdersStore = create((set, get) => ({
   getFiltered: () => {
     const { orders, filterStatus, search } = get()
 
-    // Filtro por empresa para supervisores con empresa asignada
     const user    = useAuthStore.getState().user
-    const orgCode = (user?.role !== 'admin' && user?.company?.org_code) ? user.company.org_code : null
+    const VIEWER_EXCLUDED_ORG_CODES = ['HK']
 
-    // Derivar site_visit_ids permitidos desde submissions ya cargadas
+    // Filtro por empresa para supervisores con empresa asignada
+    const orgCode = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
+
+    // Derivar site_visit_ids permitidos/excluidos desde submissions ya cargadas
     // (site_visits no tiene org_code, pero submissions sí)
     let allowedVisitIds = null
+    let excludedVisitIds = null
+
     if (orgCode) {
       const submissions = useSubmissionsStore.getState().submissions
       allowedVisitIds = new Set(
@@ -80,10 +84,21 @@ export const useOrdersStore = create((set, get) => ({
       )
     }
 
+    if (user?.role === 'viewer') {
+      const submissions = useSubmissionsStore.getState().submissions
+      excludedVisitIds = new Set(
+        submissions
+          .filter(s => s.org_code && VIEWER_EXCLUDED_ORG_CODES.includes(s.org_code) && s.site_visit_id)
+          .map(s => s.site_visit_id)
+      )
+    }
+
     const q = search.trim().toLowerCase()
     return orders.filter((o) => {
       // Filtrar por empresa si aplica
       if (allowedVisitIds && !allowedVisitIds.has(o.id)) return false
+      // Viewer: excluir visitas de empresas internas (HenkanCX)
+      if (excludedVisitIds && excludedVisitIds.has(o.id)) return false
       // Filtrar por estado
       const statusOk = filterStatus === 'all' || o.status === filterStatus
       if (!statusOk) return false

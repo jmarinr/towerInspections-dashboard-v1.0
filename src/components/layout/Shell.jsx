@@ -147,7 +147,7 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
         ))}
       </nav>
 
-      {/* Nav admin — solo visible para admins */}
+      {/* Nav admin — solo visible para admins (no para viewer) */}
       {user?.role === 'admin' && (
         <>
           <div className="mx-4 h-px mt-2 mb-2" style={{ background: 'var(--sidebar-divider)' }} />
@@ -367,7 +367,7 @@ export default function Shell({ children }) {
           style={{ background: 'var(--header-bg)', borderTop: '1px solid var(--border)' }}>
 
           {/* Admin sub-nav — solo para admins */}
-          {user?.role === 'admin' && (
+          {user?.role === 'admin' && user?.role !== 'viewer' && (
             <div className="grid grid-cols-5 border-b"
               style={{ borderColor: 'var(--border)', background: 'var(--sidebar-bg)' }}>
               {NAV_ADMIN.map(n => (

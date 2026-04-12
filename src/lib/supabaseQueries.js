@@ -28,7 +28,7 @@ import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/f
  * Fetch all submissions.
  * Si se pasa orgCode, filtra solo los de esa empresa (para supervisores con empresa asignada).
  */
-export async function fetchSubmissions({ formCode, orgCode, limit = 200 } = {}) {
+export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, limit = 200 } = {}) {
   let query = supabase
     .from('submissions')
     .select('*')
@@ -42,6 +42,11 @@ export async function fetchSubmissions({ formCode, orgCode, limit = 200 } = {}) 
   // Filtro por empresa: solo aplica si orgCode está definido
   if (orgCode) {
     query = query.eq('org_code', orgCode)
+  }
+
+  // Viewer: excluir siempre las empresas de prueba (HK = HenkanCX)
+  if (excludeOrgCodes && excludeOrgCodes.length > 0) {
+    query = query.not('org_code', 'in', `(${excludeOrgCodes.map(c => `"${c}"`).join(',')})`)
   }
 
   const { data, error } = await query

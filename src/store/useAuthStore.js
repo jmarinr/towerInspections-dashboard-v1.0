@@ -93,7 +93,7 @@ export const useAuthStore = create((set, get) => ({
         return
       }
 
-      if (!['admin', 'supervisor'].includes(data.role)) {
+      if (!['admin', 'supervisor', 'viewer'].includes(data.role)) {
         await supabase.auth.signOut()
         set({ isAuthed: false, user: null, isLoading: false })
         return
@@ -111,7 +111,7 @@ export const useAuthStore = create((set, get) => ({
           role:       data.role,
           company_id: data.company_id,
           company:    data.companies,
-          canWrite:   true,
+          canWrite:   data.role !== 'viewer',
         },
       })
 
@@ -144,4 +144,5 @@ export const useAuthStore = create((set, get) => ({
 
   isAdmin:      () => get().user?.role === 'admin',
   isSupervisor: () => get().user?.role === 'supervisor',
+  isViewer:     () => get().user?.role === 'viewer',
 }))
