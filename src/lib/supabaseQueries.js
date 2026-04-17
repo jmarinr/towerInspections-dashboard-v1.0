@@ -125,11 +125,14 @@ export async function fetchSubmissionWithAssets(id) {
 
   // Si no hay site_visit_id, no hay siblings — retornar inmediatamente
   const siteVisitId = submission.site_visit_id
-  if (!siteVisitId || !submission.org_code || !submission.device_id || !submission.form_code) {
+  if (!siteVisitId || !submission.org_code || !submission.form_code) {
     return { submission, assets: directAssets }
   }
 
   // Buscar siblings — todos los submissions del mismo visit con variantes de form_code
+  // NOTA: no filtramos por device_id porque un mismo inspector puede haber usado
+  // dispositivos distintos al crear vs al subir fotos, lo que rompería el lookup.
+  // site_visit_id + org_code + form_code es suficiente para scopear correctamente.
   const siblingCodes = getFormCodeSiblings(submission.form_code)
   const allCodes     = [submission.form_code, ...siblingCodes]
 
@@ -138,7 +141,6 @@ export async function fetchSubmissionWithAssets(id) {
       .from('submissions')
       .select('id, submission_assets(*)')
       .eq('org_code', submission.org_code)
-      .eq('device_id', submission.device_id)
       .eq('site_visit_id', siteVisitId)
       .in('form_code', allCodes)
       .neq('id', id)
@@ -243,17 +245,16 @@ export async function fetchSubmissionsWithAssetsForVisit(visitId) {
       try {
         let assets = await fetchSubmissionAssets(sub.id)
 
-        if (assets.length === 0 && sub.org_code && sub.device_id && sub.form_code) {
+        if (assets.length === 0 && sub.org_code && sub.form_code) {
           const siblingCodes = getFormCodeSiblings(sub.form_code)
           const allCodes = [sub.form_code, ...siblingCodes]
 
-          // Only look for siblings within the SAME order (site_visit_id)
-          // to avoid showing photos from other orders
+          // NOTA: no filtramos por device_id — el inspector puede haber usado
+          // dispositivos distintos. site_visit_id + org_code + form_code es suficiente.
           const { data: siblings } = await supabase
             .from('submissions')
             .select('id')
             .eq('org_code', sub.org_code)
-            .eq('device_id', sub.device_id)
             .eq('site_visit_id', visitId)
             .in('form_code', allCodes)
             .neq('id', sub.id)
