@@ -11,6 +11,7 @@ import { getFormMeta, normalizeFormCode, isFormVisible } from '../data/formTypes
 import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { updateSiteVisitStatus } from '../lib/supabaseQueries'
 import { LOG } from '../lib/logEvent'
+import { useAdminStore } from '../store/useAdminStore'
 
 function hasDamage(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
@@ -88,6 +89,13 @@ export default function OrderDetail() {
   // Guard: supervisor con empresa solo puede ver órdenes de su empresa
   // Guard: viewer no puede ver órdenes de HenkanCX (org_code HK)
   const user         = useAuthStore.getState().user
+  const permMatrix   = useAdminStore(s => s.permMatrix)
+  const hasPermission = (key) => {
+    if (!user) return false
+    if (user.role === 'admin') return true
+    const mk = `${user.role}:${key}`
+    return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
+  }
   const VIEWER_EXCLUDED_ORG_CODES = ['HK']
   const orgCode      = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
   const allSubmissions = useSubmissionsStore.getState().submissions
@@ -155,7 +163,7 @@ export default function OrderDetail() {
       )
       await loadDetail(orderId)
     } catch (e) {
-      setStatusError('Error al cambiar el estado. Intenta nuevamente.')
+      setStatusError('No se pudo cambiar el estado. Verifica tus permisos o conexión.')
       console.error('[OrderDetail] status toggle:', e)
     } finally {
       setStatusLoading(false)
@@ -172,7 +180,7 @@ export default function OrderDetail() {
       </button>
 
       {/* Banner de inconsistencia — orden abierta con todos los forms completados */}
-      {hasInconsistency && user?.canWrite && (
+      {hasInconsistency && user?.canWrite && hasPermission('visits.change_status') && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
           style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
           <div className="flex items-center gap-2">
@@ -211,8 +219,8 @@ export default function OrderDetail() {
             )}
           </div>
 
-          {/* Botón cerrar/reabrir — solo admin y supervisor con canWrite */}
-          {user?.canWrite && (
+          {/* Botón cerrar/reabrir — solo roles con permiso visits.change_status */}
+          {user?.canWrite && hasPermission('visits.change_status') && (
             <div className="flex flex-col items-end gap-2 flex-shrink-0">
               <button
                 onClick={handleStatusToggleClick}

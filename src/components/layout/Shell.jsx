@@ -3,6 +3,7 @@ import { LayoutDashboard, ClipboardList, FolderOpen, FileText, LogOut, RefreshCw
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
+import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { APP_VERSION } from '../../version'
 
@@ -244,7 +245,11 @@ export default function Shell({ children }) {
   const { init }  = useThemeStore()
   const [mob, setMob] = useState(false)
 
-  useEffect(() => { init() }, [])
+  useEffect(() => {
+    init()
+    // Cargar matriz de permisos al iniciar — necesario para hasPermission() en componentes
+    useAdminStore.getState().loadPermissions()
+  }, [])
 
   // Polling cada 60s + refresh suave al volver al tab solo si datos están stale (>60s)
   useEffect(() => {

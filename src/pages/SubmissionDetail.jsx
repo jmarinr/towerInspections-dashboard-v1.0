@@ -11,6 +11,7 @@ import LoadError from '../components/ui/LoadError'
 import Modal from '../components/ui/Modal'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useAuthStore } from '../store/useAuthStore'
+import { useAdminStore } from '../store/useAdminStore'
 import { getFormMeta, normalizeFormCode } from '../data/formTypes'
 import {
   extractSiteInfo, extractMeta, getCleanPayload,
@@ -995,6 +996,7 @@ export default function SubmissionDetail() {
   // ── Finalized toggle ────────────────────────────────────────
   const handleFinalizedToggle = () => {
     if (!user?.canWrite) return
+    if (!hasPermission('submissions.change_status')) return
     // Completado → Borrador: pide confirmación (acción de mayor impacto)
     if (fin) { setConfirmRevert(true); return }
     // Borrador → Completado: acción directa
@@ -1051,6 +1053,8 @@ export default function SubmissionDetail() {
       await refreshDetail(submissionId)
     } catch (e) {
       console.error(e)
+      setSaveError('No se pudo cambiar el estado. Verifica tus permisos o tu conexión.')
+      setTimeout(() => setSaveError(null), 5000)
     } finally {
       setSaving(false)
     }
@@ -1126,6 +1130,13 @@ export default function SubmissionDetail() {
   const visitId     = submission.site_visit_id
   const hasOrder    = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
   const canWrite    = user?.canWrite === true
+  const permMatrix  = useAdminStore(s => s.permMatrix)
+  const hasPermission = (key) => {
+    if (!user) return false
+    if (user.role === 'admin') return true
+    const mk = `${user.role}:${key}`
+    return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
+  }
   // Contar cambios reales: claves checklist.itemId.* cuentan como 1 por item
   const pendingCount = (() => {
     const keys = Object.keys(pendingEdits)
@@ -1446,8 +1457,8 @@ export default function SubmissionDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-semibold th-text-p">{site.nombreSitio || 'Sin nombre'}</h1>
-                {/* Status — clickable if canWrite */}
-                {canWrite && !editMode
+                {/* Status — clickable si tiene permiso submissions.change_status */}
+                {canWrite && !editMode && hasPermission('submissions.change_status')
                   ? (
                     <button onClick={handleFinalizedToggle} disabled={saving}
                       title={fin ? 'Click para revertir a Borrador' : 'Click para marcar como Completado'}

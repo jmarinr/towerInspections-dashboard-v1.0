@@ -18,6 +18,7 @@ const PERMISSION_GROUPS = [
     permissions: [
       { key:'submissions.view_all',      label:'Ver formularios de todas las empresas', desc:'Solo relevante para admin global' },
       { key:'submissions.edit',          label:'Editar campos de formularios',           desc:'Modificar datos con registro de auditoría' },
+      { key:'submissions.change_status', label:'Cambiar estado de formularios',          desc:'Marcar como Completado o revertir a Borrador' },
       { key:'submissions.export_pdf',    label:'Exportar PDF',                           desc:'Generar y descargar reportes en PDF' },
       { key:'submissions.export_photos', label:'Descargar fotos',                        desc:'Descargar paquete ZIP de fotografías' },
     ]
@@ -25,7 +26,8 @@ const PERMISSION_GROUPS = [
   {
     label: 'Visitas',
     permissions: [
-      { key:'visits.view', label:'Ver visitas / órdenes de trabajo', desc:'Módulo de Site Visits' },
+      { key:'visits.view',          label:'Ver visitas / órdenes de trabajo', desc:'Módulo de Site Visits' },
+      { key:'visits.change_status', label:'Cambiar estado de órdenes',        desc:'Cerrar o reabrir visitas manualmente desde el panel' },
     ]
   },
   {
@@ -55,9 +57,11 @@ const LOCKED = new Set([
   'admin:dashboard.view',
   'admin:submissions.view_all',
   'admin:submissions.edit',
+  'admin:submissions.change_status',
   'admin:submissions.export_pdf',
   'admin:submissions.export_photos',
   'admin:visits.view',
+  'admin:visits.change_status',
   'admin:audit.view',
   'admin:admin.companies',
   'admin:admin.users',
@@ -65,6 +69,8 @@ const LOCKED = new Set([
   'inspector:dashboard.view',
   'inspector:submissions.view_all',
   'inspector:submissions.edit',
+  'inspector:submissions.change_status',
+  'inspector:visits.change_status',
   'inspector:admin.companies',
   'inspector:admin.users',
   'inspector:admin.permissions',
