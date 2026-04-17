@@ -6,6 +6,7 @@ import Orders from './pages/Orders'
 import OrderDetail from './pages/OrderDetail'
 import Submissions from './pages/Submissions'
 import SubmissionDetail from './pages/SubmissionDetail'
+import Reports from './pages/Reports'
 import Companies from './pages/admin/Companies'
 import Users from './pages/admin/Users'
 import Permissions from './pages/admin/Permissions'
@@ -68,6 +69,7 @@ export default function App() {
       <Route path="/orders/:orderId"              element={<Page><OrderDetail /></Page>} />
       <Route path="/submissions"                  element={<Page><Submissions /></Page>} />
       <Route path="/submissions/:submissionId"    element={<Page><SubmissionDetail /></Page>} />
+      <Route path="/reports"                      element={<Page><Reports /></Page>} />
 
       {/* Rutas de administración — solo admin */}
       <Route path="/admin/users"                  element={<AdminPage><Users /></AdminPage>} />

@@ -1,5 +1,5 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
-import { LayoutDashboard, ClipboardList, FolderOpen, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, AlertCircle, Users, Building2, ShieldCheck, ScrollText, MapPin } from 'lucide-react'
+import { LayoutDashboard, ClipboardList, FolderOpen, FileText, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, AlertCircle, Users, Building2, ShieldCheck, ScrollText, MapPin } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
@@ -11,6 +11,7 @@ const NAV = [
   { to: '/dashboard',   icon: LayoutDashboard, label: 'Inicio' },
   { to: '/orders',      icon: FolderOpen,      label: 'Visitas' },
   { to: '/submissions', icon: ClipboardList,   label: 'Formularios' },
+  { to: '/reports',     icon: FileText,        label: 'Reportes' },
 ]
 
 const NAV_ADMIN = [
@@ -280,7 +281,7 @@ export default function Shell({ children }) {
     logout().catch(() => {})
   }, [logout, navigate])
 
-  const pageTitle = NAV.find(n => location.pathname.startsWith(n.to))?.label || ''
+  const pageTitle = [...NAV, ...NAV_ADMIN].find(n => location.pathname.startsWith(n.to))?.label || ''
 
   const sidebarStyle = {
     background:  'var(--sidebar-bg)',
