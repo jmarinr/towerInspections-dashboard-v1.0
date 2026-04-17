@@ -122,7 +122,8 @@ export default function EquipmentInventoryReport({ hookData }) {
               <thead>
                 <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
                   {[
-                    ['ID Sitio','left'], ['Altura','left'], ['Orientación','left'],
+                    ['ID Sitio','left'], ['Altura','left'],
+                    ['Orient. (Cara)','left'], ['Orient. (°)','center'],
                     ['Tipo Antena','left'], ['Cant.','center'],
                     ['Alto','center'], ['Diám.','center'], ['Ancho','center'],
                     ['Prof.','center'], ['Área M²','center'],
@@ -160,6 +161,9 @@ export default function EquipmentInventoryReport({ hookData }) {
                       {item.alturaMts != null ? `${item.alturaMts} m` : <Dash />}
                     </td>
                     <td className="px-4 py-3 th-text-p whitespace-nowrap">{cell(item.orientacion)}</td>
+                    <td className="px-4 py-3 font-mono text-[12px] text-center th-text-p whitespace-nowrap">
+                      {item.orientacionGrados != null ? `${item.orientacionGrados}°` : <Dash />}
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {item.tipoEquipo ? <Badge tone={typeTone(item.tipoEquipo)}>{item.tipoEquipo}</Badge> : <Dash />}
                     </td>

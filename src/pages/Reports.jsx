@@ -1,23 +1,29 @@
 /**
- * Reports.jsx
- * – Badge Beta junto al título
- * – Botón Descargar Excel en el header (misma fila que selector de reporte)
- * – Un solo hook instanciado aquí; se pasa como hookData al componente activo
+ * Reports.jsx  v2
+ * – Ambos hooks siempre instanciados (regla de hooks: no condicional)
+ * – Badge Beta · Botón Excel en header
+ * – Selector de reporte: Equipment Inventory + Damage Report
  */
 
 import { useState } from 'react'
 import { ChevronDown, FileText, Download } from 'lucide-react'
 import useEquipmentInventoryReport from '../hooks/useEquipmentInventoryReport'
-import EquipmentInventoryReport from './reports/EquipmentInventoryReport'
+import useDamageReport             from '../hooks/useDamageReport'
+import EquipmentInventoryReport    from './reports/EquipmentInventoryReport'
+import DamageReport                from './reports/DamageReport'
 
-// Registro de reportes — para agregar uno nuevo: añadir entrada y crear componente + hook
 const REPORTS = [
   {
     id:          'equipment-inventory',
-    label:       'Inventario de Equipos',
-    description: 'Todos los equipos registrados por sitio · Torre y Carriers incluidos',
+    label:       'Equipment Inventory',
+    description: 'All equipment recorded per site · Tower and Carriers included',
     component:   EquipmentInventoryReport,
-    useHook:     useEquipmentInventoryReport,
+  },
+  {
+    id:          'damage-report',
+    label:       'Damage Report',
+    description: 'Regular and Malo items · Sources: Prev. Maintenance, Grounding Test, Safety Climbing',
+    component:   DamageReport,
   },
 ]
 
@@ -34,11 +40,19 @@ export default function Reports() {
   const [activeId, setActiveId] = useState(REPORTS[0].id)
   const [dropOpen, setDropOpen] = useState(false)
 
-  const active          = REPORTS.find(r => r.id === activeId) || REPORTS[0]
+  // Ambos hooks siempre activos — evita violación de reglas de React
+  const equipmentHook = useEquipmentInventoryReport()
+  const damageHook    = useDamageReport()
+
+  const hookMap = {
+    'equipment-inventory': equipmentHook,
+    'damage-report':       damageHook,
+  }
+
+  const active    = REPORTS.find(r => r.id === activeId) || REPORTS[0]
+  const hookData  = hookMap[activeId]
   const ActiveComponent = active.component
 
-  // Un solo fetch para toda la sección — se pasa como prop al componente activo
-  const hookData = active.useHook()
   const { exportToExcel, isLoading } = hookData
 
   return (
@@ -46,8 +60,6 @@ export default function Reports() {
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-
-        {/* Título + descripción */}
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <h1 className="text-[22px] font-bold th-text-p leading-tight">{active.label}</h1>
@@ -56,10 +68,8 @@ export default function Reports() {
           <p className="text-[13px] th-text-m">{active.description}</p>
         </div>
 
-        {/* Selector de reporte + botón Excel */}
         <div className="flex items-center gap-2 flex-shrink-0">
-
-          {/* Selector */}
+          {/* Selector de reporte */}
           <div className="relative">
             <button
               onClick={() => setDropOpen(o => !o)}
@@ -78,7 +88,7 @@ export default function Reports() {
             {dropOpen && (
               <>
                 <div className="fixed inset-0 z-10" onClick={() => setDropOpen(false)} />
-                <div className="absolute right-0 mt-2 z-20 min-w-[200px] rounded-xl border th-bg-card th-shadow overflow-hidden"
+                <div className="absolute right-0 mt-2 z-20 min-w-[220px] rounded-xl border th-bg-card th-shadow overflow-hidden"
                   style={{ borderColor: 'var(--border)' }}>
                   {REPORTS.map(r => (
                     <button key={r.id}
@@ -113,7 +123,7 @@ export default function Reports() {
         </div>
       </div>
 
-      {/* Reporte activo — recibe el hookData ya instanciado */}
+      {/* Reporte activo */}
       <ActiveComponent hookData={hookData} />
     </div>
   )

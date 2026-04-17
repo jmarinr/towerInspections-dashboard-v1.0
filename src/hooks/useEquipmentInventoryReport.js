@@ -34,9 +34,10 @@ function mapItem(item, idSitio, siteVisitId, overrideCarrier) {
   return {
     idSitio,
     siteVisitId,
-    alturaMts:   item.alturaMts   ?? null,
-    orientacion: item.orientacion || null,
-    tipoEquipo:  item.tipoEquipo  || null,
+    alturaMts:         item.alturaMts         ?? null,
+    orientacion:       item.orientacion        || null,
+    orientacionGrados: item.orientacionGrados  ?? item.grados ?? null,
+    tipoEquipo:        item.tipoEquipo         || null,
     cantidad:    item.cantidad    ?? null,
     // Para MW: alto = diámetro, para otros: alto = altura
     alto:        isMW ? null : alto,
@@ -148,10 +149,11 @@ export default function useEquipmentInventoryReport() {
     try {
       const { utils, writeFile } = await import('xlsx')
       const rows = allItems.map(item => ({
-        'ID Sitio':     item.idSitio     ?? '',
-        'Altura (m)':   item.alturaMts   ?? '',
-        'Orientación':  item.orientacion ?? '',
-        'Tipo Antena':  item.tipoEquipo  ?? '',
+        'ID Sitio':          item.idSitio           ?? '',
+        'Altura (m)':        item.alturaMts          ?? '',
+        'Orient. (Cara)':    item.orientacion        ?? '',
+        'Orient. (°)':       item.orientacionGrados  ?? '',
+        'Tipo Antena':       item.tipoEquipo         ?? '',
         'Cantidad':     item.cantidad    ?? '',
         'Alto':         item.alto        ?? '',
         'Diámetro':     item.diametro    ?? '',
