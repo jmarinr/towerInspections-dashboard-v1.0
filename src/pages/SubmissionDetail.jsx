@@ -709,6 +709,7 @@ export default function SubmissionDetail() {
   const [photosLoading, setPhotosLoading] = useState(false)
   const [timedOut,      setTimedOut]      = useState(false)
   const [uploadStatus,  setUploadStatus]  = useState(null) // null | 'uploading' | 'success' | 'error'
+  const permMatrix = useAdminStore(s => s.permMatrix)
 
   // Edit state
   const [editMode,      setEditMode]      = useState(false)
@@ -1130,7 +1131,6 @@ export default function SubmissionDetail() {
   const visitId     = submission.site_visit_id
   const hasOrder    = visitId && visitId !== '00000000-0000-0000-0000-000000000000'
   const canWrite    = user?.canWrite === true
-  const permMatrix  = useAdminStore(s => s.permMatrix)
   const hasPermission = (key) => {
     if (!user) return false
     if (user.role === 'admin') return true
