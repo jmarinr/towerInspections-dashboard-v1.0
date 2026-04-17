@@ -6,11 +6,13 @@
  */
 
 import { useState } from 'react'
-import { Download, Package, AlertTriangle, ArrowLeft } from 'lucide-react'
+import { Download, Package, AlertTriangle, ArrowLeft, BarChart2 } from 'lucide-react'
 import useEquipmentInventoryReport from '../hooks/useEquipmentInventoryReport'
 import useDamageReport             from '../hooks/useDamageReport'
+import useProductivityReport       from '../hooks/useProductivityReport'
 import EquipmentInventoryReport    from './reports/EquipmentInventoryReport'
 import DamageReport                from './reports/DamageReport'
+import ProductivityReport          from './reports/ProductivityReport'
 
 const REPORTS = [
   {
@@ -21,7 +23,6 @@ const REPORTS = [
     icon:             Package,
     color:            '#0284C7',
     colorLight:       '#e0f2fe',
-    colorText:        '#075985',
     component:        EquipmentInventoryReport,
   },
   {
@@ -32,8 +33,17 @@ const REPORTS = [
     icon:             AlertTriangle,
     color:            '#dc2626',
     colorLight:       '#fee2e2',
-    colorText:        '#991b1b',
     component:        DamageReport,
+  },
+  {
+    id:               'productivity',
+    label:            'Productivity Report',
+    description:      'Form & order timing · Historical benchmarks · Traffic light per form',
+    descriptionShort: 'Timing per order & form · Benchmarks',
+    icon:             BarChart2,
+    color:            '#6366f1',
+    colorLight:       '#eef2ff',
+    component:        ProductivityReport,
   },
 ]
 
@@ -102,12 +112,14 @@ export default function Reports() {
 
   // Ambos hooks siempre activos (regla de React: no conditional hooks)
   // Fetch en background mientras el usuario ve el picker → datos listos al abrir
-  const equipmentHook = useEquipmentInventoryReport()
-  const damageHook    = useDamageReport()
+  const equipmentHook    = useEquipmentInventoryReport()
+  const damageHook       = useDamageReport()
+  const productivityHook = useProductivityReport()
 
   const hookMap = {
     'equipment-inventory': equipmentHook,
     'damage-report':       damageHook,
+    'productivity':        productivityHook,
   }
 
   // Picker
