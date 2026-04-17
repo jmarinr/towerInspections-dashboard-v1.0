@@ -150,6 +150,7 @@ export default function Orders() {
       {isLoading && filtered.length === 0 && <div className="flex items-center justify-center py-20"><Spinner size={16} /></div>}
 
       {filtered.length > 0 && (
+        <>
         <div className="rounded-2xl th-shadow overflow-hidden" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
           <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[480px]">
@@ -223,6 +224,7 @@ export default function Orders() {
           pageSize={PAGE_SIZE}
           onPageChange={setPage}
         />
+        </>
       )}
 
       {!isLoading && !storeError && filtered.length === 0 && (
