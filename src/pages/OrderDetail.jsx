@@ -120,6 +120,10 @@ export default function OrderDetail() {
     ? new Date(order.started_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' }) : null
   const visibleSubs = submissions.filter(s => isFormVisible(s.form_code))
 
+  // Detectar inconsistencia: orden abierta con todos los formularios completados
+  const allFormsFinalized = visibleSubs.length > 0 && visibleSubs.every(s => s.finalized || isFinalized(s))
+  const hasInconsistency  = open && allFormsFinalized
+
   // ── Status toggle ──────────────────────────────────────────────────────────
   const pendingForms = visibleSubs.filter(s => !(s.finalized || isFinalized(s))).length
 
@@ -166,6 +170,27 @@ export default function OrderDetail() {
         className="inline-flex items-center gap-1.5 text-[13px] th-text-m hover:th-text-p transition-colors">
         <ArrowLeft size={14} />Volver
       </button>
+
+      {/* Banner de inconsistencia — orden abierta con todos los forms completados */}
+      {hasInconsistency && user?.canWrite && (
+        <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
+          style={{ background: '#fffbeb', border: '1px solid #fde68a' }}>
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={15} strokeWidth={2} style={{ color: '#b45309', flexShrink: 0 }} />
+            <p className="text-[13px] font-medium" style={{ color: '#92400e' }}>
+              Todos los formularios están completados pero la visita sigue abierta.
+            </p>
+          </div>
+          <button
+            onClick={handleStatusToggleClick}
+            disabled={statusLoading}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white flex-shrink-0"
+            style={{ background: '#b45309' }}>
+            <LockKeyhole size={12} strokeWidth={2} />
+            Cerrar visita ahora
+          </button>
+        </div>
+      )}
 
       {/* Header card */}
       <div className="rounded-2xl th-shadow p-5 space-y-4" style={{background:"var(--bg-card)",border:"1px solid var(--border)"}}>
