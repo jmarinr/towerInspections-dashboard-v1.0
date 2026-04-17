@@ -1,10 +1,17 @@
 /**
- * useEquipmentInventoryReport.js
- * v2 — incluye torre.items Y carriers[].items, diámetro MW, área m², site_visit_id
+ * useEquipmentInventoryReport.js  v3
+ * – Join con site_visits para orderId, orderLabel, orderStartDate
+ * – Filtro de cuatrimestre (primer filtro, acota dataset base)
+ * – KPIs calculados sobre el cuatrimestre seleccionado
+ * – orientacionCara / orientacionGrados según fuente (torre/carrier)
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import {
+  getQuarterOptions, getCurrentQuarterOption,
+  isInQuarter,
+} from '../utils/quarterUtils'
 
 const EQUIPMENT_V2_CODES = ['equipment-v2', 'inventario-v2']
 
@@ -13,7 +20,6 @@ function extractRaw(submission) {
   return p?.payload?.data || p?.data || p || {}
 }
 
-// Área según tipo: MW = π*(d/2)², otros = alto×ancho
 function calcArea(alto, ancho, tipoEquipo) {
   if (tipoEquipo === 'MW') {
     const d = parseFloat(alto)
@@ -25,56 +31,53 @@ function calcArea(alto, ancho, tipoEquipo) {
   return Number.isFinite(a) && Number.isFinite(b) ? parseFloat((a * b).toFixed(4)) : null
 }
 
-// Mapea un item de torre/carrier a una fila normalizada del reporte
-// source: 'torre' | 'carrier' — determina la semántica del campo orientacion
-function mapItem(item, idSitio, siteVisitId, overrideCarrier, source) {
-  const isMW     = item.tipoEquipo === 'MW'
-  const alto     = item.alto ?? null
-  const ancho    = item.ancho ?? null
-
-  // Torre: orientacion = cara (Cara 1, Pierna A, Mástil…)
-  // Carrier: orientacion = grados (0°, 45°, 90°…)
-  const orientacionCara   = source === 'torre'   ? (item.orientacion || null) : null
-  const orientacionGrados = source === 'carrier' ? (item.orientacion || null) : null
+function mapItem(item, idSitio, siteVisitId, overrideCarrier, source, orderId, orderLabel, orderStartDate) {
+  const isMW  = item.tipoEquipo === 'MW'
+  const alto  = item.alto  ?? null
+  const ancho = item.ancho ?? null
 
   return {
     idSitio,
     siteVisitId,
+    orderId,
+    orderLabel,
+    orderStartDate,
     alturaMts:         item.alturaMts         ?? null,
-    orientacionCara,
-    orientacionGrados,
-    tipoEquipo:        item.tipoEquipo         || null,
-    cantidad:    item.cantidad    ?? null,
-    // Para MW: alto = diámetro, para otros: alto = altura
-    alto:        isMW ? null : alto,
-    diametro:    isMW ? alto : null,
-    ancho:       isMW ? null : ancho,
-    profundidad: isMW ? null : (item.profundidad ?? null),
-    area:        calcArea(alto, ancho, item.tipoEquipo),
-    carrier:     overrideCarrier ?? item.carrier ?? null,
-    comentario:  item.comentario ?? null,
+    // Torre → cara (Cara 1, Pierna A…) · Carrier → grados (0°, 45°…)
+    orientacionCara:   source === 'torre'   ? (item.orientacion || null) : null,
+    orientacionGrados: source === 'carrier' ? (item.orientacion || null) : null,
+    tipoEquipo:        item.tipoEquipo       || null,
+    cantidad:          item.cantidad         ?? null,
+    alto:              isMW ? null : alto,
+    diametro:          isMW ? alto : null,
+    ancho:             isMW ? null : ancho,
+    profundidad:       isMW ? null : (item.profundidad ?? null),
+    area:              calcArea(alto, ancho, item.tipoEquipo),
+    carrier:           overrideCarrier ?? item.carrier ?? null,
+    comentario:        item.comentario ?? null,
   }
 }
 
-// Aplana torre.items + carriers[].items de un submission
 function flattenItems(submission) {
-  const raw         = extractRaw(submission)
-  const info        = raw.siteInfo || {}
-  const idSitio     = info.idSitio     || null
-  const siteVisitId = submission.site_visit_id || null
-  const rows        = []
+  const raw     = extractRaw(submission)
+  const info    = raw.siteInfo || {}
+  const idSitio = info.idSitio || null
 
-  // ── Torre items ────────────────────────────────────────────────────────────
-  const torreItems = raw.torre?.items || []
-  torreItems.forEach(item => rows.push(mapItem(item, idSitio, siteVisitId, undefined, 'torre')))
+  const sv             = submission.site_visits
+  const orderId        = sv?.id           || submission.site_visit_id || null
+  const orderLabel     = sv?.order_number || null
+  const orderStartDate = sv?.started_at   || submission.created_at   || null
 
-  // ── Carriers items (sección separada del formulario) ──────────────────────
-  const carriers = raw.carriers || []
-  carriers.forEach(carrier => {
-    const carrierName  = carrier.nombre || null
-    const carrierItems = carrier.items  || []
-    carrierItems.forEach(item =>
-      rows.push(mapItem(item, idSitio, siteVisitId, carrierName, 'carrier'))
+  const rows = []
+
+  ;(raw.torre?.items || []).forEach(item =>
+    rows.push(mapItem(item, idSitio, submission.site_visit_id, undefined, 'torre', orderId, orderLabel, orderStartDate))
+  )
+
+  ;(raw.carriers || []).forEach(carrier => {
+    const name = carrier.nombre || null
+    ;(carrier.items || []).forEach(item =>
+      rows.push(mapItem(item, idSitio, submission.site_visit_id, name, 'carrier', orderId, orderLabel, orderStartDate))
     )
   })
 
@@ -82,13 +85,13 @@ function flattenItems(submission) {
 }
 
 export default function useEquipmentInventoryReport() {
-  const [allItems,  setAllItems]  = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error,     setError]     = useState(null)
-
-  const [filters,     setFiltersState]     = useState({ site: '', carrier: '', type: '', height: '' })
-  const [currentPage, setCurrentPageState] = useState(1)
-  const [pageSize,    setPageSizeState]    = useState(25)
+  const [allItems,        setAllItems]        = useState([])
+  const [isLoading,       setIsLoading]       = useState(true)
+  const [error,           setError]           = useState(null)
+  const [selectedQuarter, setSelectedQuarter] = useState(null)
+  const [filters,         setFiltersState]    = useState({ site: '', carrier: '', type: '', height: '' })
+  const [currentPage,     setCurrentPageState] = useState(1)
+  const [pageSize,        setPageSizeState]   = useState(25)
 
   // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -98,94 +101,123 @@ export default function useEquipmentInventoryReport() {
 
     supabase
       .from('submissions')
-      .select('id, site_visit_id, payload')   // site_visit_id para links
+      .select('id, site_visit_id, payload, site_visits(id, order_number, started_at)')
       .in('form_code', EQUIPMENT_V2_CODES)
       .eq('finalized', true)
       .order('created_at', { ascending: false })
       .then(({ data, error: err }) => {
         if (cancelled) return
         if (err) { setError(err.message); setIsLoading(false); return }
-        setAllItems((data || []).flatMap(flattenItems))
+        const flat = (data || []).flatMap(flattenItems)
+        setAllItems(flat)
         setIsLoading(false)
       })
 
     return () => { cancelled = true }
   }, [])
 
-  // ── KPIs — siempre sobre dataset completo ──────────────────────────────────
-  const totalEquipment = allItems.length
-  const totalTowers    = useMemo(() => new Set(allItems.map(i => i.idSitio).filter(Boolean)).size,    [allItems])
-  const antennaTypes   = useMemo(() => new Set(allItems.map(i => i.tipoEquipo).filter(Boolean)).size, [allItems])
-  const activeCarriers = useMemo(() => new Set(allItems.map(i => i.carrier).filter(Boolean)).size,    [allItems])
+  // ── Quarter options — derivadas del dataset completo ──────────────────────
+  const quarterOptions = useMemo(() =>
+    getQuarterOptions(allItems.map(i => i.orderStartDate).filter(Boolean)),
+    [allItems]
+  )
 
-  // ── Opciones de filtro — dinámicas ─────────────────────────────────────────
+  // ── Default al cuatrimestre en curso cuando llegan los datos ──────────────
+  useEffect(() => {
+    if (quarterOptions.length > 0 && !selectedQuarter) {
+      setSelectedQuarter(getCurrentQuarterOption(quarterOptions))
+    }
+  }, [quarterOptions])
+
+  // ── Dataset acotado por cuatrimestre ──────────────────────────────────────
+  const quarterFilteredItems = useMemo(() =>
+    selectedQuarter
+      ? allItems.filter(i => isInQuarter(i.orderStartDate, selectedQuarter))
+      : allItems,
+    [allItems, selectedQuarter]
+  )
+
+  // ── KPIs — sobre el cuatrimestre seleccionado ─────────────────────────────
+  const totalEquipment = quarterFilteredItems.length
+  const totalTowers    = useMemo(() => new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean)).size,    [quarterFilteredItems])
+  const antennaTypes   = useMemo(() => new Set(quarterFilteredItems.map(i => i.tipoEquipo).filter(Boolean)).size, [quarterFilteredItems])
+  const activeCarriers = useMemo(() => new Set(quarterFilteredItems.map(i => i.carrier).filter(Boolean)).size,    [quarterFilteredItems])
+
+  // ── Filter options — derivadas del cuatrimestre activo ────────────────────
   const filterOptions = useMemo(() => ({
-    sites:    [...new Set(allItems.map(i => i.idSitio).filter(Boolean))].sort(),
-    carriers: [...new Set(allItems.map(i => i.carrier).filter(Boolean))].sort(),
-    types:    [...new Set(allItems.map(i => i.tipoEquipo).filter(Boolean))].sort(),
-    heights:  [...new Set(allItems.map(i => i.alturaMts).filter(v => v != null))]
-                .sort((a, b) => a - b)
-                .map(String),
-  }), [allItems])
+    sites:    [...new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean))].sort(),
+    carriers: [...new Set(quarterFilteredItems.map(i => i.carrier).filter(Boolean))].sort(),
+    types:    [...new Set(quarterFilteredItems.map(i => i.tipoEquipo).filter(Boolean))].sort(),
+    heights:  [...new Set(quarterFilteredItems.map(i => i.alturaMts).filter(v => v != null))]
+                .sort((a, b) => a - b).map(String),
+  }), [quarterFilteredItems])
 
   // ── Filtrado en memoria ────────────────────────────────────────────────────
-  const filteredItems = useMemo(() => allItems.filter(item => {
-    if (filters.site    && item.idSitio   !== filters.site)           return false
-    if (filters.carrier && item.carrier   !== filters.carrier)        return false
-    if (filters.type    && item.tipoEquipo !== filters.type)          return false
-    if (filters.height  && String(item.alturaMts) !== filters.height) return false
-    return true
-  }), [allItems, filters])
+  const filteredItems = useMemo(() =>
+    quarterFilteredItems.filter(item => {
+      if (filters.site    && item.idSitio   !== filters.site)    return false
+      if (filters.carrier && item.carrier   !== filters.carrier) return false
+      if (filters.type    && item.tipoEquipo !== filters.type)   return false
+      if (filters.height  && String(item.alturaMts) !== filters.height) return false
+      return true
+    }),
+    [quarterFilteredItems, filters]
+  )
 
   const totalFiltered = filteredItems.length
 
-  // ── Paginación en memoria ──────────────────────────────────────────────────
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filteredItems.slice(start, start + pageSize)
   }, [filteredItems, currentPage, pageSize])
 
-  // ── Setters con reset de página ────────────────────────────────────────────
-  const setFilter      = useCallback((key, val) => { setFiltersState(p => ({ ...p, [key]: val })); setCurrentPageState(1) }, [])
-  const setCurrentPage = useCallback(page => setCurrentPageState(page), [])
-  const setPageSize    = useCallback(size => { setPageSizeState(size); setCurrentPageState(1) }, [])
+  // ── Setters ────────────────────────────────────────────────────────────────
+  const setFilter = useCallback((key, val) => {
+    setFiltersState(p => ({ ...p, [key]: val }))
+    setCurrentPageState(1)
+  }, [])
+  const setCurrentPage    = useCallback(p => setCurrentPageState(p), [])
+  const setPageSize       = useCallback(size => { setPageSizeState(size); setCurrentPageState(1) }, [])
+  const handleSetQuarter  = useCallback(opt => { setSelectedQuarter(opt); setCurrentPageState(1) }, [])
 
-  // ── Exportar Excel — siempre dataset completo ──────────────────────────────
+  // ── Export Excel ───────────────────────────────────────────────────────────
   const exportToExcel = useCallback(async () => {
     try {
       const { utils, writeFile } = await import('xlsx')
-      const rows = allItems.map(item => ({
+      const rows = quarterFilteredItems.map(item => ({
         'ID Sitio':          item.idSitio           ?? '',
+        'Visita':            item.orderLabel         ?? '',
+        'Cuatrimestre':      selectedQuarter?.label  ?? '',
         'Altura (m)':        item.alturaMts          ?? '',
         'Orient. (Cara)':    item.orientacionCara    ?? '',
         'Orient. (°)':       item.orientacionGrados  ?? '',
         'Tipo Antena':       item.tipoEquipo         ?? '',
-        'Cantidad':     item.cantidad    ?? '',
-        'Alto':         item.alto        ?? '',
-        'Diámetro':     item.diametro    ?? '',
-        'Ancho':        item.ancho       ?? '',
-        'Profundidad':  item.profundidad ?? '',
-        'Área M²':      item.area        ?? '',
-        'Carrier':      item.carrier     ?? '',
-        'Comentarios':  item.comentario  ?? '',
+        'Cantidad':          item.cantidad           ?? '',
+        'Alto':              item.alto               ?? '',
+        'Diámetro':          item.diametro           ?? '',
+        'Ancho':             item.ancho              ?? '',
+        'Profundidad':       item.profundidad        ?? '',
+        'Área M²':           item.area               ?? '',
+        'Carrier':           item.carrier            ?? '',
+        'Comentarios':       item.comentario         ?? '',
       }))
       const ws = utils.json_to_sheet(rows)
       ws['!cols'] = [
-        { wch: 14 }, { wch: 10 }, { wch: 14 }, { wch: 16 },
-        { wch: 8 },  { wch: 8 },  { wch: 10 }, { wch: 8 },
-        { wch: 10 }, { wch: 10 }, { wch: 16 }, { wch: 30 },
+        { wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 10 },
+        { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 8 },
+        { wch: 8 },  { wch: 10 }, { wch: 8 },  { wch: 10 },
+        { wch: 10 }, { wch: 16 }, { wch: 30 },
       ]
       const wb = utils.book_new()
       utils.book_append_sheet(wb, ws, 'Inventario')
-      writeFile(wb, `inventario_equipos_${new Date().toISOString().slice(0, 10)}.xlsx`)
-    } catch (e) {
-      console.error('[exportToExcel]', e)
-    }
-  }, [allItems])
+      writeFile(wb, `inventario_equipos_${selectedQuarter?.value || 'all'}_${new Date().toISOString().slice(0,10)}.xlsx`)
+    } catch (e) { console.error('[exportToExcel equipment]', e) }
+  }, [quarterFilteredItems, selectedQuarter])
 
   return {
     allItems, filteredItems, paginatedItems,
     totalEquipment, totalTowers, antennaTypes, activeCarriers,
+    quarterOptions, selectedQuarter, setSelectedQuarter: handleSetQuarter,
     filters, setFilter, filterOptions,
     currentPage, setCurrentPage, pageSize, setPageSize, totalFiltered,
     exportToExcel,

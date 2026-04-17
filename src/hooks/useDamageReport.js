@@ -1,12 +1,8 @@
 /**
- * useDamageReport.js
- *
- * Centraliza toda la lógica del Reporte de Daños por Sitio.
- * Fuentes: Preventive Maintenance, Grounding System Test, Safety Climbing Device.
- * (Executed Maintenance excluido — no tiene items Bueno/Regular/Malo)
- *
- * Tracking (status + audit_comment) persiste en report_damage_tracking via upsert.
- * Actualización optimista + rollback en caso de error.
+ * useDamageReport.js  v2
+ * – Join con site_visits para orderId, orderLabel, orderStartDate
+ * – Filtro de cuatrimestre
+ * – KPIs sobre cuatrimestre seleccionado
  */
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
@@ -14,40 +10,35 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
 import { maintenanceFormConfig } from '../data/maintenanceFormConfig'
 import { safetySectionFields } from '../data/safetyClimbingDeviceConfig'
+import {
+  getQuarterOptions, getCurrentQuarterOption, isInQuarter,
+} from '../utils/quarterUtils'
 
-// ── Form code sets ────────────────────────────────────────────────────────────
-const PM_CODES       = ['preventive-maintenance', 'mantenimiento']
-const GROUNDING_CODES = ['grounding-system-test', 'puesta-tierra']
-const SAFETY_CODES   = ['safety-system', 'sistema-ascenso']
-const ALL_CODES      = [...PM_CODES, ...GROUNDING_CODES, ...SAFETY_CODES]
+const PM_CODES        = ['preventive-maintenance', 'mantenimiento']
+const GROUNDING_CODES = ['grounding-system-test',  'puesta-tierra']
+const SAFETY_CODES    = ['safety-system',           'sistema-ascenso']
+const ALL_CODES       = [...PM_CODES, ...GROUNDING_CODES, ...SAFETY_CODES]
 
-// ── Lookup map: maintenance checklist itemId → name ───────────────────────────
 const MAINT_ITEM_MAP = (() => {
   const map = {}
   for (const step of maintenanceFormConfig.steps) {
     if (step.type === 'checklist' && step.items) {
-      for (const item of step.items) {
-        map[item.id] = item.name
-      }
+      for (const item of step.items) map[item.id] = item.name
     }
   }
   return map
 })()
 
-// ── Lookup: safety fields of type 'status' ────────────────────────────────────
 const SAFETY_STATUS_FIELDS = (() => {
   const fields = []
   for (const [sectionId, sectionFields] of Object.entries(safetySectionFields)) {
     for (const f of sectionFields) {
-      if (f.type === 'status') {
-        fields.push({ sectionId, fieldId: f.id, label: f.label })
-      }
+      if (f.type === 'status') fields.push({ sectionId, fieldId: f.id, label: f.label })
     }
   }
   return fields
 })()
 
-// ── Grounding measurement points ──────────────────────────────────────────────
 const GROUNDING_MEASUREMENTS = [
   { id: 'rPataTorre',    label: 'Pata de la Torre' },
   { id: 'rCerramiento',  label: 'Cerramiento' },
@@ -58,7 +49,6 @@ const GROUNDING_MEASUREMENTS = [
   { id: 'rEscalerilla2', label: 'Escalerilla #2' },
 ]
 
-// ── Payload resolver ──────────────────────────────────────────────────────────
 function resolveData(submission) {
   const p = submission.payload || {}
   return p?.payload?.data || p?.data || p || {}
@@ -68,43 +58,41 @@ function normStatus(v) {
   if (!v) return ''
   const s = String(v).toLowerCase()
   if (s.includes('regular')) return 'regular'
-  if (s.includes('malo')    ) return 'malo'
-  if (s.includes('bueno')   ) return 'bueno'
+  if (s.includes('malo'))    return 'malo'
+  if (s.includes('bueno'))   return 'bueno'
   return s
 }
 
-// ── Flatten damage items from a submission ────────────────────────────────────
 function extractDamages(submission) {
   const data     = resolveData(submission)
   const idSitio  = data.siteInfo?.idSitio || data.formData?.idSitio || ''
-  const date     = data.meta?.date || submission.created_at || ''
   const fc       = submission.form_code || ''
   const subId    = submission.id
-  const damages  = []
 
-  // ── Preventive Maintenance Inspection ─────────────────────────────────────
+  const sv             = submission.site_visits
+  const orderId        = sv?.id           || submission.site_visit_id || null
+  const orderLabel     = sv?.order_number || null
+  const orderStartDate = sv?.started_at   || submission.created_at   || null
+
+  const damages = []
+
   if (PM_CODES.some(c => fc === c || fc.includes(c))) {
-    const cl = data.checklistData || {}
-    Object.entries(cl).forEach(([itemId, entry], i) => {
+    Object.entries(data.checklistData || {}).forEach(([itemId, entry]) => {
       const raw = normStatus(entry?.status)
       if (raw !== 'regular' && raw !== 'malo') return
       damages.push({
-        damageKey:   `${fc}_${subId}_${itemId}`,
-        submissionId: subId,
-        formCode:    'preventive-maintenance',
-        formLabel:   'Preventive Maintenance Inspection',
-        idSitio,
+        damageKey: `${fc}_${subId}_${itemId}`, submissionId: subId,
+        formCode: 'preventive-maintenance', formLabel: 'Preventive Maintenance Inspection',
+        idSitio, orderId, orderLabel, orderStartDate,
         description: MAINT_ITEM_MAP[itemId] || `Ítem ${itemId}`,
-        category:    raw === 'malo' ? 'Malo' : 'Regular',
-        status:      'pendiente',
-        auditComment: '',
-        date,
+        category: raw === 'malo' ? 'Malo' : 'Regular',
+        status: 'pendiente', auditComment: '',
+        date: orderStartDate,
       })
     })
     return damages
   }
 
-  // ── Grounding System Test ─────────────────────────────────────────────────
   if (GROUNDING_CODES.some(c => fc === c || fc.includes(c))) {
     const med = data.medicion || {}
     GROUNDING_MEASUREMENTS.forEach(m => {
@@ -113,37 +101,30 @@ function extractDamages(submission) {
       const raw = val <= 5 ? 'bueno' : val <= 10 ? 'regular' : 'malo'
       if (raw === 'bueno') return
       damages.push({
-        damageKey:    `${fc}_${subId}_${m.id}`,
-        submissionId: subId,
-        formCode:     'grounding-system-test',
-        formLabel:    'Grounding System Test',
-        idSitio,
-        description:  `${m.label} — ${val} Ω`,
-        category:     raw === 'malo' ? 'Malo' : 'Regular',
-        status:       'pendiente',
-        auditComment: '',
-        date,
+        damageKey: `${fc}_${subId}_${m.id}`, submissionId: subId,
+        formCode: 'grounding-system-test', formLabel: 'Grounding System Test',
+        idSitio, orderId, orderLabel, orderStartDate,
+        description: `${m.label} — ${val} Ω`,
+        category: raw === 'malo' ? 'Malo' : 'Regular',
+        status: 'pendiente', auditComment: '',
+        date: orderStartDate,
       })
     })
     return damages
   }
 
-  // ── Safety Climbing Device ────────────────────────────────────────────────
   if (SAFETY_CODES.some(c => fc === c || fc.includes(c))) {
     SAFETY_STATUS_FIELDS.forEach(({ sectionId, fieldId, label }) => {
       const raw = normStatus(data[sectionId]?.[fieldId])
       if (raw !== 'regular' && raw !== 'malo') return
       damages.push({
-        damageKey:    `${fc}_${subId}_${fieldId}`,
-        submissionId: subId,
-        formCode:     'safety-system',
-        formLabel:    'Safety Climbing Device',
-        idSitio,
-        description:  label,
-        category:     raw === 'malo' ? 'Malo' : 'Regular',
-        status:       'pendiente',
-        auditComment: '',
-        date,
+        damageKey: `${fc}_${subId}_${fieldId}`, submissionId: subId,
+        formCode: 'safety-system', formLabel: 'Safety Climbing Device',
+        idSitio, orderId, orderLabel, orderStartDate,
+        description: label,
+        category: raw === 'malo' ? 'Malo' : 'Regular',
+        status: 'pendiente', auditComment: '',
+        date: orderStartDate,
       })
     })
     return damages
@@ -152,19 +133,17 @@ function extractDamages(submission) {
   return damages
 }
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
 export default function useDamageReport() {
-  const [allItems,   setAllItems]   = useState([])
-  const [isLoading,  setIsLoading]  = useState(true)
-  const [error,      setError]      = useState(null)
-
-  const [filters,     setFiltersState]     = useState({ site: '', category: '', status: '' })
-  const [currentPage, setCurrentPageState] = useState(1)
-  const [pageSize,    setPageSizeState]    = useState(25)
-
+  const [allItems,        setAllItems]        = useState([])
+  const [isLoading,       setIsLoading]       = useState(true)
+  const [error,           setError]           = useState(null)
+  const [selectedQuarter, setSelectedQuarter] = useState(null)
+  const [filters,         setFiltersState]    = useState({ site: '', category: '', status: '' })
+  const [currentPage,     setCurrentPageState] = useState(1)
+  const [pageSize,        setPageSizeState]   = useState(25)
   const debounceRef = useRef({})
 
-  // ── Fetch submissions + tracking ───────────────────────────────────────────
+  // ── Fetch ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false
     setIsLoading(true)
@@ -173,7 +152,7 @@ export default function useDamageReport() {
     Promise.all([
       supabase
         .from('submissions')
-        .select('id, form_code, payload, created_at')
+        .select('id, form_code, site_visit_id, payload, created_at, site_visits(id, order_number, started_at)')
         .in('form_code', ALL_CODES)
         .eq('finalized', true)
         .order('created_at', { ascending: false }),
@@ -184,19 +163,14 @@ export default function useDamageReport() {
       if (cancelled) return
       if (subErr) { setError(subErr.message); setIsLoading(false); return }
 
-      // Build tracking map: { damageKey: { status, auditComment } }
       const trackMap = {}
       for (const t of (tracking || [])) {
-        const key = `${t.submission_id}::${t.damage_key}`
-        trackMap[key] = { status: t.status, auditComment: t.audit_comment || '' }
+        trackMap[`${t.submission_id}::${t.damage_key}`] = { status: t.status, auditComment: t.audit_comment || '' }
       }
 
-      // Extract and enrich with tracking
       const flat = (subs || []).flatMap(sub => {
-        const items = extractDamages(sub)
-        return items.map(item => {
-          const tkey = `${item.submissionId}::${item.damageKey}`
-          const tr   = trackMap[tkey]
+        return extractDamages(sub).map(item => {
+          const tr = trackMap[`${item.submissionId}::${item.damageKey}`]
           return tr ? { ...item, status: tr.status, auditComment: tr.auditComment } : item
         })
       })
@@ -208,148 +182,147 @@ export default function useDamageReport() {
     return () => { cancelled = true }
   }, [])
 
-  // ── KPIs — siempre dataset completo ────────────────────────────────────────
-  const totalDamages  = allItems.length
-  const totalPending  = useMemo(() => allItems.filter(i => i.status === 'pendiente').length, [allItems])
-  const totalRepaired = useMemo(() => allItems.filter(i => i.status === 'reparado').length,  [allItems])
-  const totalQuoted   = useMemo(() => allItems.filter(i => i.status === 'cotizado').length,  [allItems])
-  const totalRegular  = useMemo(() => allItems.filter(i => i.category === 'Regular').length, [allItems])
-  const totalMalo     = useMemo(() => allItems.filter(i => i.category === 'Malo').length,    [allItems])
+  // ── Quarter options ────────────────────────────────────────────────────────
+  const quarterOptions = useMemo(() =>
+    getQuarterOptions(allItems.map(i => i.orderStartDate).filter(Boolean)),
+    [allItems]
+  )
 
-  // ── Filter options — dinámicas ──────────────────────────────────────────────
+  useEffect(() => {
+    if (quarterOptions.length > 0 && !selectedQuarter) {
+      setSelectedQuarter(getCurrentQuarterOption(quarterOptions))
+    }
+  }, [quarterOptions])
+
+  const quarterFilteredItems = useMemo(() =>
+    selectedQuarter
+      ? allItems.filter(i => isInQuarter(i.orderStartDate, selectedQuarter))
+      : allItems,
+    [allItems, selectedQuarter]
+  )
+
+  // ── KPIs ───────────────────────────────────────────────────────────────────
+  const totalDamages  = quarterFilteredItems.length
+  const totalPending  = useMemo(() => quarterFilteredItems.filter(i => i.status === 'pendiente').length, [quarterFilteredItems])
+  const totalRepaired = useMemo(() => quarterFilteredItems.filter(i => i.status === 'reparado').length,  [quarterFilteredItems])
+  const totalQuoted   = useMemo(() => quarterFilteredItems.filter(i => i.status === 'cotizado').length,  [quarterFilteredItems])
+  const totalRegular  = useMemo(() => quarterFilteredItems.filter(i => i.category === 'Regular').length, [quarterFilteredItems])
+  const totalMalo     = useMemo(() => quarterFilteredItems.filter(i => i.category === 'Malo').length,    [quarterFilteredItems])
+
   const filterOptions = useMemo(() => ({
-    sites:      [...new Set(allItems.map(i => i.idSitio).filter(Boolean))].sort(),
-    categories: [...new Set(allItems.map(i => i.category).filter(Boolean))].sort(),
+    sites:      [...new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean))].sort(),
+    categories: [...new Set(quarterFilteredItems.map(i => i.category).filter(Boolean))].sort(),
     statuses:   ['pendiente', 'cotizado', 'reparado'],
-  }), [allItems])
+  }), [quarterFilteredItems])
 
-  // ── Filtrado en memoria ────────────────────────────────────────────────────
-  const filteredItems = useMemo(() => allItems.filter(item => {
-    if (filters.site     && item.idSitio   !== filters.site)     return false
-    if (filters.category && item.category  !== filters.category) return false
-    if (filters.status   && item.status    !== filters.status)   return false
-    return true
-  }), [allItems, filters])
+  const filteredItems = useMemo(() =>
+    quarterFilteredItems.filter(item => {
+      if (filters.site     && item.idSitio  !== filters.site)     return false
+      if (filters.category && item.category !== filters.category) return false
+      if (filters.status   && item.status   !== filters.status)   return false
+      return true
+    }),
+    [quarterFilteredItems, filters]
+  )
 
   const totalFiltered = filteredItems.length
 
-  // ── Paginación en memoria ──────────────────────────────────────────────────
   const paginatedItems = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filteredItems.slice(start, start + pageSize)
   }, [filteredItems, currentPage, pageSize])
 
-  // ── Setters ────────────────────────────────────────────────────────────────
-  const setFilter      = useCallback((key, val) => { setFiltersState(p => ({ ...p, [key]: val })); setCurrentPageState(1) }, [])
+  const setFilter     = useCallback((key, val) => { setFiltersState(p => ({ ...p, [key]: val })); setCurrentPageState(1) }, [])
   const setCurrentPage = useCallback(p => setCurrentPageState(p), [])
-  const setPageSize    = useCallback(size => { setPageSizeState(size); setCurrentPageState(1) }, [])
+  const setPageSize   = useCallback(size => { setPageSizeState(size); setCurrentPageState(1) }, [])
+  const handleSetQuarter = useCallback(opt => { setSelectedQuarter(opt); setCurrentPageState(1) }, [])
 
-  // ── updateStatus — optimistic + upsert ─────────────────────────────────────
+  // ── Mutaciones (status + comment) ─────────────────────────────────────────
   const updateStatus = useCallback((damageKey, submissionId, newStatus) => {
-    // Optimistic update
     setAllItems(prev =>
       prev.map(item =>
         item.damageKey === damageKey && item.submissionId === submissionId
-          ? { ...item, status: newStatus }
-          : item
+          ? { ...item, status: newStatus } : item
       )
     )
-
     const userId = useAuthStore.getState().user?.id
-
     supabase.from('report_damage_tracking').upsert(
       { submission_id: submissionId, damage_key: damageKey, status: newStatus,
         updated_at: new Date().toISOString(), updated_by: userId || null },
       { onConflict: 'submission_id,damage_key' }
     ).then(({ error: err }) => {
       if (err) {
-        // Rollback: revert to 'pendiente' on failure
-        console.error('[updateStatus] upsert failed:', err.message)
+        console.error('[updateStatus]', err.message)
         setAllItems(prev =>
           prev.map(item =>
             item.damageKey === damageKey && item.submissionId === submissionId
-              ? { ...item, status: 'pendiente' }
-              : item
+              ? { ...item, status: 'pendiente' } : item
           )
         )
       }
     })
   }, [])
 
-  // ── updateComment — optimistic + debounced upsert (500ms) ─────────────────
   const updateComment = useCallback((damageKey, submissionId, comment) => {
-    // Optimistic update inmediato en UI
     setAllItems(prev =>
       prev.map(item =>
         item.damageKey === damageKey && item.submissionId === submissionId
-          ? { ...item, auditComment: comment }
-          : item
+          ? { ...item, auditComment: comment } : item
       )
     )
-
-    // Cancelar debounce anterior para esta key
     const dkey = `${submissionId}::${damageKey}`
     if (debounceRef.current[dkey]) clearTimeout(debounceRef.current[dkey])
-
-    // Snapshot del valor previo para rollback
-    const prevComment = allItems.find(
-      i => i.damageKey === damageKey && i.submissionId === submissionId
-    )?.auditComment ?? ''
-
+    const prevComment = allItems.find(i => i.damageKey === damageKey && i.submissionId === submissionId)?.auditComment ?? ''
     debounceRef.current[dkey] = setTimeout(async () => {
       const userId = useAuthStore.getState().user?.id
-      const { error: err } = await supabase
-        .from('report_damage_tracking')
-        .upsert(
-          { submission_id: submissionId, damage_key: damageKey, audit_comment: comment,
-            status: allItems.find(i => i.damageKey === damageKey)?.status || 'pendiente',
-            updated_at: new Date().toISOString(), updated_by: userId || null },
-          { onConflict: 'submission_id,damage_key' }
-        )
-
+      const { error: err } = await supabase.from('report_damage_tracking').upsert(
+        { submission_id: submissionId, damage_key: damageKey, audit_comment: comment,
+          status: allItems.find(i => i.damageKey === damageKey)?.status || 'pendiente',
+          updated_at: new Date().toISOString(), updated_by: userId || null },
+        { onConflict: 'submission_id,damage_key' }
+      )
       if (err) {
-        console.error('[updateComment] upsert failed:', err.message)
-        // Rollback al valor previo
+        console.error('[updateComment]', err.message)
         setAllItems(prev =>
           prev.map(item =>
             item.damageKey === damageKey && item.submissionId === submissionId
-              ? { ...item, auditComment: prevComment }
-              : item
+              ? { ...item, auditComment: prevComment } : item
           )
         )
       }
     }, 500)
   }, [allItems])
 
-  // ── Export Excel — siempre allItems completo ───────────────────────────────
+  // ── Export Excel ───────────────────────────────────────────────────────────
   const exportToExcel = useCallback(async () => {
     try {
       const { utils, writeFile } = await import('xlsx')
-      const rows = allItems.map(item => ({
-        'ID Sitio':            item.idSitio      ?? '',
-        'Formulario Origen':   item.formLabel     ?? '',
-        'Descripción del Daño': item.description  ?? '',
-        'Categoría':           item.category      ?? '',
-        'Estado':              item.status        ?? '',
-        'Comentario Auditoría': item.auditComment ?? '',
-        'Fecha':               item.date          ?? '',
+      const rows = quarterFilteredItems.map(item => ({
+        'ID Sitio':             item.idSitio       ?? '',
+        'Visita':               item.orderLabel     ?? '',
+        'Cuatrimestre':         selectedQuarter?.label ?? '',
+        'Formulario Origen':    item.formLabel      ?? '',
+        'Descripción del Daño': item.description    ?? '',
+        'Categoría':            item.category       ?? '',
+        'Estado':               item.status         ?? '',
+        'Comentario Auditoría': item.auditComment   ?? '',
+        'Fecha':                item.date           ?? '',
       }))
       const ws = utils.json_to_sheet(rows)
       ws['!cols'] = [
-        { wch: 14 }, { wch: 36 }, { wch: 40 },
-        { wch: 10 }, { wch: 12 }, { wch: 40 }, { wch: 14 },
+        { wch: 14 }, { wch: 22 }, { wch: 16 }, { wch: 36 },
+        { wch: 40 }, { wch: 10 }, { wch: 12 }, { wch: 40 }, { wch: 14 },
       ]
       const wb = utils.book_new()
       utils.book_append_sheet(wb, ws, 'Daños')
-      writeFile(wb, `reporte_danos_${new Date().toISOString().slice(0, 10)}.xlsx`)
-    } catch (e) {
-      console.error('[exportToExcel damage]', e)
-    }
-  }, [allItems])
+      writeFile(wb, `reporte_danos_${selectedQuarter?.value || 'all'}_${new Date().toISOString().slice(0,10)}.xlsx`)
+    } catch (e) { console.error('[exportToExcel damage]', e) }
+  }, [quarterFilteredItems, selectedQuarter])
 
   return {
     allItems, filteredItems, paginatedItems,
     totalDamages, totalPending, totalRepaired, totalQuoted, totalRegular, totalMalo,
+    quarterOptions, selectedQuarter, setSelectedQuarter: handleSetQuarter,
     filters, setFilter, filterOptions,
     currentPage, setCurrentPage, pageSize, setPageSize, totalFiltered,
     updateStatus, updateComment,

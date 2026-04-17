@@ -1,11 +1,11 @@
 /**
- * DamageReport.jsx
- * Reporte de Daños por Sitio.
- * Comentario de auditoría: globo indicador + tooltip en hover + modal de edición al click.
+ * DamageReport.jsx  v2
+ * Filtro cuatrimestre (primero) + columna Visita con link
  */
 
-import { useState, useRef, useCallback } from 'react'
-import { AlertTriangle, CheckCircle, Clock, DollarSign, LayoutList, AlertOctagon, MessageSquare, Plus } from 'lucide-react'
+import { useState } from 'react'
+import { Link } from 'react-router-dom'
+import { AlertTriangle, CheckCircle, Clock, DollarSign, LayoutList, AlertOctagon, MessageSquare, Plus, ExternalLink } from 'lucide-react'
 import Badge      from '../../components/ui/Badge'
 import Card       from '../../components/ui/Card'
 import Select     from '../../components/ui/Select'
@@ -14,7 +14,6 @@ import Pagination from '../../components/ui/Pagination'
 import EmptyState from '../../components/ui/EmptyState'
 import Modal      from '../../components/ui/Modal'
 
-// ── KPI cards ─────────────────────────────────────────────────────────────────
 function KpiPrimary({ icon: Icon, label, value }) {
   return (
     <div className="rounded-2xl p-5 border th-shadow flex flex-col gap-3"
@@ -46,8 +45,7 @@ function KpiAccent({ icon: Icon, label, value, borderColor, valueColor }) {
   )
 }
 
-// ── Status dropdown pill ──────────────────────────────────────────────────────
-const STATUS_STYLES = {
+const STATUS_STYLES  = {
   pendiente: { bg: '#fffbeb', color: '#92400e', border: '#fde68a' },
   cotizado:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
   reparado:  { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
@@ -67,23 +65,14 @@ function StatusPill({ value, onChange }) {
   )
 }
 
-// ── Comment cell — globo indicador + tooltip + modal ──────────────────────────
 function CommentCell({ damageKey, submissionId, comment, onSave }) {
-  const [hover,    setHover]    = useState(false)
+  const [hover,     setHover]     = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
-  const [draft,    setDraft]    = useState(comment || '')
+  const [draft,     setDraft]     = useState(comment || '')
   const hasComment = comment && comment.trim() !== ''
 
-  const openModal = () => {
-    setDraft(comment || '')
-    setModalOpen(true)
-  }
-
-  const handleSave = () => {
-    onSave(damageKey, submissionId, draft)
-    setModalOpen(false)
-  }
-
+  const openModal  = () => { setDraft(comment || ''); setModalOpen(true) }
+  const handleSave = () => { onSave(damageKey, submissionId, draft); setModalOpen(false) }
   const handleKeyDown = e => {
     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave()
     if (e.key === 'Escape') setModalOpen(false)
@@ -92,8 +81,7 @@ function CommentCell({ damageKey, submissionId, comment, onSave }) {
   return (
     <>
       <div className="relative flex justify-center">
-        <button
-          onClick={openModal}
+        <button onClick={openModal}
           onMouseEnter={() => setHover(true)}
           onMouseLeave={() => setHover(false)}
           className="relative flex items-center justify-center w-7 h-7 rounded-lg transition-all"
@@ -101,77 +89,40 @@ function CommentCell({ damageKey, submissionId, comment, onSave }) {
             background:  hasComment ? 'rgba(2,132,199,0.10)' : 'var(--bg-base)',
             border:      `1px solid ${hasComment ? 'rgba(2,132,199,0.25)' : 'var(--border)'}`,
             color:       hasComment ? '#0284C7' : 'var(--text-muted)',
-          }}
-          title={hasComment ? 'Ver / editar comentario' : 'Agregar comentario'}>
-          {hasComment
-            ? <MessageSquare size={13} strokeWidth={2} />
-            : <Plus size={13} strokeWidth={2} />}
-
-          {/* Globo indicador */}
+          }}>
+          {hasComment ? <MessageSquare size={13} strokeWidth={2} /> : <Plus size={13} strokeWidth={2} />}
           {hasComment && (
             <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
               style={{ background: '#0284C7', border: '1.5px solid var(--bg-card)' }} />
           )}
         </button>
-
-        {/* Tooltip en hover */}
         {hover && hasComment && (
-          <div
-            className="absolute bottom-full mb-2 left-1/2 z-30 rounded-xl px-3 py-2 text-[11px] leading-relaxed pointer-events-none"
-            style={{
-              transform: 'translateX(-50%)',
-              background: 'var(--ink, #0F1F33)',
-              color: '#fff',
-              maxWidth: 240,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-            }}>
+          <div className="absolute bottom-full mb-2 left-1/2 z-30 rounded-xl px-3 py-2 text-[11px] leading-relaxed pointer-events-none"
+            style={{ transform: 'translateX(-50%)', background: 'var(--ink, #0F1F33)', color: '#fff', maxWidth: 240, whiteSpace: 'pre-wrap', wordBreak: 'break-word', boxShadow: '0 4px 16px rgba(0,0,0,0.2)' }}>
             {comment}
             <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
               style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--ink, #0F1F33)' }} />
           </div>
         )}
       </div>
-
-      {/* Modal de edición */}
       {modalOpen && (
-        <Modal
-          title={hasComment ? 'Editar comentario de auditoría' : 'Agregar comentario de auditoría'}
-          onClose={() => setModalOpen(false)}>
+        <Modal title={hasComment ? 'Editar comentario' : 'Agregar comentario'} onClose={() => setModalOpen(false)}>
           <div className="space-y-4">
-            <textarea
-              autoFocus
-              value={draft}
-              onChange={e => setDraft(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Escribe aquí el comentario de auditoría…"
-              rows={5}
-              className="w-full text-[13px] rounded-xl px-3 py-2.5 outline-none resize-none transition-all"
-              style={{
-                border: '1px solid var(--border)',
-                background: 'var(--bg-base)',
-                color: 'var(--text-primary)',
-                lineHeight: 1.6,
-              }}
+            <textarea autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+              onKeyDown={handleKeyDown} placeholder="Escribe aquí el comentario de auditoría…"
+              rows={5} className="w-full text-[13px] rounded-xl px-3 py-2.5 outline-none resize-none transition-all"
+              style={{ border: '1px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)', lineHeight: 1.6 }}
               onFocus={e => e.target.style.borderColor = '#0284C7'}
-              onBlur={e  => e.target.style.borderColor = 'var(--border)'}
-            />
+              onBlur={e  => e.target.style.borderColor = 'var(--border)'} />
             <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
-                ⌘ + Enter para guardar
-              </span>
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>⌘ + Enter para guardar</span>
               <div className="flex gap-2">
                 <button onClick={() => setModalOpen(false)}
                   className="px-4 py-2 rounded-xl text-[13px] font-semibold border transition-all th-text-m"
-                  style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
-                  Cancelar
-                </button>
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>Cancelar</button>
                 <button onClick={handleSave}
                   className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-all"
-                  style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.25)' }}>
-                  Guardar
-                </button>
+                  style={{ background: '#0284C7' }}>Guardar</button>
               </div>
             </div>
           </div>
@@ -183,11 +134,11 @@ function CommentCell({ damageKey, submissionId, comment, onSave }) {
 
 const Dash = () => <span style={{ color: 'var(--text-muted)' }}>—</span>
 
-// ── Main ──────────────────────────────────────────────────────────────────────
 export default function DamageReport({ hookData }) {
   const {
     paginatedItems,
     totalDamages, totalPending, totalRepaired, totalQuoted, totalRegular, totalMalo,
+    quarterOptions, selectedQuarter, setSelectedQuarter,
     filters, setFilter, filterOptions,
     currentPage, setCurrentPage, pageSize, setPageSize, totalFiltered,
     updateStatus, updateComment,
@@ -198,16 +149,14 @@ export default function DamageReport({ hookData }) {
   const to   = Math.min(currentPage * pageSize, totalFiltered)
 
   if (isLoading) return <div className="flex items-center justify-center py-24"><Spinner size={16} /></div>
-
   if (error) return (
     <div className="rounded-2xl border px-6 py-8 text-center th-bg-card" style={{ borderColor: 'var(--border)' }}>
-      <p className="text-[13px] th-text-m">Error al cargar datos: {error}</p>
+      <p className="text-[13px] th-text-m">Error: {error}</p>
     </div>
   )
 
   return (
     <div className="space-y-5">
-
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiPrimary  icon={AlertTriangle} label="Total Daños"  value={totalDamages} />
@@ -218,9 +167,21 @@ export default function DamageReport({ hookData }) {
         <KpiAccent   icon={AlertOctagon}  label="Malo"         value={totalMalo}     borderColor="#ef4444" valueColor="#b91c1c" />
       </div>
 
-      {/* Filtros */}
+      {/* Filtros — cuatrimestre primero */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
+          <div className="flex-1 min-w-[150px]">
+            <Select value={selectedQuarter?.value || ''}
+              onChange={e => {
+                const opt = quarterOptions.find(o => o.value === e.target.value)
+                if (opt) setSelectedQuarter(opt)
+              }}>
+              {quarterOptions.length === 0
+                ? <option value="">Sin datos</option>
+                : quarterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
+              }
+            </Select>
+          </div>
           <div className="flex-1 min-w-[140px]">
             <Select value={filters.site} onChange={e => setFilter('site', e.target.value)}>
               <option value="">Todos los Sitios</option>
@@ -254,16 +215,15 @@ export default function DamageReport({ hookData }) {
             <EmptyState icon={LayoutList} title="Sin daños registrados"
               description="No hay daños que coincidan con los filtros seleccionados." />
           ) : (
-            <table className="w-full border-collapse text-[12px]" style={{ minWidth: 820 }}>
+            <table className="w-full border-collapse text-[12px]" style={{ minWidth: 860 }}>
               <thead>
                 <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
                   {[
-                    ['ID Sitio','left'], ['Formulario Origen','left'],
+                    ['ID Sitio','left'], ['Visita','left'], ['Formulario Origen','left'],
                     ['Descripción del Daño','left'], ['Categoría','left'],
                     ['Estado','left'], ['Nota','center'],
                   ].map(([h, align]) => (
-                    <th key={h}
-                      className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider"
+                    <th key={h} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider"
                       style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', textAlign: align }}>
                       {h}
                     </th>
@@ -272,15 +232,24 @@ export default function DamageReport({ hookData }) {
               </thead>
               <tbody>
                 {paginatedItems.map((item, idx) => (
-                  <tr key={item.damageKey || idx}
-                    style={{ borderBottom: '1px solid var(--border-light)' }}
+                  <tr key={item.damageKey || idx} style={{ borderBottom: '1px solid var(--border-light)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-base)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
 
                     {/* ID Sitio */}
                     <td className="px-4 py-3 font-mono font-semibold text-[12px] whitespace-nowrap"
-                      style={{ color: 'var(--accent)' }}>
-                      {item.idSitio || '—'}
+                      style={{ color: 'var(--accent)' }}>{item.idSitio || '—'}</td>
+
+                    {/* Visita */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {item.orderId ? (
+                        <Link to={`/orders/${item.orderId}`}
+                          className="inline-flex items-center gap-1 text-[12px] font-medium hover:underline"
+                          style={{ color: 'var(--accent)' }}>
+                          {item.orderLabel || item.orderId.slice(0, 8)}
+                          <ExternalLink size={10} strokeWidth={2} />
+                        </Link>
+                      ) : <Dash />}
                     </td>
 
                     {/* Formulario origen */}
@@ -300,22 +269,16 @@ export default function DamageReport({ hookData }) {
                         : <Badge tone="warning">Regular</Badge>}
                     </td>
 
-                    {/* Estado — dropdown pill */}
+                    {/* Estado */}
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <StatusPill
-                        value={item.status || 'pendiente'}
-                        onChange={val => updateStatus(item.damageKey, item.submissionId, val)}
-                      />
+                      <StatusPill value={item.status || 'pendiente'}
+                        onChange={val => updateStatus(item.damageKey, item.submissionId, val)} />
                     </td>
 
-                    {/* Nota auditoría — globo + tooltip + modal */}
+                    {/* Nota */}
                     <td className="px-4 py-3 text-center">
-                      <CommentCell
-                        damageKey={item.damageKey}
-                        submissionId={item.submissionId}
-                        comment={item.auditComment}
-                        onSave={updateComment}
-                      />
+                      <CommentCell damageKey={item.damageKey} submissionId={item.submissionId}
+                        comment={item.auditComment} onSave={updateComment} />
                     </td>
                   </tr>
                 ))}
@@ -324,7 +287,6 @@ export default function DamageReport({ hookData }) {
           )}
         </div>
 
-        {/* Paginación */}
         {totalFiltered > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t"
             style={{ borderColor: 'var(--border-light)' }}>

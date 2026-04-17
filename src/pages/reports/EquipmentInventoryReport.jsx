@@ -1,11 +1,10 @@
 /**
- * EquipmentInventoryReport.jsx  v2
- * Acepta hookData como prop (instanciado en Reports.jsx para compartir
- * el mismo fetch con el botón de exportación del header).
+ * EquipmentInventoryReport.jsx  v3
+ * Filtro cuatrimestre (primero) + columna Visita con link
  */
 
 import { Link } from 'react-router-dom'
-import { Package, LayoutList, Radio, Users } from 'lucide-react'
+import { Package, LayoutList, Radio, Users, ExternalLink } from 'lucide-react'
 import Badge      from '../../components/ui/Badge'
 import Card       from '../../components/ui/Card'
 import Select     from '../../components/ui/Select'
@@ -32,23 +31,19 @@ function StatCard({ icon: Icon, label, value, primary = false }) {
       </div>
       <div>
         <div className="text-[28px] font-bold leading-none tabular-nums"
-          style={{ color: primary ? 'var(--stat-accent-text)' : 'var(--text-primary)' }}>
-          {value}
-        </div>
+          style={{ color: primary ? 'var(--stat-accent-text)' : 'var(--text-primary)' }}>{value}</div>
         <div className="text-[12px] font-medium mt-1"
-          style={{ color: primary ? 'rgba(255,255,255,0.55)' : 'var(--text-secondary)' }}>
-          {label}
-        </div>
+          style={{ color: primary ? 'rgba(255,255,255,0.55)' : 'var(--text-secondary)' }}>{label}</div>
       </div>
     </div>
   )
 }
 
-// hookData es inyectado por Reports.jsx — un solo fetch para toda la sección
 export default function EquipmentInventoryReport({ hookData }) {
   const {
     paginatedItems,
     totalEquipment, totalTowers, antennaTypes, activeCarriers,
+    quarterOptions, selectedQuarter, setSelectedQuarter,
     filters, setFilter, filterOptions,
     currentPage, setCurrentPage, pageSize, setPageSize, totalFiltered,
     isLoading, error,
@@ -58,16 +53,14 @@ export default function EquipmentInventoryReport({ hookData }) {
   const to   = Math.min(currentPage * pageSize, totalFiltered)
 
   if (isLoading) return <div className="flex items-center justify-center py-24"><Spinner size={16} /></div>
-
   if (error) return (
     <div className="rounded-2xl border px-6 py-8 text-center th-bg-card" style={{ borderColor: 'var(--border)' }}>
-      <p className="text-[13px] th-text-m">Error al cargar datos: {error}</p>
+      <p className="text-[13px] th-text-m">Error: {error}</p>
     </div>
   )
 
   return (
     <div className="space-y-5">
-
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard icon={Package}    label="Total Equipos"    value={totalEquipment} primary />
@@ -76,9 +69,23 @@ export default function EquipmentInventoryReport({ hookData }) {
         <StatCard icon={Users}      label="Carriers Activos" value={activeCarriers} />
       </div>
 
-      {/* Filtros */}
+      {/* Filtros — cuatrimestre primero */}
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
+          {/* Cuatrimestre */}
+          <div className="flex-1 min-w-[150px]">
+            <Select
+              value={selectedQuarter?.value || ''}
+              onChange={e => {
+                const opt = quarterOptions.find(o => o.value === e.target.value)
+                if (opt) setSelectedQuarter(opt)
+              }}>
+              {quarterOptions.length === 0
+                ? <option value="">Sin datos</option>
+                : quarterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
+              }
+            </Select>
+          </div>
           <div className="flex-1 min-w-[130px]">
             <Select value={filters.site} onChange={e => setFilter('site', e.target.value)}>
               <option value="">Todos los Sitios</option>
@@ -118,19 +125,18 @@ export default function EquipmentInventoryReport({ hookData }) {
             <EmptyState icon={LayoutList} title="Sin equipos"
               description="No hay equipos que coincidan con los filtros seleccionados." />
           ) : (
-            <table className="w-full border-collapse text-[12px]" style={{ minWidth: 950 }}>
+            <table className="w-full border-collapse text-[12px]" style={{ minWidth: 1020 }}>
               <thead>
                 <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
                   {[
-                    ['ID Sitio','left'], ['Altura','left'],
+                    ['ID Sitio','left'], ['Visita','left'], ['Altura','left'],
                     ['Orient. (Cara)','left'], ['Orient. (°)','center'],
                     ['Tipo Antena','left'], ['Cant.','center'],
                     ['Alto','center'], ['Diám.','center'], ['Ancho','center'],
                     ['Prof.','center'], ['Área M²','center'],
                     ['Carrier','left'], ['Comentarios','left'],
                   ].map(([h, align]) => (
-                    <th key={h}
-                      className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider"
+                    <th key={h} className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider"
                       style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap', textAlign: align }}>
                       {h}
                     </th>
@@ -143,20 +149,24 @@ export default function EquipmentInventoryReport({ hookData }) {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-base)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
 
-                    {/* ID Sitio — link a visita */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {item.siteVisitId ? (
-                        <Link to={`/orders/${item.siteVisitId}`}
-                          className="font-mono font-semibold text-[12px] hover:underline"
-                          style={{ color: 'var(--accent)' }}>
-                          {item.idSitio || '—'}
-                        </Link>
-                      ) : (
-                        <span className="font-mono font-semibold text-[12px]" style={{ color: 'var(--accent)' }}>
-                          {item.idSitio || '—'}
-                        </span>
-                      )}
+                    {/* ID Sitio */}
+                    <td className="px-4 py-3 font-mono font-semibold text-[12px] whitespace-nowrap"
+                      style={{ color: 'var(--accent)' }}>
+                      {item.idSitio || '—'}
                     </td>
+
+                    {/* Visita — link a /orders/:orderId */}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {item.orderId ? (
+                        <Link to={`/orders/${item.orderId}`}
+                          className="inline-flex items-center gap-1 text-[12px] font-medium hover:underline"
+                          style={{ color: 'var(--accent)' }}>
+                          {item.orderLabel || item.orderId.slice(0, 8)}
+                          <ExternalLink size={10} strokeWidth={2} />
+                        </Link>
+                      ) : <Dash />}
+                    </td>
+
                     <td className="px-4 py-3 font-mono text-[12px] th-text-p whitespace-nowrap">
                       {item.alturaMts != null ? `${item.alturaMts} m` : <Dash />}
                     </td>
@@ -179,7 +189,7 @@ export default function EquipmentInventoryReport({ hookData }) {
                     <td className="px-4 py-3 whitespace-nowrap">
                       {item.carrier ? <Badge tone={carrierTone(item.carrier)}>{item.carrier}</Badge> : <Dash />}
                     </td>
-                    <td className="px-4 py-3 th-text-m text-[11px] max-w-[220px]"
+                    <td className="px-4 py-3 th-text-m text-[11px] max-w-[200px]"
                       style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                       {item.comentario != null && item.comentario !== '' ? item.comentario : <Dash />}
                     </td>
@@ -190,7 +200,6 @@ export default function EquipmentInventoryReport({ hookData }) {
           )}
         </div>
 
-        {/* Paginación */}
         {totalFiltered > 0 && (
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t"
             style={{ borderColor: 'var(--border-light)' }}>
