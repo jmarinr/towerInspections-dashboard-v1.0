@@ -1,20 +1,20 @@
 /**
  * DamageReport.jsx
- * Reporte de Daños por Sitio — componente puramente visual.
- * Toda la lógica de negocio está en useDamageReport.
- * Recibe hookData del padre (Reports.jsx) para evitar doble fetch.
+ * Reporte de Daños por Sitio.
+ * Comentario de auditoría: globo indicador + tooltip en hover + modal de edición al click.
  */
 
-import { Link } from 'react-router-dom'
-import { AlertTriangle, CheckCircle, Clock, DollarSign, LayoutList, AlertOctagon } from 'lucide-react'
+import { useState, useRef, useCallback } from 'react'
+import { AlertTriangle, CheckCircle, Clock, DollarSign, LayoutList, AlertOctagon, MessageSquare, Plus } from 'lucide-react'
 import Badge      from '../../components/ui/Badge'
 import Card       from '../../components/ui/Card'
 import Select     from '../../components/ui/Select'
 import Spinner    from '../../components/ui/Spinner'
 import Pagination from '../../components/ui/Pagination'
 import EmptyState from '../../components/ui/EmptyState'
+import Modal      from '../../components/ui/Modal'
 
-// ── KPI cards con dos variantes ───────────────────────────────────────────────
+// ── KPI cards ─────────────────────────────────────────────────────────────────
 function KpiPrimary({ icon: Icon, label, value }) {
   return (
     <div className="rounded-2xl p-5 border th-shadow flex flex-col gap-3"
@@ -36,7 +36,7 @@ function KpiPrimary({ icon: Icon, label, value }) {
 function KpiAccent({ icon: Icon, label, value, borderColor, valueColor }) {
   return (
     <div className="rounded-2xl p-4 th-shadow flex items-center gap-3 border-l-4"
-      style={{ background: 'var(--bg-card)', borderColor: borderColor, borderTop: '0.5px solid var(--border)', borderRight: '0.5px solid var(--border)', borderBottom: '0.5px solid var(--border)' }}>
+      style={{ background: 'var(--bg-card)', borderColor, borderTop: '0.5px solid var(--border)', borderRight: '0.5px solid var(--border)', borderBottom: '0.5px solid var(--border)' }}>
       <Icon size={18} strokeWidth={1.8} style={{ color: borderColor, flexShrink: 0 }} />
       <div>
         <div className="text-[22px] font-bold leading-none tabular-nums" style={{ color: valueColor }}>{value}</div>
@@ -46,7 +46,7 @@ function KpiAccent({ icon: Icon, label, value, borderColor, valueColor }) {
   )
 }
 
-// ── Status dropdown inline ────────────────────────────────────────────────────
+// ── Status dropdown pill ──────────────────────────────────────────────────────
 const STATUS_STYLES = {
   pendiente: { bg: '#fffbeb', color: '#92400e', border: '#fde68a' },
   cotizado:  { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
@@ -57,15 +57,127 @@ const STATUS_LABELS = { pendiente: 'Pendiente', cotizado: 'Cotizado', reparado: 
 function StatusPill({ value, onChange }) {
   const s = STATUS_STYLES[value] || STATUS_STYLES.pendiente
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
+    <select value={value} onChange={e => onChange(e.target.value)}
       className="text-[11px] font-semibold rounded-full px-2.5 py-1 border outline-none cursor-pointer"
       style={{ background: s.bg, color: s.color, borderColor: s.border }}>
       <option value="pendiente">Pendiente</option>
       <option value="cotizado">Cotizado</option>
       <option value="reparado">Reparado</option>
     </select>
+  )
+}
+
+// ── Comment cell — globo indicador + tooltip + modal ──────────────────────────
+function CommentCell({ damageKey, submissionId, comment, onSave }) {
+  const [hover,    setHover]    = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [draft,    setDraft]    = useState(comment || '')
+  const hasComment = comment && comment.trim() !== ''
+
+  const openModal = () => {
+    setDraft(comment || '')
+    setModalOpen(true)
+  }
+
+  const handleSave = () => {
+    onSave(damageKey, submissionId, draft)
+    setModalOpen(false)
+  }
+
+  const handleKeyDown = e => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSave()
+    if (e.key === 'Escape') setModalOpen(false)
+  }
+
+  return (
+    <>
+      <div className="relative flex justify-center">
+        <button
+          onClick={openModal}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          className="relative flex items-center justify-center w-7 h-7 rounded-lg transition-all"
+          style={{
+            background:  hasComment ? 'rgba(2,132,199,0.10)' : 'var(--bg-base)',
+            border:      `1px solid ${hasComment ? 'rgba(2,132,199,0.25)' : 'var(--border)'}`,
+            color:       hasComment ? '#0284C7' : 'var(--text-muted)',
+          }}
+          title={hasComment ? 'Ver / editar comentario' : 'Agregar comentario'}>
+          {hasComment
+            ? <MessageSquare size={13} strokeWidth={2} />
+            : <Plus size={13} strokeWidth={2} />}
+
+          {/* Globo indicador */}
+          {hasComment && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full"
+              style={{ background: '#0284C7', border: '1.5px solid var(--bg-card)' }} />
+          )}
+        </button>
+
+        {/* Tooltip en hover */}
+        {hover && hasComment && (
+          <div
+            className="absolute bottom-full mb-2 left-1/2 z-30 rounded-xl px-3 py-2 text-[11px] leading-relaxed pointer-events-none"
+            style={{
+              transform: 'translateX(-50%)',
+              background: 'var(--ink, #0F1F33)',
+              color: '#fff',
+              maxWidth: 240,
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+            }}>
+            {comment}
+            <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0"
+              style={{ borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid var(--ink, #0F1F33)' }} />
+          </div>
+        )}
+      </div>
+
+      {/* Modal de edición */}
+      {modalOpen && (
+        <Modal
+          title={hasComment ? 'Editar comentario de auditoría' : 'Agregar comentario de auditoría'}
+          onClose={() => setModalOpen(false)}>
+          <div className="space-y-4">
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Escribe aquí el comentario de auditoría…"
+              rows={5}
+              className="w-full text-[13px] rounded-xl px-3 py-2.5 outline-none resize-none transition-all"
+              style={{
+                border: '1px solid var(--border)',
+                background: 'var(--bg-base)',
+                color: 'var(--text-primary)',
+                lineHeight: 1.6,
+              }}
+              onFocus={e => e.target.style.borderColor = '#0284C7'}
+              onBlur={e  => e.target.style.borderColor = 'var(--border)'}
+            />
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                ⌘ + Enter para guardar
+              </span>
+              <div className="flex gap-2">
+                <button onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-[13px] font-semibold border transition-all th-text-m"
+                  style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+                  Cancelar
+                </button>
+                <button onClick={handleSave}
+                  className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white transition-all"
+                  style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.25)' }}>
+                  Guardar
+                </button>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   )
 }
 
@@ -96,7 +208,7 @@ export default function DamageReport({ hookData }) {
   return (
     <div className="space-y-5">
 
-      {/* KPIs — 6 cards: 1 primary + 5 accent */}
+      {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <KpiPrimary  icon={AlertTriangle} label="Total Daños"  value={totalDamages} />
         <KpiAccent   icon={Clock}         label="Pendientes"   value={totalPending}  borderColor="#f59e0b" valueColor="#b45309" />
@@ -142,13 +254,13 @@ export default function DamageReport({ hookData }) {
             <EmptyState icon={LayoutList} title="Sin daños registrados"
               description="No hay daños que coincidan con los filtros seleccionados." />
           ) : (
-            <table className="w-full border-collapse text-[12px]" style={{ minWidth: 900 }}>
+            <table className="w-full border-collapse text-[12px]" style={{ minWidth: 820 }}>
               <thead>
                 <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
                   {[
                     ['ID Sitio','left'], ['Formulario Origen','left'],
                     ['Descripción del Daño','left'], ['Categoría','left'],
-                    ['Estado','left'], ['Comentario Auditoría','left'],
+                    ['Estado','left'], ['Nota','center'],
                   ].map(([h, align]) => (
                     <th key={h}
                       className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider"
@@ -171,17 +283,13 @@ export default function DamageReport({ hookData }) {
                       {item.idSitio || '—'}
                     </td>
 
-                    {/* Formulario origen — link a submission */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <Link to={`/submissions/${item.submissionId}`}
-                        className="text-[12px] font-medium hover:underline"
-                        style={{ color: 'var(--text-primary)' }}>
-                        {item.formLabel || '—'}
-                      </Link>
+                    {/* Formulario origen */}
+                    <td className="px-4 py-3 whitespace-nowrap text-[12px] th-text-p">
+                      {item.formLabel || '—'}
                     </td>
 
                     {/* Descripción */}
-                    <td className="px-4 py-3 th-text-p" style={{ maxWidth: 220, wordBreak: 'break-word' }}>
+                    <td className="px-4 py-3 th-text-p" style={{ maxWidth: 240, wordBreak: 'break-word' }}>
                       {item.description || <Dash />}
                     </td>
 
@@ -200,27 +308,13 @@ export default function DamageReport({ hookData }) {
                       />
                     </td>
 
-                    {/* Comentario auditoría — textarea auto-resize */}
-                    <td className="px-4 py-3" style={{ minWidth: 180 }}>
-                      <textarea
-                        rows={1}
-                        defaultValue={item.auditComment || ''}
-                        placeholder="Agregar comentario…"
-                        className="w-full text-[11px] rounded-lg px-2 py-1.5 outline-none transition-all resize-none overflow-hidden"
-                        style={{
-                          border: '0.5px solid var(--border)',
-                          background: 'var(--bg-base)',
-                          color: 'var(--text-primary)',
-                          fieldSizing: 'content',
-                          minHeight: '28px',
-                        }}
-                        onInput={e => {
-                          e.target.style.height = 'auto'
-                          e.target.style.height = e.target.scrollHeight + 'px'
-                        }}
-                        onFocus={e => { e.target.style.borderColor = '#0284C7'; e.target.style.boxShadow = '0 0 0 2px rgba(2,132,199,0.15)' }}
-                        onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none' }}
-                        onChange={e => updateComment(item.damageKey, item.submissionId, e.target.value)}
+                    {/* Nota auditoría — globo + tooltip + modal */}
+                    <td className="px-4 py-3 text-center">
+                      <CommentCell
+                        damageKey={item.damageKey}
+                        submissionId={item.submissionId}
+                        comment={item.auditComment}
+                        onSave={updateComment}
                       />
                     </td>
                   </tr>
