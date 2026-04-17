@@ -61,7 +61,10 @@ export default function OrderDetail() {
   const order       = useOrdersStore((s) => s.activeOrder)
   const submissions = useOrdersStore((s) => s.activeOrderSubmissions)
   const isLoading   = useOrdersStore((s) => s.isLoadingDetail)
-  const [timedOut, setTimedOut] = useState(false)
+  const [timedOut,      setTimedOut]      = useState(false)
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [statusError,   setStatusError]   = useState(null)
+  const [confirmStatus, setConfirmStatus] = useState(false)
 
   useEffect(() => {
     if (!orderId) return
@@ -118,10 +121,6 @@ export default function OrderDetail() {
   const visibleSubs = submissions.filter(s => isFormVisible(s.form_code))
 
   // ── Status toggle ──────────────────────────────────────────────────────────
-  const [statusLoading, setStatusLoading] = useState(false)
-  const [statusError,   setStatusError]   = useState(null)
-  const [confirmStatus, setConfirmStatus] = useState(false)
-
   const pendingForms = visibleSubs.filter(s => !(s.finalized || isFinalized(s))).length
 
   const handleStatusToggleClick = () => {
