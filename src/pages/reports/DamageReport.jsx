@@ -200,14 +200,24 @@ export default function DamageReport({ hookData }) {
                       />
                     </td>
 
-                    {/* Comentario auditoría — input inline con debounce */}
+                    {/* Comentario auditoría — textarea auto-resize */}
                     <td className="px-4 py-3" style={{ minWidth: 180 }}>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={1}
                         defaultValue={item.auditComment || ''}
                         placeholder="Agregar comentario…"
-                        className="w-full text-[11px] rounded-lg px-2 py-1.5 outline-none transition-all"
-                        style={{ border: '0.5px solid var(--border)', background: 'var(--bg-base)', color: 'var(--text-primary)' }}
+                        className="w-full text-[11px] rounded-lg px-2 py-1.5 outline-none transition-all resize-none overflow-hidden"
+                        style={{
+                          border: '0.5px solid var(--border)',
+                          background: 'var(--bg-base)',
+                          color: 'var(--text-primary)',
+                          fieldSizing: 'content',
+                          minHeight: '28px',
+                        }}
+                        onInput={e => {
+                          e.target.style.height = 'auto'
+                          e.target.style.height = e.target.scrollHeight + 'px'
+                        }}
                         onFocus={e => { e.target.style.borderColor = '#0284C7'; e.target.style.boxShadow = '0 0 0 2px rgba(2,132,199,0.15)' }}
                         onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none' }}
                         onChange={e => updateComment(item.damageKey, item.submissionId, e.target.value)}

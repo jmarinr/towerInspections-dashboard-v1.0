@@ -160,9 +160,9 @@ export default function EquipmentInventoryReport({ hookData }) {
                     <td className="px-4 py-3 font-mono text-[12px] th-text-p whitespace-nowrap">
                       {item.alturaMts != null ? `${item.alturaMts} m` : <Dash />}
                     </td>
-                    <td className="px-4 py-3 th-text-p whitespace-nowrap">{cell(item.orientacion)}</td>
+                    <td className="px-4 py-3 th-text-p whitespace-nowrap">{cell(item.orientacionCara)}</td>
                     <td className="px-4 py-3 font-mono text-[12px] text-center th-text-p whitespace-nowrap">
-                      {item.orientacionGrados != null ? `${item.orientacionGrados}°` : <Dash />}
+                      {item.orientacionGrados != null ? item.orientacionGrados : <Dash />}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {item.tipoEquipo ? <Badge tone={typeTone(item.tipoEquipo)}>{item.tipoEquipo}</Badge> : <Dash />}
@@ -179,8 +179,10 @@ export default function EquipmentInventoryReport({ hookData }) {
                     <td className="px-4 py-3 whitespace-nowrap">
                       {item.carrier ? <Badge tone={carrierTone(item.carrier)}>{item.carrier}</Badge> : <Dash />}
                     </td>
-                    <td className="px-4 py-3 th-text-m text-[11px] max-w-[200px] truncate"
-                      title={item.comentario || ''}>{cell(item.comentario)}</td>
+                    <td className="px-4 py-3 th-text-m text-[11px] max-w-[220px]"
+                      style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {item.comentario != null && item.comentario !== '' ? item.comentario : <Dash />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

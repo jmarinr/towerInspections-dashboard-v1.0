@@ -26,17 +26,23 @@ function calcArea(alto, ancho, tipoEquipo) {
 }
 
 // Mapea un item de torre/carrier a una fila normalizada del reporte
-function mapItem(item, idSitio, siteVisitId, overrideCarrier) {
+// source: 'torre' | 'carrier' — determina la semántica del campo orientacion
+function mapItem(item, idSitio, siteVisitId, overrideCarrier, source) {
   const isMW     = item.tipoEquipo === 'MW'
   const alto     = item.alto ?? null
   const ancho    = item.ancho ?? null
+
+  // Torre: orientacion = cara (Cara 1, Pierna A, Mástil…)
+  // Carrier: orientacion = grados (0°, 45°, 90°…)
+  const orientacionCara   = source === 'torre'   ? (item.orientacion || null) : null
+  const orientacionGrados = source === 'carrier' ? (item.orientacion || null) : null
 
   return {
     idSitio,
     siteVisitId,
     alturaMts:         item.alturaMts         ?? null,
-    orientacion:       item.orientacion        || null,
-    orientacionGrados: item.orientacionGrados  ?? item.grados ?? null,
+    orientacionCara,
+    orientacionGrados,
     tipoEquipo:        item.tipoEquipo         || null,
     cantidad:    item.cantidad    ?? null,
     // Para MW: alto = diámetro, para otros: alto = altura
@@ -46,7 +52,7 @@ function mapItem(item, idSitio, siteVisitId, overrideCarrier) {
     profundidad: isMW ? null : (item.profundidad ?? null),
     area:        calcArea(alto, ancho, item.tipoEquipo),
     carrier:     overrideCarrier ?? item.carrier ?? null,
-    comentario:  item.comentario  || null,
+    comentario:  item.comentario ?? null,
   }
 }
 
@@ -60,7 +66,7 @@ function flattenItems(submission) {
 
   // ── Torre items ────────────────────────────────────────────────────────────
   const torreItems = raw.torre?.items || []
-  torreItems.forEach(item => rows.push(mapItem(item, idSitio, siteVisitId)))
+  torreItems.forEach(item => rows.push(mapItem(item, idSitio, siteVisitId, undefined, 'torre')))
 
   // ── Carriers items (sección separada del formulario) ──────────────────────
   const carriers = raw.carriers || []
@@ -68,7 +74,7 @@ function flattenItems(submission) {
     const carrierName  = carrier.nombre || null
     const carrierItems = carrier.items  || []
     carrierItems.forEach(item =>
-      rows.push(mapItem(item, idSitio, siteVisitId, carrierName))
+      rows.push(mapItem(item, idSitio, siteVisitId, carrierName, 'carrier'))
     )
   })
 
@@ -151,7 +157,7 @@ export default function useEquipmentInventoryReport() {
       const rows = allItems.map(item => ({
         'ID Sitio':          item.idSitio           ?? '',
         'Altura (m)':        item.alturaMts          ?? '',
-        'Orient. (Cara)':    item.orientacion        ?? '',
+        'Orient. (Cara)':    item.orientacionCara    ?? '',
         'Orient. (°)':       item.orientacionGrados  ?? '',
         'Tipo Antena':       item.tipoEquipo         ?? '',
         'Cantidad':     item.cantidad    ?? '',
