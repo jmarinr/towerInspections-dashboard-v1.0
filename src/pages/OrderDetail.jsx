@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2, LockKeyhole, LockOpen } from 'lucide-react'
+import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2, LockKeyhole, Unlock } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
 import Modal from '../components/ui/Modal'
@@ -203,7 +203,7 @@ export default function OrderDetail() {
                   ? <Spinner size={13} />
                   : open
                     ? <><LockKeyhole size={13} strokeWidth={2} />Cerrar visita</>
-                    : <><LockOpen size={13} strokeWidth={2} />Reabrir visita</>}
+                    : <><Unlock size={13} strokeWidth={2} />Reabrir visita</>}
               </button>
               {statusError && (
                 <p className="text-[11px] font-medium text-right" style={{ color: '#b91c1c', maxWidth: 240 }}>
