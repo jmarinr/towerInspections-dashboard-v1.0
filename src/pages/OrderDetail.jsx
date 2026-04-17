@@ -66,6 +66,7 @@ export default function OrderDetail() {
   const [statusLoading, setStatusLoading] = useState(false)
   const [statusError,   setStatusError]   = useState(null)
   const [confirmStatus, setConfirmStatus] = useState(false)
+  const permMatrix = useAdminStore(s => s.permMatrix)
 
   useEffect(() => {
     if (!orderId) return
@@ -89,7 +90,6 @@ export default function OrderDetail() {
   // Guard: supervisor con empresa solo puede ver órdenes de su empresa
   // Guard: viewer no puede ver órdenes de HenkanCX (org_code HK)
   const user         = useAuthStore.getState().user
-  const permMatrix   = useAdminStore(s => s.permMatrix)
   const hasPermission = (key) => {
     if (!user) return false
     if (user.role === 'admin') return true
