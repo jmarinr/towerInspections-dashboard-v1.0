@@ -28,7 +28,7 @@ import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/f
  * Fetch all submissions.
  * Si se pasa orgCode, filtra solo los de esa empresa (para supervisores con empresa asignada).
  */
-export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, limit = 200 } = {}) {
+export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, limit = 2000 } = {}) {
   let query = supabase
     .from('submissions')
     .select('*')
@@ -162,7 +162,7 @@ export async function fetchSubmissionWithAssets(id) {
 /**
  * Fetch all site visits (orders).
  */
-export async function fetchSiteVisits({ status, limit = 200 } = {}) {
+export async function fetchSiteVisits({ status, limit = 2000 } = {}) {
   let query = supabase
     .from('site_visits')
     .select('*')
