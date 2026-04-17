@@ -37,6 +37,8 @@ const PERMISSION_GROUPS = [
       { key:'reports.export_excel',  label:'Exportar reportes a Excel',           desc:'Descargar archivos Excel desde cualquier reporte' },
     ]
   },
+  {
+    label: 'Auditoría',
     permissions: [
       { key:'audit.view', label:'Ver historial de ediciones', desc:'Registro de cambios con usuario y justificación' },
     ]
