@@ -1,10 +1,10 @@
 /**
- * useProductivityReport.js
- * Reporte de Productividad por Orden.
- * – Duración de orden: site_visits.closed_at − started_at
- * – Duración de formulario: payload.data.meta.finishedAt − startedAt
- * – Benchmarks históricos calculados sobre TODOS los submissions finalizados
- * – Inspector: site_visits.inspector_name / inspector_username (único por visita)
+ * useProductivityReport.js  v2
+ * Fixes:
+ * – KPIs calculan sobre filteredOrders (filtros activos)
+ * – totalOrders solo cuenta órdenes cerradas
+ * – resolveFormTiming con fallbacks (created_at / updated_at / submitted_at)
+ * – filterOptions siguen derivando de quarterFilteredOrders (no desaparecen al filtrar)
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
@@ -15,11 +15,11 @@ import {
 } from '../utils/quarterUtils'
 
 // ── Umbrales ajustables — cambiar cuando se definan estándares oficiales ──────
-export const SEMAFORO_THRESHOLDS = { YELLOW: 0.20, RED: 0.50 }
+export const SEMAFORO_THRESHOLDS  = { YELLOW: 0.20, RED: 0.50 }
 export const MIN_BENCHMARK_SAMPLES = 3
 
 // ── Helpers de tiempo ──────────────────────────────────────────────────────────
-function formatDuration(minutes) {
+export function formatDuration(minutes) {
   if (!minutes || minutes <= 0) return '—'
   const h = Math.floor(minutes / 60)
   const m = minutes % 60
@@ -34,18 +34,33 @@ function getOrderDuration(visit) {
   return ms > 0 ? Math.round(ms / 60000) : null
 }
 
-// Extrae timing desde el payload JSON del submission
+/**
+ * Extrae timing del payload con fallbacks escalados:
+ * startedAt:  meta.startedAt → submission.created_at (proxy aproximado)
+ * finishedAt: meta.finishedAt → inner.submitted_at → submission.updated_at
+ * isApproximate: true si usamos fallbacks (se muestra ~ en el UI)
+ */
 function resolveFormTiming(submission) {
   const outer = submission.payload || {}
   const inner = outer.payload || outer
-  const data  = inner.data    || inner
-  const meta  = data.meta     || {}
+  const data  = inner.data || inner
+  const meta  = data.meta  || {}
+
+  const metaStart  = meta.startedAt  || null
+  const metaFinish = meta.finishedAt || null
+  const payloadSub = inner.submitted_at || null
+
+  const startedAt  = metaStart  || submission.created_at || null
+  const finishedAt = metaFinish || payloadSub || submission.updated_at || null
+
+  const isApproximate = !metaStart || !metaFinish
 
   const submittedBy = inner.submitted_by || data.submitted_by || null
 
   return {
-    startedAt:   meta.startedAt  || null,
-    finishedAt:  meta.finishedAt || inner.submitted_at || null,
+    startedAt,
+    finishedAt,
+    isApproximate,
     submittedBy: submittedBy ? {
       name:     submittedBy.name     || submittedBy.username || null,
       username: submittedBy.username || null,
@@ -70,17 +85,17 @@ function getSemaforo(actualMinutes, benchmark) {
 
 function makeInspector(name, username) {
   const display  = name || username || '—'
-  const initials = display
-    .split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || '?'
+  const initials = display.split(/\s+/).map(w => w[0] || '').join('').slice(0, 2).toUpperCase() || '?'
   return { name: display, initials }
 }
 
-function formatTime(isoStr) {
+function formatTime(isoStr, isApprox = false) {
   if (!isoStr) return null
-  return new Date(isoStr).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false })
+  const t = new Date(isoStr).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit', hour12: false })
+  return isApprox ? `~${t}` : t
 }
 
-// ── Calcula benchmarks sobre todos los submissions ─────────────────────────────
+// ── Benchmarks sobre todos los submissions ────────────────────────────────────
 function calculateBenchmarks(submissions) {
   const groups = {}
   submissions.forEach(sub => {
@@ -91,17 +106,17 @@ function calculateBenchmarks(submissions) {
     if (!groups[key]) groups[key] = []
     groups[key].push(dur)
   })
-  const benchmarks = {}
+  const result = {}
   Object.entries(groups).forEach(([code, durations]) => {
-    benchmarks[code] = {
+    result[code] = {
       avgMinutes:  Math.round(durations.reduce((a, b) => a + b, 0) / durations.length),
       sampleCount: durations.length,
     }
   })
-  return benchmarks
+  return result
 }
 
-// ── Normaliza una visita + sus submissions en el modelo del reporte ────────────
+// ── Normaliza una visita + submissions en el modelo del reporte ───────────────
 function normalizeOrder(visit, subs, benchmarks) {
   const inspector = makeInspector(visit.inspector_name, visit.inspector_username)
   const duration  = getOrderDuration(visit)
@@ -112,29 +127,28 @@ function normalizeOrder(visit, subs, benchmarks) {
     const canonical = normalizeFormCode(sub.form_code) || sub.form_code
     const benchmark = benchmarks[canonical] || null
     const meta      = getFormMeta(canonical)
-
-    const subInspector = timing.submittedBy
+    const subInsp   = timing.submittedBy
       ? makeInspector(timing.submittedBy.name, timing.submittedBy.username)
       : inspector
 
     return {
-      submissionId: sub.id,
-      formCode:     canonical,
-      formLabel:    meta.label || canonical,
-      inspector:    subInspector,
-      startTime:    formatTime(timing.startedAt),
-      endTime:      formatTime(timing.finishedAt),
-      duration:     dur,
-      durationStr:  formatDuration(dur),
+      submissionId:  sub.id,
+      formCode:      canonical,
+      formLabel:     meta.label || canonical,
+      inspector:     subInsp,
+      startTime:     formatTime(timing.startedAt,  timing.isApproximate),
+      endTime:       formatTime(timing.finishedAt, timing.isApproximate),
+      isApproximate: timing.isApproximate,
+      duration:      dur,
+      durationStr:   formatDuration(dur),
       benchmark,
-      benchmarkStr: benchmark ? `~${formatDuration(benchmark.avgMinutes)}` : null,
-      semaforo:     getSemaforo(dur, benchmark),
+      benchmarkStr:  benchmark ? `~${formatDuration(benchmark.avgMinutes)}` : null,
+      semaforo:      getSemaforo(dur, benchmark),
     }
   })
 
   const date = visit.started_at
-    ? new Date(visit.started_at).toLocaleDateString('es',
-        { day: 'numeric', month: 'short', year: 'numeric' })
+    ? new Date(visit.started_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
     : null
 
   return {
@@ -157,7 +171,6 @@ function normalizeOrder(visit, subs, benchmarks) {
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export default function useProductivityReport() {
   const [allOrders,       setAllOrders]       = useState([])
-  const [benchmarks,      setBenchmarks]      = useState({})
   const [isLoading,       setIsLoading]       = useState(true)
   const [error,           setError]           = useState(null)
   const [selectedQuarter, setSelectedQuarter] = useState(null)
@@ -178,24 +191,19 @@ export default function useProductivityReport() {
         .order('started_at', { ascending: false }),
       supabase
         .from('submissions')
-        .select('id, site_visit_id, form_code, payload')
+        .select('id, site_visit_id, form_code, payload, created_at, updated_at')
         .eq('finalized', true),
     ]).then(([{ data: visits, error: vErr }, { data: subs, error: sErr }]) => {
       if (cancelled) return
       if (vErr || sErr) { setError((vErr || sErr).message); setIsLoading(false); return }
 
-      // Agrupar submissions por site_visit_id
       const subsByVisit = {}
       for (const sub of (subs || [])) {
         if (!subsByVisit[sub.site_visit_id]) subsByVisit[sub.site_visit_id] = []
         subsByVisit[sub.site_visit_id].push(sub)
       }
 
-      // Calcular benchmarks sobre TODOS los submissions
-      const bm = calculateBenchmarks(subs || [])
-      setBenchmarks(bm)
-
-      // Normalizar órdenes
+      const bm     = calculateBenchmarks(subs || [])
       const orders = (visits || [])
         .filter(v => v.started_at)
         .map(v => normalizeOrder(v, subsByVisit[v.id] || [], bm))
@@ -225,24 +233,49 @@ export default function useProductivityReport() {
     [allOrders, selectedQuarter]
   )
 
-  // ── KPIs — sobre el cuatrimestre ───────────────────────────────────────────
-  const totalOrders = quarterFilteredOrders.length
+  // ── Filtros secundarios ────────────────────────────────────────────────────
+  const filteredOrders = useMemo(() =>
+    quarterFilteredOrders.filter(o => {
+      if (filters.inspector && o.inspector.name !== filters.inspector) return false
+      if (filters.site      && o.idSitio          !== filters.site)    return false
+      if (filters.formType  && !o.forms.some(f => f.formLabel === filters.formType)) return false
+      return true
+    }),
+    [quarterFilteredOrders, filters]
+  )
+
+  // ── Filter options: derivan de quarterFilteredOrders para no desaparecer ───
+  const filterOptions = useMemo(() => ({
+    inspectors: [...new Set(quarterFilteredOrders.map(o => o.inspector.name).filter(Boolean))].sort(),
+    sites:      [...new Set(quarterFilteredOrders.map(o => o.idSitio).filter(Boolean))].sort(),
+    formTypes:  [...new Set(quarterFilteredOrders.flatMap(o => o.forms.map(f => f.formLabel)).filter(Boolean))].sort(),
+  }), [quarterFilteredOrders])
+
+  // ── KPIs: calculan sobre filteredOrders ───────────────────────────────────
+
+  // Solo órdenes cerradas
+  const totalOrders = useMemo(() =>
+    filteredOrders.filter(o => !o.isInProgress).length,
+    [filteredOrders]
+  )
 
   const avgOrderDuration = useMemo(() => {
-    const durations = quarterFilteredOrders.map(o => o.orderDuration).filter(d => d > 0)
-    if (!durations.length) return '—'
-    return formatDuration(Math.round(durations.reduce((a, b) => a + b, 0) / durations.length))
-  }, [quarterFilteredOrders])
-
-  const avgFormDuration = useMemo(() => {
-    const durs = quarterFilteredOrders.flatMap(o => o.forms.map(f => f.duration).filter(d => d > 0))
+    const durs = filteredOrders
+      .filter(o => !o.isInProgress)
+      .map(o => o.orderDuration).filter(d => d > 0)
     if (!durs.length) return '—'
     return formatDuration(Math.round(durs.reduce((a, b) => a + b, 0) / durs.length))
-  }, [quarterFilteredOrders])
+  }, [filteredOrders])
+
+  const avgFormDuration = useMemo(() => {
+    const durs = filteredOrders.flatMap(o => o.forms.map(f => f.duration).filter(d => d > 0))
+    if (!durs.length) return '—'
+    return formatDuration(Math.round(durs.reduce((a, b) => a + b, 0) / durs.length))
+  }, [filteredOrders])
 
   const slowestFormType = useMemo(() => {
     const groups = {}
-    quarterFilteredOrders.forEach(o =>
+    filteredOrders.forEach(o =>
       o.forms.forEach(f => {
         if (!f.duration) return
         if (!groups[f.formCode]) groups[f.formCode] = { label: f.formLabel, durs: [] }
@@ -252,39 +285,22 @@ export default function useProductivityReport() {
     let slowest = null
     Object.values(groups).forEach(g => {
       const avg = g.durs.reduce((a, b) => a + b, 0) / g.durs.length
-      if (!slowest || avg > slowest.avg) slowest = { label: g.label, avg, avgStr: formatDuration(Math.round(avg)) }
+      if (!slowest || avg > slowest.avg)
+        slowest = { label: g.label, avg, avgStr: formatDuration(Math.round(avg)) }
     })
     return slowest || { label: '—', avgStr: '—' }
-  }, [quarterFilteredOrders])
+  }, [filteredOrders])
 
   const topInspector = useMemo(() => {
     const counts = {}
-    quarterFilteredOrders.forEach(o => {
-      const key = o.inspector.name
-      counts[key] = (counts[key] || 0) + 1
-    })
+    filteredOrders
+      .filter(o => !o.isInProgress)
+      .forEach(o => { counts[o.inspector.name] = (counts[o.inspector.name] || 0) + 1 })
     const top = Object.entries(counts).sort((a, b) => b[1] - a[1])[0]
     return top ? { name: top[0], orderCount: top[1] } : { name: '—', orderCount: 0 }
-  }, [quarterFilteredOrders])
+  }, [filteredOrders])
 
-  // ── Filter options ─────────────────────────────────────────────────────────
-  const filterOptions = useMemo(() => ({
-    inspectors: [...new Set(quarterFilteredOrders.map(o => o.inspector.name).filter(Boolean))].sort(),
-    sites:      [...new Set(quarterFilteredOrders.map(o => o.idSitio).filter(Boolean))].sort(),
-    formTypes:  [...new Set(quarterFilteredOrders.flatMap(o => o.forms.map(f => f.formLabel)).filter(Boolean))].sort(),
-  }), [quarterFilteredOrders])
-
-  // ── Filtrado en memoria ────────────────────────────────────────────────────
-  const filteredOrders = useMemo(() =>
-    quarterFilteredOrders.filter(o => {
-      if (filters.inspector && o.inspector.name !== filters.inspector)         return false
-      if (filters.site      && o.idSitio          !== filters.site)            return false
-      if (filters.formType  && !o.forms.some(f => f.formLabel === filters.formType)) return false
-      return true
-    }),
-    [quarterFilteredOrders, filters]
-  )
-
+  // ── Paginación ─────────────────────────────────────────────────────────────
   const totalFiltered = filteredOrders.length
 
   const paginatedOrders = useMemo(() => {
@@ -292,65 +308,49 @@ export default function useProductivityReport() {
     return filteredOrders.slice(start, start + pageSize)
   }, [filteredOrders, currentPage, pageSize])
 
-  // ── Setters ────────────────────────────────────────────────────────────────
-  const setFilter = useCallback((key, val) => {
-    setFiltersState(p => ({ ...p, [key]: val }))
-    setCurrentPageState(1)
-  }, [])
-  const setCurrentPage    = useCallback(p => setCurrentPageState(p), [])
-  const setPageSize       = useCallback(size => { setPageSizeState(size); setCurrentPageState(1) }, [])
-  const handleSetQuarter  = useCallback(opt  => { setSelectedQuarter(opt); setCurrentPageState(1) }, [])
+  const setFilter     = useCallback((key, val) => { setFiltersState(p => ({ ...p, [key]: val })); setCurrentPageState(1) }, [])
+  const setCurrentPage = useCallback(p => setCurrentPageState(p), [])
+  const setPageSize    = useCallback(size => { setPageSizeState(size); setCurrentPageState(1) }, [])
+  const handleSetQuarter = useCallback(opt => { setSelectedQuarter(opt); setCurrentPageState(1) }, [])
 
-  // ── Export Excel — una fila por formulario ─────────────────────────────────
+  // ── Export Excel ───────────────────────────────────────────────────────────
   const exportToExcel = useCallback(async () => {
     try {
       const { utils, writeFile } = await import('xlsx')
-      const rows = quarterFilteredOrders.flatMap(o =>
+      const rows = filteredOrders.flatMap(o =>
         o.forms.length > 0
           ? o.forms.map(f => ({
-              'Orden':                    o.orderNumber,
-              'Sitio':                    o.idSitio,
-              'Cuatrimestre':             selectedQuarter?.label || '',
-              'Fecha':                    o.date || '',
-              'Inspector Orden':          o.inspector.name,
-              'Duración Total Orden (min)': o.orderDuration ?? '',
-              'Formulario':               f.formLabel,
-              'Inspector Formulario':     f.inspector.name,
-              'Hora Inicio':              f.startTime  || '',
-              'Hora Fin':                 f.endTime    || '',
-              'Duración Form. (min)':     f.duration   ?? '',
-              'Duración Formateada':      f.durationStr,
-              'Ref. Histórico (min)':     f.benchmark?.avgMinutes ?? '',
-              'N Muestras Ref.':          f.benchmark?.sampleCount ?? '',
-              'Semáforo':                 f.semaforo   || '',
+              'Orden':                       o.orderNumber,
+              'Sitio':                       o.idSitio,
+              'Cuatrimestre':                selectedQuarter?.label || '',
+              'Fecha':                       o.date || '',
+              'Inspector Orden':             o.inspector.name,
+              'Duración Total Orden (min)':  o.orderDuration ?? '',
+              'En Curso':                    o.isInProgress ? 'Sí' : 'No',
+              'Formulario':                  f.formLabel,
+              'Inspector Formulario':        f.inspector.name,
+              'Hora Inicio':                 f.startTime  || '',
+              'Hora Fin':                    f.endTime    || '',
+              'Tiempo Aproximado':           f.isApproximate ? 'Sí' : 'No',
+              'Duración Form. (min)':        f.duration   ?? '',
+              'Duración Formateada':         f.durationStr,
+              'Ref. Histórico (min)':        f.benchmark?.avgMinutes ?? '',
+              'N Muestras Ref.':             f.benchmark?.sampleCount ?? '',
+              'Semáforo':                    f.semaforo || '',
             }))
-          : [{
-              'Orden': o.orderNumber, 'Sitio': o.idSitio,
-              'Cuatrimestre': selectedQuarter?.label || '', 'Fecha': o.date || '',
-              'Inspector Orden': o.inspector.name,
-              'Duración Total Orden (min)': o.orderDuration ?? '',
-              'Formulario': '', 'Inspector Formulario': '', 'Hora Inicio': '',
-              'Hora Fin': '', 'Duración Form. (min)': '', 'Duración Formateada': '',
-              'Ref. Histórico (min)': '', 'N Muestras Ref.': '', 'Semáforo': '',
-            }]
+          : [{ 'Orden': o.orderNumber, 'Sitio': o.idSitio, 'Cuatrimestre': selectedQuarter?.label || '', 'Fecha': o.date || '', 'Inspector Orden': o.inspector.name, 'Duración Total Orden (min)': o.orderDuration ?? '', 'En Curso': o.isInProgress ? 'Sí' : 'No' }]
       )
       const ws = utils.json_to_sheet(rows)
-      ws['!cols'] = [
-        { wch: 22 }, { wch: 12 }, { wch: 16 }, { wch: 14 },
-        { wch: 20 }, { wch: 22 }, { wch: 32 }, { wch: 20 },
-        { wch: 10 }, { wch: 10 }, { wch: 18 }, { wch: 16 },
-        { wch: 18 }, { wch: 14 }, { wch: 10 },
-      ]
+      ws['!cols'] = Array(17).fill({ wch: 18 })
       const wb = utils.book_new()
       utils.book_append_sheet(wb, ws, 'Productividad')
       writeFile(wb, `productividad_${selectedQuarter?.value || 'all'}_${new Date().toISOString().slice(0,10)}.xlsx`)
     } catch (e) { console.error('[exportToExcel productivity]', e) }
-  }, [quarterFilteredOrders, selectedQuarter])
+  }, [filteredOrders, selectedQuarter])
 
   return {
     allOrders, filteredOrders, paginatedOrders,
     totalOrders, avgOrderDuration, avgFormDuration, slowestFormType, topInspector,
-    benchmarks,
     quarterOptions, selectedQuarter, setSelectedQuarter: handleSetQuarter,
     filters, setFilter, filterOptions,
     currentPage, setCurrentPage, pageSize, setPageSize, totalFiltered,

@@ -39,15 +39,16 @@ function KpiPrimary({ icon: Icon, label, value, sub }) {
   )
 }
 
-function KpiAccent({ icon: Icon, label, value, sub, borderColor, valueColor }) {
+function KpiAccent({ icon: Icon, label, value, sub, borderColor, valueColor, compact = false }) {
   return (
     <div className="rounded-2xl p-4 th-shadow flex items-center gap-3 border-l-4"
       style={{ background: 'var(--bg-card)', borderColor, borderTop: '0.5px solid var(--border)', borderRight: '0.5px solid var(--border)', borderBottom: '0.5px solid var(--border)' }}>
       <Icon size={17} strokeWidth={1.8} style={{ color: borderColor, flexShrink: 0 }} />
-      <div className="min-w-0">
-        <div className="text-[20px] font-bold leading-none tabular-nums truncate" style={{ color: valueColor }}>{value}</div>
-        <div className="text-[11px] font-medium mt-0.5 truncate" style={{ color: 'var(--text-secondary)' }}>{label}</div>
-        {sub && <div className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{sub}</div>}
+      <div className="min-w-0 flex-1">
+        <div className={`font-bold leading-tight ${compact ? 'text-[14px] line-clamp-2' : 'text-[20px] leading-none tabular-nums'}`}
+          style={{ color: valueColor }}>{value}</div>
+        <div className="text-[11px] font-medium mt-0.5 line-clamp-1" style={{ color: 'var(--text-secondary)' }}>{label}</div>
+        {sub && <div className="text-[10px] mt-0.5 line-clamp-1" style={{ color: 'var(--text-muted)' }}>{sub}</div>}
       </div>
     </div>
   )
@@ -141,10 +142,14 @@ function DetailRow({ order }) {
                       <Badge tone="neutral">{f.formLabel}</Badge>
                     </td>
                     <td className="px-3 py-2.5"><InspectorChip inspector={f.inspector} /></td>
-                    <td className="px-3 py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                    <td className="px-3 py-2.5 font-mono whitespace-nowrap"
+                      title={f.isApproximate ? 'Tiempo aproximado — timestamp exacto no disponible' : ''}
+                      style={{ color: f.isApproximate ? 'var(--text-muted)' : 'var(--text-secondary)', fontStyle: f.isApproximate ? 'italic' : 'normal' }}>
                       {f.startTime || '—'}
                     </td>
-                    <td className="px-3 py-2.5 font-mono" style={{ color: 'var(--text-secondary)' }}>
+                    <td className="px-3 py-2.5 font-mono whitespace-nowrap"
+                      title={f.isApproximate ? 'Tiempo aproximado — timestamp exacto no disponible' : ''}
+                      style={{ color: f.isApproximate ? 'var(--text-muted)' : 'var(--text-secondary)', fontStyle: f.isApproximate ? 'italic' : 'normal' }}>
                       {f.endTime || '—'}
                     </td>
                     <td className="px-3 py-2.5 font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -211,11 +216,11 @@ export default function ProductivityReport({ hookData }) {
 
       {/* KPIs — 5 tarjetas */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <KpiPrimary  icon={BarChart2} label="Total Órdenes"      value={totalOrders}                sub="período activo" />
+        <KpiPrimary  icon={BarChart2} label="Órdenes Cerradas"   value={totalOrders}                sub="período activo" />
         <KpiAccent   icon={Clock}     label="Promedio por Orden"  value={avgOrderDuration}           sub="tiempo en campo"  borderColor="#0d9488" valueColor="#0f766e" />
         <KpiAccent   icon={Activity}  label="Promedio por Form."  value={avgFormDuration}            sub="todos los tipos"  borderColor="#6366f1" valueColor="#4338ca" />
-        <KpiAccent   icon={Zap}       label="Form. más lento"     value={slowestFormType.label}      sub={slowestFormType.avgStr} borderColor="#f59e0b" valueColor="#b45309" />
-        <KpiAccent   icon={Award}     label="Más órdenes"         value={topInspector.name}          sub={`${topInspector.orderCount} órdenes`} borderColor="#10b981" valueColor="#065f46" />
+        <KpiAccent   icon={Zap}       label="Form. más lento"     value={slowestFormType.label}      sub={slowestFormType.avgStr} borderColor="#f59e0b" valueColor="#b45309" compact />
+        <KpiAccent   icon={Award}     label="Más órdenes"         value={topInspector.name}          sub={`${topInspector.orderCount} órdenes`} borderColor="#10b981" valueColor="#065f46" compact />
       </div>
 
       {/* Filtros */}
