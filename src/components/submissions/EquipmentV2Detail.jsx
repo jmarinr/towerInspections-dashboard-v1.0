@@ -32,7 +32,7 @@ const inpCls = (changed) =>
      ? 'border-sky-500 ring-1 ring-sky-500/20'
      : 'border-[var(--border)] focus:border-sky-500'}`
 
-function EditCell({ fieldKey, value, type = 'text', options, pendingEdits, onChange, minW = 70 }) {
+function EditCell({ fieldKey, value, type = 'text', options, pendingEdits, onChange, minW = 70, min, max, step }) {
   const cur     = fieldKey in pendingEdits ? pendingEdits[fieldKey] : (value ?? '')
   const changed = fieldKey in pendingEdits && String(pendingEdits[fieldKey]) !== String(value ?? '')
   if (type === 'select') {
@@ -47,7 +47,9 @@ function EditCell({ fieldKey, value, type = 'text', options, pendingEdits, onCha
     )
   }
   return (
-    <input type={type === 'number' ? 'number' : 'text'} step="any"
+    <input type={type === 'number' ? 'number' : 'text'} step={step ?? 'any'}
+      {...(min !== undefined ? { min } : {})}
+      {...(max !== undefined ? { max } : {})}
       className={inpCls(changed)} style={{ minWidth: minW }}
       value={cur} onChange={e => onChange(fieldKey, e.target.value)} />
   )
@@ -107,7 +109,7 @@ function SiteInfoGrid({ info, editMode, pendingEdits, onChange }) {
     { key:'proveedor',    label:'Proveedor',       ro:false, type:'text' },
     { key:'fechaInicio',  label:'Fecha Inicio',    ro:true, val: v(info.fechaInicio||info.fecha) },
     { key:'fechaTermino', label:'Fecha Término',   ro:true },
-    { key:'alturaMts',    label:'Altura (m)',       ro:false, type:'number' },
+    { key:'alturaMts',    label:'Altura (m)',       ro:false, type:'number', min:0 },
     { key:'tipoSitio',    label:'Tipo Sitio',       ro:false, type:'select', opts: TIPO_SITIO_OPTS },
     { key:'tipoEstructura', label:'Tipo Estructura', ro:false, type:'select', opts: TIPO_EST_OPTS },
     { key:'direccion',    label:'Dirección',        ro:false, type:'text' },
@@ -141,7 +143,9 @@ function SiteInfoGrid({ info, editMode, pendingEdits, onChange }) {
                   {(f.opts||[]).map(o => <option key={o} value={o}>{o}</option>)}
                 </select>
               ) : (
-                <input type={f.type === 'number' ? 'number' : 'text'} step="any"
+                <input type={f.type === 'number' ? 'number' : 'text'} step={f.step ?? 'any'}
+                  {...(f.min !== undefined ? { min: f.min } : {})}
+                  {...(f.max !== undefined ? { max: f.max } : {})}
                   className={inpCls(changed)}
                   value={curVal} onChange={e => onChange(edKey, e.target.value)} />
               )}
@@ -210,7 +214,7 @@ function InventoryTable({ items, accent = '#DC2626', editMode, pendingEdits, onC
               return (
                 <tr key={i} style={{ borderTop:'1px solid var(--border-light)', background: i%2===0?'var(--bg-card)':'var(--bg-base)' }}>
                   <td className={td}>
-                    <EditCell fieldKey={pk('alturaMts')} value={row.alturaMts} type="number" pendingEdits={pendingEdits} onChange={onChange} minW={60} />
+                    <EditCell fieldKey={pk('alturaMts')} value={row.alturaMts} type="number" min={0} pendingEdits={pendingEdits} onChange={onChange} minW={60} />
                   </td>
                   <td className={td}>
                     <EditCell fieldKey={pk('orientacion')} value={row.orientacion} type="select" options={ORIENT_OPTS} pendingEdits={pendingEdits} onChange={onChange} minW={90} />
@@ -219,30 +223,30 @@ function InventoryTable({ items, accent = '#DC2626', editMode, pendingEdits, onC
                     <EditCell fieldKey={pk('tipoEquipo')} value={row.tipoEquipo} type="select" options={TIPO_OPTS} pendingEdits={pendingEdits} onChange={onChange} minW={90} />
                   </td>
                   <td className={td}>
-                    <EditCell fieldKey={pk('cantidad')} value={row.cantidad} type="number" pendingEdits={pendingEdits} onChange={onChange} minW={50} />
+                    <EditCell fieldKey={pk('cantidad')} value={row.cantidad} type="number" min={1} step={1} pendingEdits={pendingEdits} onChange={onChange} minW={50} />
                   </td>
                   {/* Alto — solo no-MW */}
                   <td className={td}>
                     {!isMWc
-                      ? <EditCell fieldKey={pk('alto')} value={row.alto} type="number" pendingEdits={pendingEdits} onChange={onChange} minW={55} />
+                      ? <EditCell fieldKey={pk('alto')} value={row.alto} type="number" min={0} pendingEdits={pendingEdits} onChange={onChange} minW={55} />
                       : <span className="text-center block text-[10px]" style={{ color:'var(--text-muted)' }}>—</span>}
                   </td>
                   {/* Diám. — solo MW */}
                   <td className={td}>
                     {isMWc
-                      ? <EditCell fieldKey={pk('alto')} value={row.alto} type="number" pendingEdits={pendingEdits} onChange={onChange} minW={55} />
+                      ? <EditCell fieldKey={pk('alto')} value={row.alto} type="number" min={0} pendingEdits={pendingEdits} onChange={onChange} minW={55} />
                       : <span className="text-center block text-[10px]" style={{ color:'var(--text-muted)' }}>—</span>}
                   </td>
                   {/* Ancho — solo no-MW */}
                   <td className={td}>
                     {!isMWc
-                      ? <EditCell fieldKey={pk('ancho')} value={row.ancho} type="number" pendingEdits={pendingEdits} onChange={onChange} minW={55} />
+                      ? <EditCell fieldKey={pk('ancho')} value={row.ancho} type="number" min={0} pendingEdits={pendingEdits} onChange={onChange} minW={55} />
                       : <span className="text-center block text-[10px]" style={{ color:'var(--text-muted)' }}>—</span>}
                   </td>
                   {/* Prof. — solo no-MW */}
                   <td className={td}>
                     {!isMWc
-                      ? <EditCell fieldKey={pk('profundidad')} value={row.profundidad} type="number" pendingEdits={pendingEdits} onChange={onChange} minW={55} />
+                      ? <EditCell fieldKey={pk('profundidad')} value={row.profundidad} type="number" min={0} pendingEdits={pendingEdits} onChange={onChange} minW={55} />
                       : <span className="text-center block text-[10px]" style={{ color:'var(--text-muted)' }}>—</span>}
                   </td>
                   {/* Área — calculada, readonly */}
@@ -422,13 +426,14 @@ function FloorClientCard({ cliente, index, editMode, pendingEdits, onChange }) {
         {editMode ? (
           <div className="flex gap-6 flex-wrap">
             {[
-              ['Área Arrendada', pk('areaArrendada'), cliente.areaArrendada, 'number'],
-              ['Área en Uso',    pk('areaEnUso'),     cliente.areaEnUso,     'number'],
-              ['Placa Equipos',  pk('placaEquipos'),  cliente.placaEquipos,  'text'],
-            ].map(([lbl, key, val, type]) => (
+              ['Área Arrendada', pk('areaArrendada'), cliente.areaArrendada, 'number', 0],
+              ['Área en Uso',    pk('areaEnUso'),     cliente.areaEnUso,     'number', 0],
+              ['Placa Equipos',  pk('placaEquipos'),  cliente.placaEquipos,  'text',   undefined],
+            ].map(([lbl, key, val, type, minVal]) => (
               <div key={key}>
                 <div className="text-[9.5px] font-bold uppercase tracking-[0.07em] mb-1" style={{ color:'var(--text-muted)' }}>{lbl}</div>
                 <input type={type} className={inpCls(key in pendingEdits)} style={{ width:100 }}
+                  {...(minVal !== undefined ? { min: minVal } : {})}
                   value={pendingEdits[key] ?? (val || '')}
                   onChange={e => onChange(key, e.target.value)} />
               </div>
@@ -463,9 +468,10 @@ function FloorClientCard({ cliente, index, editMode, pendingEdits, onChange }) {
                   <tr key={gi} style={{ background: gi%2===0?'var(--bg-card)':'var(--bg-base)', borderTop:'1px solid var(--border-light)' }}>
                     {editMode ? (
                       <>
-                        {[['gabinete','text'],['largo','number'],['ancho','number'],['alto','number'],['fotoRef','text']].map(([f, type]) => (
+                        {[['gabinete','text',undefined],['largo','number',0],['ancho','number',0],['alto','number',0],['fotoRef','text',undefined]].map(([f, type, minVal]) => (
                           <td key={f} className="px-2 py-1.5">
                             <EditCell fieldKey={gpk(gi,f)} value={g[f]} type={type}
+                              {...(minVal !== undefined ? { min: minVal } : {})}
                               pendingEdits={pendingEdits} onChange={onChange} minW={f==='gabinete'?80:50} />
                           </td>
                         ))}

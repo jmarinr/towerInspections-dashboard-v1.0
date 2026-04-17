@@ -211,7 +211,7 @@ const inputCls = (changed) =>
      ? 'border-sky-500 bg-sky-50 shadow-sm ring-1 ring-sky-500/20 dark:bg-sky-900/20'
      : 'border-[var(--border)] th-bg-base focus:border-sky-500 focus:ring-1 focus:ring-sky-500/20'}`
 
-function EditableField({ label, value, fieldKey, type = 'text', options, readOnly, pendingEdits, onChange }) {
+function EditableField({ label, value, fieldKey, type = 'text', options, readOnly, pendingEdits, onChange, min, max, step }) {
   const current = fieldKey in pendingEdits ? pendingEdits[fieldKey] : (value ?? '')
   const changed  = fieldKey in pendingEdits && String(pendingEdits[fieldKey]) !== String(value ?? '')
 
@@ -245,7 +245,9 @@ function EditableField({ label, value, fieldKey, type = 'text', options, readOnl
             value={current}
             onChange={e => onChange(fieldKey, e.target.value)} />
         ) : type === 'number' ? (
-          <input type="number" step="any"
+          <input type="number" step={step ?? 'any'}
+            {...(min !== undefined ? { min } : {})}
+            {...(max !== undefined ? { max } : {})}
             className={inputCls(changed)}
             value={current}
             onChange={e => onChange(fieldKey, e.target.value)} />
@@ -406,6 +408,7 @@ function SectionCard({ title, data, photos, index, editMode, pendingEdits, onFie
                     <EditableField key={fieldId}
                       label={field.label} value={field.value} fieldKey={fieldId}
                       type={field.type} options={field.options}
+                      min={field.min} max={field.max} step={field.step}
                       pendingEdits={pendingEdits} onChange={onFieldChange} />
                   )
                 }
