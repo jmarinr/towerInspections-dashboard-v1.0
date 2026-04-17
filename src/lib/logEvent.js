@@ -119,4 +119,31 @@ export const LOG = {
     severity:   'error',
     metadata:   { error: String(error), context },
   }),
+
+  submissionStatusChanged: (submissionId, siteName, actorEmail, actorRole, from, to) => logEvent({
+    event_type: 'submission.status_changed',
+    message:    `Formulario ${from} → ${to}: ${siteName || submissionId} · por ${actorEmail}`,
+    severity:   'info',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { submission_id: submissionId, site_name: siteName, from, to, source: 'admin_panel' },
+  }),
+
+  visitStatusChanged: (visitId, orderNumber, actorEmail, actorRole, from, to, trigger) => logEvent({
+    event_type: 'visit.status_changed',
+    message:    `Visita ${orderNumber || visitId}: ${from} → ${to}${trigger === 'auto' ? ' (automático)' : ''} · por ${actorEmail || 'sistema'}`,
+    severity:   'info',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { visit_id: visitId, order_number: orderNumber, from, to, trigger, source: 'admin_panel' },
+  }),
+
+  reportCommentSaved: (damageKey, idSitio, orderLabel, actorEmail, actorRole, action) => logEvent({
+    event_type: 'report.comment_saved',
+    message:    `Comentario de auditoría ${action === 'added' ? 'agregado' : 'actualizado'}: ${idSitio}${orderLabel ? ' — ' + orderLabel : ''} · por ${actorEmail}`,
+    severity:   'info',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { damage_key: damageKey, id_sitio: idSitio, order_label: orderLabel, action, source: 'admin_panel' },
+  }),
 }

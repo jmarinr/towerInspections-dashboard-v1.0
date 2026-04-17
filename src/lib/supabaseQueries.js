@@ -196,6 +196,21 @@ export async function fetchSiteVisitById(id) {
 }
 
 /**
+ * Update the status of a site visit (open ↔ closed).
+ * Returns the updated row.
+ */
+export async function updateSiteVisitStatus(visitId, status) {
+  const { data, error } = await supabase
+    .from('site_visits')
+    .update({ status })
+    .eq('id', visitId)
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
+/**
  * Fetch submissions linked to a specific site visit.
  * Filters out NIL UUID submissions (those without a real order).
  */

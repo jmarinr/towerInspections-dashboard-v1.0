@@ -30,6 +30,8 @@ import {
   fetchSubmissionEdits,
   upsertSubmissionAssetRecord,
   deleteSubmissionAsset,
+  fetchSubmissionsForVisit,
+  updateSiteVisitStatus,
 } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
 import { LOG } from '../lib/logEvent'
@@ -1003,7 +1005,40 @@ export default function SubmissionDetail() {
         },
       }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a Borrador desde el panel')
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
-      setTimedOut(false)  // evita que timer expirado bloquee el re-render
+
+      // ── Log del cambio de formulario ───────────────────────────────────────
+      const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
+      LOG.submissionStatusChanged(
+        submissionId, siteName,
+        user.email, user.role,
+        fin ? 'Completado' : 'Borrador',
+        newVal ? 'Completado' : 'Borrador'
+      )
+
+      // ── Consistencia con la orden ──────────────────────────────────────────
+      if (visitId) {
+        try {
+          const allSubs = await fetchSubmissionsForVisit(visitId)
+          const { data: visit } = await supabase
+            .from('site_visits').select('id, status, order_number').eq('id', visitId).single()
+
+          if (visit && allSubs.length > 0) {
+            const allDone = allSubs.every(s => s.finalized || isFinalized(s))
+
+            if (newVal && allDone && visit.status === 'open') {
+              await updateSiteVisitStatus(visitId, 'closed')
+              LOG.visitStatusChanged(visitId, visit.order_number, user.email, user.role, 'open', 'closed', 'auto')
+            } else if (!newVal && visit.status === 'closed') {
+              await updateSiteVisitStatus(visitId, 'open')
+              LOG.visitStatusChanged(visitId, visit.order_number, user.email, user.role, 'closed', 'open', 'auto')
+            }
+          }
+        } catch (e) {
+          console.warn('[SubmissionDetail] order consistency check:', e.message)
+        }
+      }
+
+      setTimedOut(false)
       await refreshDetail(submissionId)
     } catch (e) {
       console.error(e)

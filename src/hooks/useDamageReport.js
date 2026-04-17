@@ -10,6 +10,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
 import { maintenanceFormConfig } from '../data/maintenanceFormConfig'
 import { safetySectionFields } from '../data/safetyClimbingDeviceConfig'
+import { LOG } from '../lib/logEvent'
 import {
   getQuarterOptions, getCurrentQuarterOption, isInQuarter,
 } from '../utils/quarterUtils'
@@ -274,7 +275,8 @@ export default function useDamageReport() {
     if (debounceRef.current[dkey]) clearTimeout(debounceRef.current[dkey])
     const prevComment = allItems.find(i => i.damageKey === damageKey && i.submissionId === submissionId)?.auditComment ?? ''
     debounceRef.current[dkey] = setTimeout(async () => {
-      const userId = useAuthStore.getState().user?.id
+      const actor  = useAuthStore.getState().user
+      const userId = actor?.id
       const { error: err } = await supabase.from('report_damage_tracking').upsert(
         { submission_id: submissionId, damage_key: damageKey, audit_comment: comment,
           status: allItems.find(i => i.damageKey === damageKey)?.status || 'pendiente',
@@ -288,6 +290,15 @@ export default function useDamageReport() {
             item.damageKey === damageKey && item.submissionId === submissionId
               ? { ...item, auditComment: prevComment } : item
           )
+        )
+      } else {
+        const action = prevComment ? 'updated' : 'added'
+        const item   = allItems.find(i => i.damageKey === damageKey)
+        LOG.reportCommentSaved(
+          damageKey,
+          item?.idSitio    || '',
+          item?.orderLabel || '',
+          actor?.email, actor?.role, action
         )
       }
     }, 500)

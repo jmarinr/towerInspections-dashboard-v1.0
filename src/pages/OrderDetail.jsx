@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2, LockKeyhole, LockOpen } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
+import Modal from '../components/ui/Modal'
 import { useOrdersStore } from '../store/useOrdersStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta, normalizeFormCode, isFormVisible } from '../data/formTypes'
 import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
+import { updateSiteVisitStatus } from '../lib/supabaseQueries'
+import { LOG } from '../lib/logEvent'
 
 function hasDamage(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
@@ -114,6 +117,48 @@ export default function OrderDetail() {
     ? new Date(order.started_at).toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' }) : null
   const visibleSubs = submissions.filter(s => isFormVisible(s.form_code))
 
+  // ── Status toggle ──────────────────────────────────────────────────────────
+  const [statusLoading, setStatusLoading] = useState(false)
+  const [statusError,   setStatusError]   = useState(null)
+  const [confirmStatus, setConfirmStatus] = useState(false)
+
+  const pendingForms = visibleSubs.filter(s => !(s.finalized || isFinalized(s))).length
+
+  const handleStatusToggleClick = () => {
+    setStatusError(null)
+    if (open && pendingForms > 0) {
+      setStatusError(`No se puede cerrar: hay ${pendingForms} formulario${pendingForms !== 1 ? 's' : ''} pendiente${pendingForms !== 1 ? 's' : ''} de completar.`)
+      return
+    }
+    setConfirmStatus(true)
+  }
+
+  const handleConfirmStatusToggle = async () => {
+    setConfirmStatus(false)
+    setStatusLoading(true)
+    setStatusError(null)
+    const newStatus = open ? 'closed' : 'open'
+    const actor = useAuthStore.getState().user
+    try {
+      await updateSiteVisitStatus(order.id, newStatus)
+      LOG.visitStatusChanged(
+        order.id,
+        order.order_number,
+        actor?.email,
+        actor?.role,
+        order.status,
+        newStatus,
+        'manual'
+      )
+      await loadDetail(orderId)
+    } catch (e) {
+      setStatusError('Error al cambiar el estado. Intenta nuevamente.')
+      console.error('[OrderDetail] status toggle:', e)
+    } finally {
+      setStatusLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-5">
 
@@ -141,6 +186,32 @@ export default function OrderDetail() {
               <div className="text-[14px] th-text-m mt-1">{order.site_name}</div>
             )}
           </div>
+
+          {/* Botón cerrar/reabrir — solo admin y supervisor con canWrite */}
+          {user?.canWrite && (
+            <div className="flex flex-col items-end gap-2 flex-shrink-0">
+              <button
+                onClick={handleStatusToggleClick}
+                disabled={statusLoading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold border transition-all disabled:opacity-50"
+                style={{
+                  background:   open ? '#fef2f2' : '#f0fdf4',
+                  color:        open ? '#b91c1c' : '#166534',
+                  borderColor:  open ? '#fecaca' : '#bbf7d0',
+                }}>
+                {statusLoading
+                  ? <Spinner size={13} />
+                  : open
+                    ? <><LockKeyhole size={13} strokeWidth={2} />Cerrar visita</>
+                    : <><LockOpen size={13} strokeWidth={2} />Reabrir visita</>}
+              </button>
+              {statusError && (
+                <p className="text-[11px] font-medium text-right" style={{ color: '#b91c1c', maxWidth: 240 }}>
+                  {statusError}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Meta chips */}
@@ -226,6 +297,33 @@ export default function OrderDetail() {
           </div>
         )}
       </div>
+
+      {/* Modal de confirmación de cambio de estado */}
+      {confirmStatus && (
+        <Modal
+          title={open ? 'Cerrar visita' : 'Reabrir visita'}
+          onClose={() => setConfirmStatus(false)}>
+          <div className="space-y-4">
+            <p className="text-[13px] th-text-p leading-relaxed">
+              {open
+                ? <>¿Confirmas que quieres <strong>cerrar</strong> la visita <strong>{order.order_number}</strong>? Todos los formularios están completados.</>
+                : <>¿Confirmas que quieres <strong>reabrir</strong> la visita <strong>{order.order_number}</strong>? El inspector podrá continuar editando los formularios.</>}
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmStatus(false)}
+                className="px-4 py-2 rounded-xl text-[13px] font-semibold border th-text-m"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmStatusToggle}
+                className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white"
+                style={{ background: open ? '#b91c1c' : '#166534' }}>
+                {open ? 'Sí, cerrar' : 'Sí, reabrir'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
