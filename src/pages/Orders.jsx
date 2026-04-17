@@ -3,7 +3,10 @@ import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight, Download, Loader2, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
+import Pagination from '../components/ui/Pagination'
 import { useOrdersStore } from '../store/useOrdersStore'
+
+const PAGE_SIZE = 25
 import { useAuthStore } from '../store/useAuthStore'
 import { fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { normalizeFormCode, isFormVisible } from '../data/formTypes'
@@ -79,14 +82,16 @@ export default function Orders() {
   const setFilter    = useOrdersStore((s) => s.setFilter)
   const getFiltered  = useOrdersStore((s) => s.getFiltered)
   const navigate     = useNavigate()
+  const [page, setPage] = useState(1)
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
   useEffect(() => {
     if (!authReady) return
-    useOrdersStore.setState({ error: null }) // limpiar error previo antes de cargar
+    useOrdersStore.setState({ error: null })
     load(true)
   }, [authReady])
-  const filtered = useMemo(() => getFiltered(), [orders, filterStatus, search])
+  const filtered = useMemo(() => { setPage(1); return getFiltered() }, [orders, filterStatus, search])
+  const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page])
   const hasFilter = search || filterStatus !== 'all'
 
   return (
@@ -160,7 +165,7 @@ export default function Orders() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(o => {
+              {paginated.map(o => {
                 const d    = o.started_at ? new Date(o.started_at) : null
                 const open = o.status === 'open'
                 return (
@@ -212,6 +217,12 @@ export default function Orders() {
           </table>
           </div>
         </div>
+        <Pagination
+          currentPage={page}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       )}
 
       {!isLoading && !storeError && filtered.length === 0 && (

@@ -1,8 +1,11 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, ChevronRight, X } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
+import Pagination from '../components/ui/Pagination'
+
+const PAGE_SIZE = 25
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { useOrdersStore } from '../store/useOrdersStore'
@@ -131,20 +134,22 @@ export default function Submissions() {
   const loadOrders     = useOrdersStore((s) => s.load)
   const orders         = useOrdersStore((s) => s.orders)
   const navigate       = useNavigate()
+  const [page, setPage] = useState(1)
 
   const authReady = useAuthStore((s) => !s.isLoading && s.isAuthed)
   useEffect(() => {
     if (!authReady) return
     useSubmissionsStore.setState({ error: null })
     load(true)
-    // Cargar orders solo si no están en caché — no bloquear submissions por esto
     if (useOrdersStore.getState().orders.length === 0) loadOrders()
   }, [authReady])
 
-  const filtered = useMemo(
-    () => getFiltered().filter(s => isFormVisible(s.form_code)),
-    [submissions, filterFormCode, search]
-  )
+  const filtered = useMemo(() => {
+    setPage(1)
+    return getFiltered().filter(s => isFormVisible(s.form_code))
+  }, [submissions, filterFormCode, search])
+
+  const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page])
 
   const orderMap = useMemo(() => {
     const m = {}
@@ -241,7 +246,7 @@ export default function Submissions() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {filtered.map(sub => {
+              {paginated.map(sub => {
                 const meta    = getFormMeta(sub.form_code)
                 const site    = extractSiteInfo(sub)
                 const who     = extractSubmittedBy(sub)
@@ -330,6 +335,12 @@ export default function Submissions() {
           </table>
           </div>
         </div>
+        <Pagination
+          currentPage={page}
+          totalItems={filtered.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setPage}
+        />
       )}
 
       {/* Empty */}
