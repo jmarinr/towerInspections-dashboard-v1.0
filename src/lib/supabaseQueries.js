@@ -200,9 +200,13 @@ export async function fetchSiteVisitById(id) {
  * Returns the updated row.
  */
 export async function updateSiteVisitStatus(visitId, status) {
+  const updatePayload = status === 'closed'
+    ? { status, closed_at: new Date().toISOString() }
+    : { status, closed_at: null }
+
   const { data, error } = await supabase
     .from('site_visits')
-    .update({ status })
+    .update(updatePayload)
     .eq('id', visitId)
     .select()
     .single()
