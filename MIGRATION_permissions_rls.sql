@@ -61,8 +61,12 @@ INSERT INTO role_permissions (role, permission, enabled)
 VALUES
   ('supervisor', 'submissions.change_status', true),
   ('supervisor', 'visits.change_status',      true),
+  ('supervisor', 'reports.view',              true),
+  ('supervisor', 'reports.export_excel',      true),
   ('inspector',  'submissions.change_status', false),
-  ('inspector',  'visits.change_status',      false)
+  ('inspector',  'visits.change_status',      false),
+  ('inspector',  'reports.view',              false),
+  ('inspector',  'reports.export_excel',      false)
 ON CONFLICT (role, permission) DO NOTHING;
 
 NOTIFY pgrst, 'reload schema';

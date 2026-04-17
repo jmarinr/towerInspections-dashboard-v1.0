@@ -31,7 +31,12 @@ const PERMISSION_GROUPS = [
     ]
   },
   {
-    label: 'Auditoría',
+    label: 'Reportes',
+    permissions: [
+      { key:'reports.view',          label:'Acceder a la sección de Reportes',   desc:'Ver los reportes de inventario, daños y productividad' },
+      { key:'reports.export_excel',  label:'Exportar reportes a Excel',           desc:'Descargar archivos Excel desde cualquier reporte' },
+    ]
+  },
     permissions: [
       { key:'audit.view', label:'Ver historial de ediciones', desc:'Registro de cambios con usuario y justificación' },
     ]
@@ -62,7 +67,8 @@ const LOCKED = new Set([
   'admin:submissions.export_photos',
   'admin:visits.view',
   'admin:visits.change_status',
-  'admin:audit.view',
+  'admin:reports.view',
+  'admin:reports.export_excel',
   'admin:admin.companies',
   'admin:admin.users',
   'admin:admin.permissions',

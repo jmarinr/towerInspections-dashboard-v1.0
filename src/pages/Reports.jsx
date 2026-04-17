@@ -6,7 +6,9 @@
  */
 
 import { useState } from 'react'
-import { Download, Package, AlertTriangle, ArrowLeft, BarChart2 } from 'lucide-react'
+import { Download, Package, AlertTriangle, ArrowLeft, BarChart2, Lock } from 'lucide-react'
+import { useAuthStore } from '../store/useAuthStore'
+import { useAdminStore } from '../store/useAdminStore'
 import useEquipmentInventoryReport from '../hooks/useEquipmentInventoryReport'
 import useDamageReport             from '../hooks/useDamageReport'
 import useProductivityReport       from '../hooks/useProductivityReport'
@@ -109,6 +111,14 @@ function ReportPicker({ onSelect }) {
 // ── Contenedor principal ──────────────────────────────────────────────────────
 export default function Reports() {
   const [activeId, setActiveId] = useState(null)
+  const user       = useAuthStore(s => s.user)
+  const permMatrix = useAdminStore(s => s.permMatrix)
+  const hasPermission = (key) => {
+    if (!user) return false
+    if (user.role === 'admin') return true
+    const mk = `${user.role}:${key}`
+    return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
+  }
 
   // Ambos hooks siempre activos (regla de React: no conditional hooks)
   // Fetch en background mientras el usuario ve el picker → datos listos al abrir
@@ -120,6 +130,20 @@ export default function Reports() {
     'equipment-inventory': equipmentHook,
     'damage-report':       damageHook,
     'productivity':        productivityHook,
+  }
+
+  // Guard: sin acceso a reportes
+  if (!hasPermission('reports.view')) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4">
+        <div className="w-14 h-14 rounded-2xl flex items-center justify-center"
+          style={{ background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
+          <Lock size={22} strokeWidth={1.5} style={{ color: 'var(--text-muted)' }} />
+        </div>
+        <p className="text-[14px] font-semibold th-text-p">Sin acceso a Reportes</p>
+        <p className="text-[12px] th-text-m">Tu rol no tiene permiso para ver esta sección. Contacta a un administrador.</p>
+      </div>
+    )
   }
 
   // Picker
@@ -156,16 +180,18 @@ export default function Reports() {
         </div>
 
         {/* Botón Excel */}
-        <button
-          onClick={exportToExcel}
-          disabled={isLoading}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold
-            text-white transition-all hover:opacity-90 active:scale-[.98] flex-shrink-0 self-start
-            disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.22)' }}>
-          <Download size={14} strokeWidth={2} />
-          Descargar Excel
-        </button>
+        {hasPermission('reports.export_excel') && (
+          <button
+            onClick={exportToExcel}
+            disabled={isLoading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold
+              text-white transition-all hover:opacity-90 active:scale-[.98] flex-shrink-0 self-start
+              disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.22)' }}>
+            <Download size={14} strokeWidth={2} />
+            Descargar Excel
+          </button>
+        )}
       </div>
 
       {/* Reporte activo */}
