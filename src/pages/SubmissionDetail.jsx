@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
+import Modal from '../components/ui/Modal'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { getFormMeta, normalizeFormCode } from '../data/formTypes'
@@ -715,6 +716,7 @@ export default function SubmissionDetail() {
   const [saving,        setSaving]        = useState(false)
   const [saveError,     setSaveError]     = useState(null)
   const [saveSuccess,   setSaveSuccess]   = useState(false)
+  const [confirmRevert, setConfirmRevert] = useState(false)
 
   useEffect(() => {
     if (!submissionId) return
@@ -991,9 +993,16 @@ export default function SubmissionDetail() {
   }, [submission, submissionId, user])
 
   // ── Finalized toggle ────────────────────────────────────────
-  const handleFinalizedToggle = async () => {
+  const handleFinalizedToggle = () => {
     if (!user?.canWrite) return
-    const newVal = !fin
+    // Completado → Borrador: pide confirmación (acción de mayor impacto)
+    if (fin) { setConfirmRevert(true); return }
+    // Borrador → Completado: acción directa
+    executeFinalizedToggle(true)
+  }
+
+  const executeFinalizedToggle = async (newVal) => {
+    setConfirmRevert(false)
     setSaving(true)
     try {
       await updateSubmissionPayload(submissionId, submission.payload, { __finalized__: newVal })
@@ -1441,7 +1450,7 @@ export default function SubmissionDetail() {
                 {canWrite && !editMode
                   ? (
                     <button onClick={handleFinalizedToggle} disabled={saving}
-                      title="Click para cambiar estado"
+                      title={fin ? 'Click para revertir a Borrador' : 'Click para marcar como Completado'}
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all hover:scale-105 active:scale-95
                         ${fin
                           ? 'text-good bg-good/10 border-good/20 hover:bg-good/20'
@@ -1550,6 +1559,32 @@ export default function SubmissionDetail() {
         {/* ── AUDIT HISTORY ── */}
         <EditHistory submissionId={submissionId} />
       </div>
+
+      {/* Modal de confirmación — Completado → Borrador */}
+      {confirmRevert && (
+        <Modal title="Revertir a Borrador" onClose={() => setConfirmRevert(false)}>
+          <div className="space-y-4">
+            <p className="text-[13px] th-text-p leading-relaxed">
+              ¿Confirmas que quieres revertir este formulario de <strong>Completado</strong> a <strong>Borrador</strong>?
+            </p>
+            <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
+              Si la orden asociada estaba cerrada, se reabrirá automáticamente para mantener consistencia.
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setConfirmRevert(false)}
+                className="px-4 py-2 rounded-xl text-[13px] font-semibold border th-text-m"
+                style={{ borderColor: 'var(--border)', background: 'var(--bg-card)' }}>
+                Cancelar
+              </button>
+              <button onClick={() => executeFinalizedToggle(false)} disabled={saving}
+                className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50"
+                style={{ background: '#b45309' }}>
+                {saving ? '…' : 'Revertir a Borrador'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </>
   )
 }
