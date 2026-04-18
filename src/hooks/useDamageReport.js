@@ -65,15 +65,14 @@ function normStatus(v) {
 }
 
 function extractDamages(submission) {
-  const data     = resolveData(submission)
-  const idSitio  = data.siteInfo?.idSitio || data.formData?.idSitio || ''
-  const fc       = submission.form_code || ''
-  const subId    = submission.id
-
+  const data           = resolveData(submission)
+  const fc             = submission.form_code || ''
+  const subId          = submission.id
   const sv             = submission.site_visits
   const orderId        = sv?.id           || submission.site_visit_id || null
   const orderLabel     = sv?.order_number || null
   const orderStartDate = sv?.started_at   || submission.created_at   || null
+  const idSitio        = data.siteInfo?.idSitio || data.formData?.idSitio || sv?.site_id || ''
 
   const damages = []
 
@@ -153,7 +152,7 @@ export default function useDamageReport() {
     Promise.all([
       supabase
         .from('submissions')
-        .select('id, form_code, site_visit_id, payload, created_at, site_visits(id, order_number, started_at)')
+        .select('id, form_code, site_visit_id, payload, created_at, site_visits(id, order_number, started_at, site_id)')
         .in('form_code', ALL_CODES)
         .eq('finalized', true)
         .order('created_at', { ascending: false }),

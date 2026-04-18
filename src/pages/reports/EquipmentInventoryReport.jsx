@@ -129,7 +129,7 @@ export default function EquipmentInventoryReport({ hookData }) {
               <thead>
                 <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
                   {[
-                    ['ID Sitio','left'], ['Visita','left'], ['Altura','left'],
+                    ['ID Sitio','left'], ['Altura','left'],
                     ['Orient. (Cara)','left'], ['Orient. (°)','center'],
                     ['Tipo Antena','left'], ['Cant.','center'],
                     ['Alto','center'], ['Diám.','center'], ['Ancho','center'],
@@ -153,18 +153,6 @@ export default function EquipmentInventoryReport({ hookData }) {
                     <td className="px-4 py-3 font-mono font-semibold text-[12px] whitespace-nowrap"
                       style={{ color: 'var(--accent)' }}>
                       {item.idSitio || '—'}
-                    </td>
-
-                    {/* Visita — link a /orders/:orderId */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {item.orderId ? (
-                        <Link to={`/orders/${item.orderId}`}
-                          className="inline-flex items-center gap-1 text-[12px] font-medium hover:underline"
-                          style={{ color: 'var(--accent)' }}>
-                          {item.orderLabel || item.orderId.slice(0, 8)}
-                          <ExternalLink size={10} strokeWidth={2} />
-                        </Link>
-                      ) : <Dash />}
                     </td>
 
                     <td className="px-4 py-3 font-mono text-[12px] th-text-p whitespace-nowrap">

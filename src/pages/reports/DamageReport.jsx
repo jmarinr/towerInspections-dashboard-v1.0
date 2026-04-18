@@ -219,7 +219,7 @@ export default function DamageReport({ hookData }) {
               <thead>
                 <tr style={{ borderBottom: '1.5px solid var(--border)' }}>
                   {[
-                    ['ID Sitio','left'], ['Visita','left'], ['Formulario Origen','left'],
+                    ['ID Sitio','left'], ['Formulario Origen','left'],
                     ['Descripción del Daño','left'], ['Categoría','left'],
                     ['Estado','left'], ['Nota','center'],
                   ].map(([h, align]) => (
@@ -239,18 +239,6 @@ export default function DamageReport({ hookData }) {
                     {/* ID Sitio */}
                     <td className="px-4 py-3 font-mono font-semibold text-[12px] whitespace-nowrap"
                       style={{ color: 'var(--accent)' }}>{item.idSitio || '—'}</td>
-
-                    {/* Visita */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      {item.orderId ? (
-                        <Link to={`/orders/${item.orderId}`}
-                          className="inline-flex items-center gap-1 text-[12px] font-medium hover:underline"
-                          style={{ color: 'var(--accent)' }}>
-                          {item.orderLabel || item.orderId.slice(0, 8)}
-                          <ExternalLink size={10} strokeWidth={2} />
-                        </Link>
-                      ) : <Dash />}
-                    </td>
 
                     {/* Formulario origen */}
                     <td className="px-4 py-3 whitespace-nowrap text-[12px] th-text-p">
