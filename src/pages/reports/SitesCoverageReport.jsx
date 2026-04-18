@@ -74,7 +74,7 @@ export default function SitesCoverageReport() {
           className="px-3 py-2 rounded-xl text-[13px] border"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
           <option value="">Todos los estados</option>
-          <option value="alert">Crítico (>21d)</option>
+          <option value="alert">Crítico (&gt;21d)</option>
           <option value="warn">Atención (14-21d)</option>
           <option value="ok">OK (≤14d)</option>
           <option value="in_progress">En progreso</option>
