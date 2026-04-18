@@ -295,7 +295,7 @@ export default function Reports() {
           </button>
         )}
       </div>
-      <reportDef.component />
+      <reportDef.component hook={activeHook} />
     </div>
   )
 }
