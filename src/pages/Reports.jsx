@@ -1,53 +1,115 @@
 /**
- * Reports.jsx  v3
- * Pantalla de inicio: grid de tarjetas de colores para seleccionar reporte.
- * Al elegir uno → muestra el reporte con botón ← Reportes para volver al picker.
- * Ambos hooks siempre instanciados (regla de hooks: no condicional).
+ * Reports.jsx  v4
+ * Picker con 10 reportes — 3 existentes + 7 nuevos con badge ✦ NUEVO
  */
 
 import { useState } from 'react'
-import { Download, Package, AlertTriangle, ArrowLeft, BarChart2, Lock } from 'lucide-react'
+import { Download, Package, AlertTriangle, ArrowLeft, BarChart2, Lock,
+         MapPin, Users, CheckSquare, Clock, Map, TrendingUp, History } from 'lucide-react'
 import { useAuthStore } from '../store/useAuthStore'
 import { useAdminStore } from '../store/useAdminStore'
-import useEquipmentInventoryReport from '../hooks/useEquipmentInventoryReport'
-import useDamageReport             from '../hooks/useDamageReport'
-import useProductivityReport       from '../hooks/useProductivityReport'
-import EquipmentInventoryReport    from './reports/EquipmentInventoryReport'
-import DamageReport                from './reports/DamageReport'
-import ProductivityReport          from './reports/ProductivityReport'
+import useEquipmentInventoryReport  from '../hooks/useEquipmentInventoryReport'
+import useDamageReport              from '../hooks/useDamageReport'
+import useProductivityReport        from '../hooks/useProductivityReport'
+import useSitesCoverageReport       from '../hooks/useSitesCoverageReport'
+import useInspectorQualityReport    from '../hooks/useInspectorQualityReport'
+import useFormComplianceReport      from '../hooks/useFormComplianceReport'
+import useHistorialSitiosReport     from '../hooks/useHistorialSitiosReport'
+import useSlaReport                 from '../hooks/useSlaReport'
+import useGeoMapReport              from '../hooks/useGeoMapReport'
+import useMonthlyTrendReport        from '../hooks/useMonthlyTrendReport'
+import EquipmentInventoryReport     from './reports/EquipmentInventoryReport'
+import DamageReport                 from './reports/DamageReport'
+import ProductivityReport           from './reports/ProductivityReport'
+import SitesCoverageReport          from './reports/SitesCoverageReport'
+import InspectorQualityReport       from './reports/InspectorQualityReport'
+import FormComplianceReport         from './reports/FormComplianceReport'
+import HistorialSitiosReport        from './reports/HistorialSitiosReport'
+import SlaReport                    from './reports/SlaReport'
+import GeoMapReport                 from './reports/GeoMapReport'
+import MonthlyTrendReport           from './reports/MonthlyTrendReport'
 
 const REPORTS = [
   {
-    id:               'equipment-inventory',
-    label:            'Equipment Inventory',
-    description:      'All equipment recorded per site · Tower and Carriers · Excel export',
+    id: 'equipment-inventory', label: 'Equipment Inventory',
+    description: 'All equipment recorded per site · Tower and Carriers · Excel export',
     descriptionShort: 'Equipment per site · Tower & Carriers',
-    icon:             Package,
-    color:            '#0284C7',
-    colorLight:       '#e0f2fe',
-    component:        EquipmentInventoryReport,
+    icon: Package, color: '#0284C7', colorLight: '#e0f2fe',
+    component: EquipmentInventoryReport, isNew: false,
   },
   {
-    id:               'damage-report',
-    label:            'Damage Report',
-    description:      'Regular and Malo items · Prev. Maintenance, Grounding, Safety Climbing · Status tracking',
+    id: 'damage-report', label: 'Damage Report',
+    description: 'Regular and Malo items · Prev. Maintenance, Grounding, Safety Climbing · Status tracking',
     descriptionShort: 'Regular & Malo items · Status tracking',
-    icon:             AlertTriangle,
-    color:            '#dc2626',
-    colorLight:       '#fee2e2',
-    component:        DamageReport,
+    icon: AlertTriangle, color: '#dc2626', colorLight: '#fee2e2',
+    component: DamageReport, isNew: false,
   },
   {
-    id:               'productivity',
-    label:            'Productivity Report',
-    description:      'Form & order timing · Historical benchmarks · Traffic light per form',
+    id: 'productivity', label: 'Productivity Report',
+    description: 'Form & order timing · Historical benchmarks · Traffic light per form',
     descriptionShort: 'Timing per order & form · Benchmarks',
-    icon:             BarChart2,
-    color:            '#6366f1',
-    colorLight:       '#eef2ff',
-    component:        ProductivityReport,
+    icon: BarChart2, color: '#6366f1', colorLight: '#eef2ff',
+    component: ProductivityReport, isNew: false,
+  },
+  {
+    id: 'sites-coverage', label: 'Cobertura de Sitios',
+    description: 'Días desde la última visita por sitio · Alertas de vencimiento · 79 sitios únicos',
+    descriptionShort: 'Días sin visita por sitio · Alertas',
+    icon: MapPin, color: '#0891b2', colorLight: '#cffafe',
+    component: SitesCoverageReport, isNew: true,
+  },
+  {
+    id: 'inspector-quality', label: 'Calidad por Inspector',
+    description: 'Score de calidad por inspector · Tasa de cierre · Completitud de formularios',
+    descriptionShort: 'Score calidad · Tasa cierre · Forms',
+    icon: Users, color: '#7c3aed', colorLight: '#ede9fe',
+    component: InspectorQualityReport, isNew: true,
+  },
+  {
+    id: 'form-compliance', label: 'Cumplimiento de Formularios',
+    description: 'Tasa de completitud por formulario · Tendencia mensual · Identificar cuellos de botella',
+    descriptionShort: 'Completitud por form · Tendencia',
+    icon: CheckSquare, color: '#059669', colorLight: '#d1fae5',
+    component: FormComplianceReport, isNew: true,
+  },
+  {
+    id: 'historial-sitios', label: 'Historial por Sitio',
+    description: 'Sitios con múltiples visitas · Progresión de completitud entre visitas · Mejoras y retrocesos',
+    descriptionShort: 'Multi-visita · Progresión calidad',
+    icon: History, color: '#d97706', colorLight: '#fef3c7',
+    component: HistorialSitiosReport, isNew: true,
+  },
+  {
+    id: 'sla-report', label: 'SLA de Cierre',
+    description: 'Órdenes envejecidas · Distribución de duración · Alertas por inspector',
+    descriptionShort: 'Órdenes abiertas · Duración · SLA',
+    icon: Clock, color: '#e11d48', colorLight: '#ffe4e6',
+    component: SlaReport, isNew: true,
+  },
+  {
+    id: 'geo-map', label: 'Dispersión Geográfica',
+    description: 'Scatter plot de coordenadas GPS · 82 sitios con ubicación · Cobertura por región',
+    descriptionShort: 'GPS scatter · 82 sitios con coords',
+    icon: Map, color: '#0f766e', colorLight: '#ccfbf1',
+    component: GeoMapReport, isNew: true,
+  },
+  {
+    id: 'monthly-trend', label: 'Tendencia Mensual',
+    description: 'Órdenes y formularios por mes · Tasas de cierre y completitud · Por inspector',
+    descriptionShort: 'Volumen mensual · Tasas · Inspectores',
+    icon: TrendingUp, color: '#be123c', colorLight: '#ffe4e6',
+    component: MonthlyTrendReport, isNew: true,
   },
 ]
+
+function NewBadge() {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider"
+      style={{ background: '#fef9c3', color: '#a16207', border: '1px solid #fde047' }}>
+      ✦ Nuevo
+    </span>
+  )
+}
 
 function BetaBadge() {
   return (
@@ -58,7 +120,7 @@ function BetaBadge() {
   )
 }
 
-// ── Picker: estilo Audara — tarjetas blancas con ícono cuadrado centrado ───────
+// ── Picker ────────────────────────────────────────────────────────────────────
 function ReportPicker({ onSelect }) {
   return (
     <div className="space-y-6">
@@ -70,14 +132,14 @@ function ReportPicker({ onSelect }) {
         <p className="text-[13px] th-text-m">Selecciona un reporte para visualizar y exportar datos.</p>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
         {REPORTS.map(r => {
           const Icon = r.icon
           return (
             <button
               key={r.id}
               onClick={() => onSelect(r.id)}
-              className="flex flex-col items-center text-center rounded-2xl p-6 th-shadow border transition-all"
+              className="flex flex-col items-center text-center rounded-2xl p-5 th-shadow border transition-all relative"
               style={{ background: 'var(--bg-card)', borderColor: 'var(--border)' }}
               onMouseEnter={e => {
                 e.currentTarget.style.transform   = 'translateY(-3px)'
@@ -90,20 +152,59 @@ function ReportPicker({ onSelect }) {
                 e.currentTarget.style.borderColor = 'var(--border)'
               }}>
 
-              {/* Ícono — cuadrado redondeado de color, estilo iOS */}
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 flex-shrink-0"
+              {r.isNew && (
+                <div className="absolute top-3 right-3">
+                  <NewBadge />
+                </div>
+              )}
+
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3 flex-shrink-0"
                 style={{ background: `linear-gradient(135deg, ${r.color}dd, ${r.color})` }}>
-                <Icon size={28} strokeWidth={1.8} color="#fff" />
+                <Icon size={24} strokeWidth={1.8} color="#fff" />
               </div>
 
-              <div className="font-bold text-[14px] th-text-p mb-1 leading-snug">{r.label}</div>
-              <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+              <div className="font-bold text-[13px] th-text-p mb-1 leading-snug">{r.label}</div>
+              <p className="text-[10px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                 {r.descriptionShort}
               </p>
             </button>
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// ── Wrapper de reporte con header ─────────────────────────────────────────────
+function ReportWrapper({ reportDef, hook, onBack }) {
+  const { component: Component, label, color, isNew } = reportDef
+  const { exportToExcel, isLoading } = hook
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack}
+            className="flex items-center gap-1.5 text-[13px] font-semibold th-text-m hover:th-text-p transition-colors">
+            <ArrowLeft size={15} /> Reportes
+          </button>
+          <span className="th-text-m">/</span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-[17px] font-bold th-text-p">{label}</h1>
+            {isNew && <NewBadge />}
+          </div>
+        </div>
+        {exportToExcel && (
+          <button onClick={exportToExcel} disabled={isLoading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all hover:opacity-90 active:scale-[.98] flex-shrink-0 disabled:opacity-50"
+            style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.22)' }}>
+            <Download size={14} strokeWidth={2} />
+            Descargar Excel
+          </button>
+        )}
+      </div>
+      <Component hook={hook} />
     </div>
   )
 }
@@ -120,19 +221,32 @@ export default function Reports() {
     return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
   }
 
-  // Ambos hooks siempre activos (regla de React: no conditional hooks)
-  // Fetch en background mientras el usuario ve el picker → datos listos al abrir
+  // Todos los hooks siempre activos (Rules of Hooks)
   const equipmentHook    = useEquipmentInventoryReport()
   const damageHook       = useDamageReport()
   const productivityHook = useProductivityReport()
+  const coverageHook     = useSitesCoverageReport()
+  const qualityHook      = useInspectorQualityReport()
+  const complianceHook   = useFormComplianceReport()
+  const historialHook    = useHistorialSitiosReport()
+  const slaHook          = useSlaReport()
+  const geoHook          = useGeoMapReport()
+  const trendHook        = useMonthlyTrendReport()
 
   const hookMap = {
     'equipment-inventory': equipmentHook,
     'damage-report':       damageHook,
     'productivity':        productivityHook,
+    'sites-coverage':      coverageHook,
+    'inspector-quality':   qualityHook,
+    'form-compliance':     complianceHook,
+    'historial-sitios':    historialHook,
+    'sla-report':          slaHook,
+    'geo-map':             geoHook,
+    'monthly-trend':       trendHook,
   }
 
-  // Guard: sin acceso a reportes
+  // Guard de acceso
   if (!hasPermission('reports.view')) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -151,51 +265,38 @@ export default function Reports() {
     return <ReportPicker onSelect={setActiveId} />
   }
 
-  const active    = REPORTS.find(r => r.id === activeId)
-  const hookData  = hookMap[activeId]
-  const ActiveComponent = active.component
-  const { exportToExcel, isLoading } = hookData
+  const reportDef = REPORTS.find(r => r.id === activeId)
+  if (!reportDef) return <ReportPicker onSelect={setActiveId} />
+
+  // Reporte activo — pasamos el hook por prop
+  const activeHook = hookMap[activeId]
 
   return (
-    <div className="space-y-5">
-
-      {/* Header con botón de regreso */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="min-w-0">
-          <button
-            onClick={() => setActiveId(null)}
-            className="inline-flex items-center gap-1.5 text-[13px] th-text-m hover:th-text-p transition-colors mb-2">
-            <ArrowLeft size={14} strokeWidth={2} />
-            Reportes
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setActiveId(null)}
+            className="flex items-center gap-1.5 text-[13px] font-semibold th-text-m hover:th-text-p transition-colors">
+            <ArrowLeft size={15} /> Reportes
           </button>
+          <span className="th-text-m">/</span>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: active.colorLight }}>
-              <active.icon size={14} strokeWidth={1.8} style={{ color: active.color }} />
-            </div>
-            <h1 className="text-[22px] font-bold th-text-p leading-tight">{active.label}</h1>
-            <BetaBadge />
+            <h1 className="text-[17px] font-bold th-text-p">{reportDef.label}</h1>
+            {reportDef.isNew && <NewBadge />}
           </div>
-          <p className="text-[13px] th-text-m mt-1">{active.description}</p>
         </div>
-
-        {/* Botón Excel */}
-        {hasPermission('reports.export_excel') && (
-          <button
-            onClick={exportToExcel}
-            disabled={isLoading}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold
-              text-white transition-all hover:opacity-90 active:scale-[.98] flex-shrink-0 self-start
-              disabled:opacity-50 disabled:cursor-not-allowed"
+        {hasPermission('reports.export_excel') && activeHook?.exportToExcel && (
+          <button onClick={activeHook.exportToExcel} disabled={activeHook.isLoading}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all hover:opacity-90 active:scale-[.98] flex-shrink-0 self-start disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.22)' }}>
             <Download size={14} strokeWidth={2} />
             Descargar Excel
           </button>
         )}
       </div>
-
-      {/* Reporte activo */}
-      <ActiveComponent hookData={hookData} />
+      <reportDef.component />
     </div>
   )
 }
+
