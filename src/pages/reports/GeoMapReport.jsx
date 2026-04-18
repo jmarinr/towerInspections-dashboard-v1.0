@@ -1,11 +1,42 @@
 /**
  * GeoMapReport.jsx
- * Mapa interactivo de Panamá con Leaflet + OpenStreetMap.
- * Sin API key — tiles gratuitos.
+ * Mapa interactivo Leaflet + OpenStreetMap.
+ * Fix: mapReady state asegura que los marcadores se pintan
+ * después de que el mapa esté completamente inicializado.
  */
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
+
+const ORG_COLORS = { CG: '#0ea5e9', HQ: '#818cf8', HK: '#34d399' }
+
+function getMarkerColor(orgCode, status) {
+  if (status === 'open') return '#fbbf24'
+  return ORG_COLORS[orgCode] || '#94a3b8'
+}
+
+function injectLeafletAssets(onReady) {
+  // CSS
+  if (!document.getElementById('leaflet-css')) {
+    const link = document.createElement('link')
+    link.id   = 'leaflet-css'
+    link.rel  = 'stylesheet'
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+    document.head.appendChild(link)
+  }
+  // JS
+  if (window.L) { onReady(); return }
+  const existing = document.getElementById('leaflet-js')
+  if (existing) {
+    existing.addEventListener('load', onReady)
+    return
+  }
+  const s = document.createElement('script')
+  s.id  = 'leaflet-js'
+  s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+  s.addEventListener('load', onReady)
+  document.head.appendChild(s)
+}
 
 function KpiCard({ label, value, color, sub }) {
   return (
@@ -18,23 +49,6 @@ function KpiCard({ label, value, color, sub }) {
   )
 }
 
-// Inyectar CSS de Leaflet una sola vez
-function injectLeafletCSS() {
-  if (document.getElementById('leaflet-css')) return
-  const link = document.createElement('link')
-  link.id   = 'leaflet-css'
-  link.rel  = 'stylesheet'
-  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-  document.head.appendChild(link)
-}
-
-const ORG_COLORS = { CG: '#0ea5e9', HQ: '#818cf8', HK: '#34d399' }
-
-function getMarkerColor(orgCode, status) {
-  if (status === 'open') return '#fbbf24'
-  return ORG_COLORS[orgCode] || '#94a3b8'
-}
-
 export default function GeoMapReport({ hook }) {
   const {
     scatterData, kpis, orgs, inspectors,
@@ -42,91 +56,81 @@ export default function GeoMapReport({ hook }) {
     totalFiltered, isLoading, error,
   } = hook
 
-  const mapRef     = useRef(null)  // DOM container
-  const leafletRef = useRef(null)  // L.map instance
-  const markersRef = useRef([])
+  const mapContainerRef = useRef(null)
+  const mapInstanceRef  = useRef(null)
+  const markersRef      = useRef([])
+  const [mapReady, setMapReady] = useState(false)
 
-  // Inicializar mapa
+  // ── Inicializar mapa ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!mapRef.current) return
-    injectLeafletCSS()
+    if (!mapContainerRef.current) return
 
-    // Cargar Leaflet dinámicamente
-    const script = document.getElementById('leaflet-js')
-    if (!script) {
-      const s = document.createElement('script')
-      s.id  = 'leaflet-js'
-      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-      s.onload = () => initMap()
-      document.head.appendChild(s)
-    } else if (window.L) {
-      initMap()
-    } else {
-      script.addEventListener('load', initMap)
-    }
-
-    function initMap() {
-      if (leafletRef.current || !mapRef.current) return
-      const L = window.L
-      const map = L.map(mapRef.current, {
-        center: [8.55, -80.0],
-        zoom: 7,
-        zoomControl: true,
+    injectLeafletAssets(() => {
+      if (mapInstanceRef.current) return   // ya inicializado
+      const L   = window.L
+      const map = L.map(mapContainerRef.current, {
+        center: [8.4, -80.2],
+        zoom:   7,
         scrollWheelZoom: true,
+        zoomControl: true,
       })
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19,
       }).addTo(map)
-      leafletRef.current = map
-    }
+      mapInstanceRef.current = map
+      setMapReady(true)   // dispara el efecto de marcadores
+    })
 
     return () => {
-      if (leafletRef.current) {
-        leafletRef.current.remove()
-        leafletRef.current = null
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+        setMapReady(false)
       }
     }
-  }, [mapRef.current])
+  }, [])
 
-  // Actualizar marcadores cuando cambian los datos o filtros
+  // ── Pintar / actualizar marcadores ───────────────────────────────────────
   useEffect(() => {
-    if (!leafletRef.current || !window.L) return
+    if (!mapReady || !mapInstanceRef.current || !window.L) return
     const L   = window.L
-    const map = leafletRef.current
+    const map = mapInstanceRef.current
 
-    // Limpiar marcadores anteriores
+    // Borrar marcadores anteriores
     markersRef.current.forEach(m => m.remove())
     markersRef.current = []
 
     scatterData.forEach(d => {
+      if (!d.y || !d.x) return
       const color  = getMarkerColor(d.orgCode, d.status)
+
       const marker = L.circleMarker([d.y, d.x], {
-        radius:      8,
+        radius:      7,
         fillColor:   color,
         color:       '#fff',
         weight:      1.5,
         opacity:     1,
-        fillOpacity: 0.85,
+        fillOpacity: 0.88,
       }).addTo(map)
 
       const badge = d.status === 'closed'
-        ? `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">Cerrada</span>`
-        : `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">Abierta</span>`
+        ? `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700">Cerrada</span>`
+        : `<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:9999px;font-size:10px;font-weight:700">Abierta</span>`
 
       marker.bindPopup(`
-        <div style="font-family:system-ui,sans-serif;min-width:160px">
-          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${d.siteId || '—'}</div>
-          <div style="font-size:12px;color:#475569;margin-bottom:6px">${d.siteName || ''}</div>
+        <div style="font-family:system-ui,sans-serif;min-width:170px;padding:2px">
+          <div style="font-weight:700;font-size:13px;margin-bottom:3px;color:#0f172a">${d.siteId || '—'}</div>
+          <div style="font-size:12px;color:#475569;margin-bottom:5px">${d.siteName || ''}</div>
           <div style="font-size:11px;color:#64748b">Inspector: ${d.inspector}</div>
-          <div style="font-size:11px;color:#64748b;margin-bottom:6px">${d.dateLabel}</div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px">Fecha: ${d.dateLabel}</div>
           ${badge}
         </div>
-      `, { maxWidth: 220 })
+      `, { maxWidth: 230 })
 
       markersRef.current.push(marker)
     })
-  }, [scatterData])
+  }, [mapReady, scatterData])
 
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size={16} /></div>
   if (error)     return <LoadError message={error} />
@@ -135,7 +139,7 @@ export default function GeoMapReport({ hook }) {
     <div className="space-y-5">
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KpiCard label="Con GPS"        value={kpis.total}  color="var(--accent)" sub="de 89 órdenes totales" />
+        <KpiCard label="Con GPS"        value={kpis.total}  color="var(--accent)" sub="de las órdenes totales" />
         <KpiCard label="Cerradas"       value={kpis.closed} color="#16a34a" />
         <KpiCard label="Abiertas"       value={kpis.open}   color="#fbbf24" />
         <KpiCard label="Organizaciones" value={kpis.orgs}   color="#818cf8" />
@@ -166,21 +170,13 @@ export default function GeoMapReport({ hook }) {
       </div>
 
       {/* Mapa */}
-      <div className="rounded-2xl overflow-hidden th-shadow"
-        style={{ border:'1px solid var(--border)' }}>
-        <div className="px-5 py-3 flex items-center justify-between"
-          style={{ background:'var(--bg-card)', borderBottom:'1px solid var(--border)' }}>
-          <div>
-            <h3 className="text-[13px] font-bold th-text-p">Mapa de Panamá — Sitios Inspeccionados</h3>
-            <p className="text-[11px] th-text-m mt-0.5">Click en un punto para ver detalles · Scroll para zoom · Arrastrar para navegar</p>
-          </div>
+      <div className="rounded-2xl overflow-hidden th-shadow" style={{ border:'1px solid var(--border)' }}>
+        <div className="px-5 py-3" style={{ background:'var(--bg-card)', borderBottom:'1px solid var(--border)' }}>
+          <h3 className="text-[13px] font-bold th-text-p">Mapa de Panamá — Sitios Inspeccionados</h3>
+          <p className="text-[11px] th-text-m mt-0.5">Click en un punto para ver detalles · Scroll para zoom · Arrastrar para navegar</p>
         </div>
 
-        {/* Contenedor del mapa — Leaflet monta aquí */}
-        <div
-          ref={mapRef}
-          style={{ height: 480, width: '100%', zIndex: 0 }}
-        />
+        <div ref={mapContainerRef} style={{ height: 500, width:'100%', zIndex: 0 }} />
 
         {/* Leyenda */}
         <div className="px-5 py-3 flex flex-wrap gap-4"
@@ -193,7 +189,7 @@ export default function GeoMapReport({ hook }) {
           ))}
           <div className="flex items-center gap-1.5">
             <div className="w-3 h-3 rounded-full border border-white shadow-sm bg-yellow-400" />
-            <span className="text-[11px] th-text-m">Abiertas (todas las orgs)</span>
+            <span className="text-[11px] th-text-m">Abiertas</span>
           </div>
         </div>
       </div>
