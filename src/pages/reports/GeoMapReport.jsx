@@ -1,55 +1,16 @@
-import { useState, useRef } from 'react'
-import useGeoMapReport from '../../hooks/useGeoMapReport'
+/**
+ * GeoMapReport.jsx
+ * Mapa interactivo de Panamá con Leaflet + OpenStreetMap.
+ * Sin API key — tiles gratuitos.
+ */
+import { useEffect, useRef } from 'react'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
 
-const PANAMA_OUTLINE = [
-  [-83.05,8.22],[-82.93,8.20],[-82.88,8.15],[-82.74,8.07],
-  [-82.58,8.09],[-82.43,8.20],[-82.34,8.25],[-82.22,8.29],
-  [-82.02,8.29],[-81.90,8.20],[-81.74,8.19],[-81.59,8.10],
-  [-81.39,8.05],[-81.17,7.96],[-80.95,7.87],[-80.70,7.78],
-  [-80.44,7.72],[-80.20,7.70],[-80.00,7.74],[-79.80,7.81],
-  [-79.60,7.88],[-79.43,7.91],[-79.28,7.95],[-78.95,7.88],
-  [-78.55,7.80],[-78.15,7.72],[-77.85,7.66],[-77.55,7.53],
-  [-77.30,7.62],[-77.17,7.78],[-77.25,7.98],[-77.44,8.13],
-  [-77.57,8.24],[-77.70,8.52],[-77.80,8.72],[-77.90,8.86],
-  [-78.03,9.00],[-78.20,9.20],[-78.45,9.36],[-78.67,9.42],
-  [-78.90,9.44],[-79.15,9.45],[-79.35,9.43],[-79.55,9.37],
-  [-79.75,9.30],[-79.90,9.28],[-80.10,9.25],[-80.35,9.30],
-  [-80.55,9.38],[-80.75,9.46],[-81.00,9.57],[-81.20,9.67],
-  [-81.40,9.75],[-81.60,9.78],[-81.78,9.70],[-81.92,9.60],
-  [-82.05,9.47],[-82.20,9.35],[-82.42,9.32],[-82.60,9.36],
-  [-82.76,9.42],[-82.90,9.38],[-82.98,9.30],[-83.02,9.18],
-  [-83.05,9.05],[-83.06,8.80],[-83.04,8.60],[-83.05,8.40],
-  [-83.05,8.22],
-]
-
-const MAP_BOUNDS = { minLng: -83.6, maxLng: -77.0, minLat: 7.1, maxLat: 9.95 }
-const W = 800, H = 310
-
-function project(lng, lat) {
-  const x = ((lng - MAP_BOUNDS.minLng) / (MAP_BOUNDS.maxLng - MAP_BOUNDS.minLng)) * W
-  const y = H - ((lat - MAP_BOUNDS.minLat) / (MAP_BOUNDS.maxLat - MAP_BOUNDS.minLat)) * H
-  return { x, y }
-}
-
-const outlinePts = PANAMA_OUTLINE.map(([lng, lat]) => {
-  const { x, y } = project(lng, lat)
-  return `${x.toFixed(1)},${y.toFixed(1)}`
-}).join(' ')
-
-const CITIES = [
-  { name: 'David',    lng: -82.43, lat: 8.43 },
-  { name: 'Santiago', lng: -80.98, lat: 8.10 },
-  { name: 'Aguadulce',lng: -80.54, lat: 8.24 },
-  { name: 'Panamá',   lng: -79.51, lat: 8.99 },
-  { name: 'Chitré',   lng: -80.43, lat: 7.97 },
-  { name: 'Colón',    lng: -79.90, lat: 9.36 },
-]
-
 function KpiCard({ label, value, color, sub }) {
   return (
-    <div className="rounded-2xl p-4 th-shadow" style={{ background:'var(--bg-card)', border:`1px solid var(--border)`, borderLeft:`3px solid ${color}` }}>
+    <div className="rounded-2xl p-4 th-shadow"
+      style={{ background:'var(--bg-card)', border:`1px solid var(--border)`, borderLeft:`3px solid ${color}` }}>
       <div className="text-[22px] font-bold" style={{ color }}>{value}</div>
       <div className="text-[11px] font-semibold th-text-p mt-0.5">{label}</div>
       {sub && <div className="text-[10px] th-text-m mt-0.5">{sub}</div>}
@@ -57,22 +18,122 @@ function KpiCard({ label, value, color, sub }) {
   )
 }
 
+// Inyectar CSS de Leaflet una sola vez
+function injectLeafletCSS() {
+  if (document.getElementById('leaflet-css')) return
+  const link = document.createElement('link')
+  link.id   = 'leaflet-css'
+  link.rel  = 'stylesheet'
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
+  document.head.appendChild(link)
+}
+
+const ORG_COLORS = { CG: '#0ea5e9', HQ: '#818cf8', HK: '#34d399' }
+
+function getMarkerColor(orgCode, status) {
+  if (status === 'open') return '#fbbf24'
+  return ORG_COLORS[orgCode] || '#94a3b8'
+}
+
 export default function GeoMapReport({ hook }) {
   const {
     scatterData, kpis, orgs, inspectors,
     filterOrg, filterStatus, filterInspector, setFilter,
-    totalFiltered, getColor, ORG_COLORS,
-    isLoading, error,
+    totalFiltered, isLoading, error,
   } = hook
 
-  const [tooltip, setTooltip] = useState(null)
-  const svgRef = useRef(null)
+  const mapRef     = useRef(null)  // DOM container
+  const leafletRef = useRef(null)  // L.map instance
+  const markersRef = useRef([])
+
+  // Inicializar mapa
+  useEffect(() => {
+    if (!mapRef.current) return
+    injectLeafletCSS()
+
+    // Cargar Leaflet dinámicamente
+    const script = document.getElementById('leaflet-js')
+    if (!script) {
+      const s = document.createElement('script')
+      s.id  = 'leaflet-js'
+      s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+      s.onload = () => initMap()
+      document.head.appendChild(s)
+    } else if (window.L) {
+      initMap()
+    } else {
+      script.addEventListener('load', initMap)
+    }
+
+    function initMap() {
+      if (leafletRef.current || !mapRef.current) return
+      const L = window.L
+      const map = L.map(mapRef.current, {
+        center: [8.55, -80.0],
+        zoom: 7,
+        zoomControl: true,
+        scrollWheelZoom: true,
+      })
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map)
+      leafletRef.current = map
+    }
+
+    return () => {
+      if (leafletRef.current) {
+        leafletRef.current.remove()
+        leafletRef.current = null
+      }
+    }
+  }, [mapRef.current])
+
+  // Actualizar marcadores cuando cambian los datos o filtros
+  useEffect(() => {
+    if (!leafletRef.current || !window.L) return
+    const L   = window.L
+    const map = leafletRef.current
+
+    // Limpiar marcadores anteriores
+    markersRef.current.forEach(m => m.remove())
+    markersRef.current = []
+
+    scatterData.forEach(d => {
+      const color  = getMarkerColor(d.orgCode, d.status)
+      const marker = L.circleMarker([d.y, d.x], {
+        radius:      8,
+        fillColor:   color,
+        color:       '#fff',
+        weight:      1.5,
+        opacity:     1,
+        fillOpacity: 0.85,
+      }).addTo(map)
+
+      const badge = d.status === 'closed'
+        ? `<span style="background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">Cerrada</span>`
+        : `<span style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">Abierta</span>`
+
+      marker.bindPopup(`
+        <div style="font-family:system-ui,sans-serif;min-width:160px">
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">${d.siteId || '—'}</div>
+          <div style="font-size:12px;color:#475569;margin-bottom:6px">${d.siteName || ''}</div>
+          <div style="font-size:11px;color:#64748b">Inspector: ${d.inspector}</div>
+          <div style="font-size:11px;color:#64748b;margin-bottom:6px">${d.dateLabel}</div>
+          ${badge}
+        </div>
+      `, { maxWidth: 220 })
+
+      markersRef.current.push(marker)
+    })
+  }, [scatterData])
 
   if (isLoading) return <div className="flex justify-center py-20"><Spinner size={16} /></div>
   if (error)     return <LoadError message={error} />
 
   return (
     <div className="space-y-5">
+      {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KpiCard label="Con GPS"        value={kpis.total}  color="var(--accent)" sub="de 89 órdenes totales" />
         <KpiCard label="Cerradas"       value={kpis.closed} color="#16a34a" />
@@ -80,6 +141,7 @@ export default function GeoMapReport({ hook }) {
         <KpiCard label="Organizaciones" value={kpis.orgs}   color="#818cf8" />
       </div>
 
+      {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-center">
         <select value={filterOrg} onChange={e => setFilter('org', e.target.value)}
           className="px-3 py-2 rounded-xl text-[13px] border"
@@ -103,79 +165,35 @@ export default function GeoMapReport({ hook }) {
         <span className="text-[12px] th-text-m ml-auto">{totalFiltered} sitios visibles</span>
       </div>
 
-      <div className="rounded-2xl p-5 th-shadow relative"
-        style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
-        <div className="mb-3">
-          <h3 className="text-[13px] font-bold th-text-p">Mapa de Panamá — Sitios Inspeccionados</h3>
-          <p className="text-[11px] th-text-m mt-0.5">Cada punto es un sitio con GPS registrado · Hover para ver detalles</p>
+      {/* Mapa */}
+      <div className="rounded-2xl overflow-hidden th-shadow"
+        style={{ border:'1px solid var(--border)' }}>
+        <div className="px-5 py-3 flex items-center justify-between"
+          style={{ background:'var(--bg-card)', borderBottom:'1px solid var(--border)' }}>
+          <div>
+            <h3 className="text-[13px] font-bold th-text-p">Mapa de Panamá — Sitios Inspeccionados</h3>
+            <p className="text-[11px] th-text-m mt-0.5">Click en un punto para ver detalles · Scroll para zoom · Arrastrar para navegar</p>
+          </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-xl"
-          style={{ background:'var(--bg-base)', border:'1px solid var(--border-light)' }}>
-          <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`}
-            style={{ width:'100%', height:'auto', display:'block' }}
-            onMouseLeave={() => setTooltip(null)}>
-            <rect x={0} y={0} width={W} height={H} fill="var(--bg-base)" />
-            <polygon points={outlinePts} fill="var(--bg-card)" stroke="var(--border)" strokeWidth={1.5} strokeLinejoin="round" />
-            {CITIES.map(c => {
-              const { x, y } = project(c.lng, c.lat)
-              return (
-                <g key={c.name}>
-                  <circle cx={x} cy={y} r={2.5} fill="var(--text-muted)" opacity={0.5} />
-                  <text x={x+4} y={y+4} fontSize={8.5} fill="var(--text-muted)" fontFamily="system-ui, sans-serif" opacity={0.8}>{c.name}</text>
-                </g>
-              )
-            })}
-            {scatterData.map((d, i) => {
-              const { x, y } = project(d.x, d.y)
-              const color = getColor(d.orgCode, d.status)
-              return (
-                <circle key={i} cx={x} cy={y} r={5.5}
-                  fill={color} fillOpacity={0.85}
-                  stroke="#fff" strokeWidth={1.2}
-                  style={{ cursor:'pointer', transition:'r .12s' }}
-                  onMouseEnter={e => {
-                    e.target.setAttribute('r', '8')
-                    const rect = svgRef.current?.getBoundingClientRect()
-                    const scale = rect ? rect.width / W : 1
-                    setTooltip({ d, px: x * scale, py: y * scale })
-                  }}
-                  onMouseLeave={e => e.target.setAttribute('r', '5.5')}
-                />
-              )
-            })}
-          </svg>
+        {/* Contenedor del mapa — Leaflet monta aquí */}
+        <div
+          ref={mapRef}
+          style={{ height: 480, width: '100%', zIndex: 0 }}
+        />
 
-          {tooltip && (
-            <div className="absolute pointer-events-none z-10 rounded-xl p-3 shadow-lg text-[12px]"
-              style={{
-                background:'var(--bg-card)', border:'1px solid var(--border)',
-                left: Math.min(tooltip.px + 12, 220),
-                top:  Math.max(tooltip.py - 70, 4),
-                maxWidth: 210,
-              }}>
-              <div className="font-bold th-text-p text-[13px]">{tooltip.d.siteId}</div>
-              <div className="th-text-m mt-0.5 truncate">{tooltip.d.siteName}</div>
-              <div className="th-text-m mt-0.5">Inspector: {tooltip.d.inspector}</div>
-              <div className="th-text-m">{tooltip.d.dateLabel}</div>
-              <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-                style={{ background: tooltip.d.status==='closed'?'#dcfce7':'#dbeafe', color: tooltip.d.status==='closed'?'#15803d':'#1d4ed8' }}>
-                {tooltip.d.status}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-4 mt-3">
+        {/* Leyenda */}
+        <div className="px-5 py-3 flex flex-wrap gap-4"
+          style={{ background:'var(--bg-card)', borderTop:'1px solid var(--border)' }}>
           {Object.entries(ORG_COLORS).map(([org, color]) => (
             <div key={org} className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full" style={{ background:color }} />
+              <div className="w-3 h-3 rounded-full border border-white shadow-sm" style={{ background:color }} />
               <span className="text-[11px] th-text-m">{org} · cerradas</span>
             </div>
           ))}
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-full bg-yellow-400" />
-            <span className="text-[11px] th-text-m">Abiertas</span>
+            <div className="w-3 h-3 rounded-full border border-white shadow-sm bg-yellow-400" />
+            <span className="text-[11px] th-text-m">Abiertas (todas las orgs)</span>
           </div>
         </div>
       </div>

@@ -295,7 +295,7 @@ export default function Reports() {
           </button>
         )}
       </div>
-      <reportDef.component hook={activeHook} />
+      <reportDef.component {...(reportDef.isNew ? { hook: activeHook } : { hookData: activeHook })} />
     </div>
   )
 }
