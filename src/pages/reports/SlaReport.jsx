@@ -51,6 +51,10 @@ export default function SlaReport({ hook }) {
         <KpiCard label="Duración Prom."   value={fmtDur(kpis.avgClosedMin)} color="#16a34a" sub="órdenes cerradas" />
       </div>
       {kpis.maxOpen && (
+        <div className="px-4 py-3 rounded-xl text-[12px]" style={{ background:'#fee2e2', border:'1px solid #fca5a5', color:'#dc2626' }}>
+          <strong>⚠️ Orden más antigua:</strong> {kpis.maxOpen.order_number} — {kpis.maxOpen.ageDays} días abierta · Inspector: {kpis.maxOpen.inspector}
+        </div>
+      )}
       <ReportInfo
         title="SLA de Cierre"
         description="Monitorea el tiempo de vida de las órdenes abiertas y la distribución de duración de las cerradas. Permite identificar órdenes que llevan demasiado tiempo abiertas antes de que se conviertan en un problema operativo."
@@ -69,11 +73,6 @@ export default function SlaReport({ hook }) {
         ]}
       />
 
-      {kpis.maxOpen && (
-        <div className="px-4 py-3 rounded-xl text-[12px]" style={{ background:'#fee2e2', border:'1px solid #fca5a5', color:'#dc2626' }}>
-          <strong>⚠️ Orden más antigua:</strong> {kpis.maxOpen.order_number} — {kpis.maxOpen.ageDays} días abierta · Inspector: {kpis.maxOpen.inspector}
-        </div>
-      )}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <div className="rounded-2xl p-5 th-shadow" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
           <h3 className="text-[13px] font-bold th-text-p mb-3">Distribución de Duración (Órdenes Cerradas)</h3>
