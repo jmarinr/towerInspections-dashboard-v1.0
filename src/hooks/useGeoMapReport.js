@@ -42,13 +42,6 @@ export default function useGeoMapReport() {
     dateLabel: v.started_at ? new Date(v.started_at).toLocaleDateString('es', { day:'numeric', month:'short' }) : '—',
   })).filter(v => !isNaN(v.lat) && !isNaN(v.lng)), [visits])
 
-  const kpis = useMemo(() => ({
-    total:   filtered.length,
-    closed:  filtered.filter(v => v.status === 'closed').length,
-    open:    filtered.filter(v => v.status === 'open').length,
-    orgs:    [...new Set(filtered.map(v => v.org_code))].filter(Boolean).length,
-  }), [filtered])
-
   const orgs       = useMemo(() => [...new Set(enriched.map(v => v.org_code).filter(Boolean))].sort(), [enriched])
   const inspectors = useMemo(() => [...new Set(enriched.map(v => v.inspector).filter(v => v !== '—'))].sort(), [enriched])
 
@@ -61,6 +54,13 @@ export default function useGeoMapReport() {
     }),
     [enriched, filterOrg, filterStatus, filterInspector]
   )
+
+  const kpis = useMemo(() => ({
+    total:   filtered.length,
+    closed:  filtered.filter(v => v.status === 'closed').length,
+    open:    filtered.filter(v => v.status === 'open').length,
+    orgs:    [...new Set(filtered.map(v => v.org_code))].filter(Boolean).length,
+  }), [filtered])
 
   // Datos para ScatterChart recharts: {x: lng, y: lat, ...}
   const scatterData = useMemo(() =>
