@@ -81,19 +81,6 @@ export default function useSlaReport() {
     [enriched, selectedQuarter]
   )
 
-  const kpis = useMemo(() => {
-    const open   = quarterFiltered.filter(v => v.status === 'open')
-    const closed = quarterFiltered.filter(v => v.status === 'closed')
-    const alert  = open.filter(v => v.slaStatus === 'alert').length
-    const warn   = open.filter(v => v.slaStatus === 'warn').length
-    const avgOpenDays   = open.length ? Math.round(open.reduce((a,b) => a + (b.ageDays || 0), 0) / open.length) : null
-    const closedWithDur = closed.filter(v => v.durationMin && v.durationMin > 0)
-    const avgClosedMin  = closedWithDur.length
-      ? Math.round(closedWithDur.reduce((a,b) => a + b.durationMin, 0) / closedWithDur.length) : null
-    const maxOpen = open.reduce((max, v) => (v.ageDays || 0) > (max?.ageDays || 0) ? v : max, null)
-    return { open: open.length, closed: closed.length, alert, warn, avgOpenDays, avgClosedMin, maxOpen }
-  }, [quarterFiltered])
-
   const inspectors = useMemo(() =>
     [...new Set(quarterFiltered.map(v => v.inspector).filter(v => v !== '—'))].sort(),
     [quarterFiltered]
@@ -111,6 +98,19 @@ export default function useSlaReport() {
     [quarterFiltered, filterInspector, filterStatus]
   )
 
+  const kpis = useMemo(() => {
+    const open   = filtered.filter(v => v.status === 'open')
+    const closed = filtered.filter(v => v.status === 'closed')
+    const alert  = open.filter(v => v.slaStatus === 'alert').length
+    const warn   = open.filter(v => v.slaStatus === 'warn').length
+    const avgOpenDays   = open.length ? Math.round(open.reduce((a,b) => a + (b.ageDays || 0), 0) / open.length) : null
+    const closedWithDur = closed.filter(v => v.durationMin && v.durationMin > 0)
+    const avgClosedMin  = closedWithDur.length
+      ? Math.round(closedWithDur.reduce((a,b) => a + b.durationMin, 0) / closedWithDur.length) : null
+    const maxOpen = open.reduce((max, v) => (v.ageDays || 0) > (max?.ageDays || 0) ? v : max, null)
+    return { open: open.length, closed: closed.length, alert, warn, avgOpenDays, avgClosedMin, maxOpen }
+  }, [filtered])
+
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * pageSize
     return filtered.slice(start, start + pageSize)
@@ -118,7 +118,7 @@ export default function useSlaReport() {
 
   // Duration histogram buckets (for closed orders)
   const durationBuckets = useMemo(() => {
-    const closed = quarterFiltered.filter(v => v.status === 'closed' && v.durationMin && v.durationMin > 0)
+    const closed = filtered.filter(v => v.status === 'closed' && v.durationMin && v.durationMin > 0)
     const buckets = [
       { label: '<1h',    min: 0,    max: 60,   count: 0 },
       { label: '1-4h',   min: 60,   max: 240,  count: 0 },

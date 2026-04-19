@@ -93,17 +93,6 @@ export default function useSitesCoverageReport() {
     })
   }, [rawVisits])
 
-  // KPIs
-  const kpis = useMemo(() => {
-    const total   = sites.length
-    const inProg  = sites.filter(s => s.status === 'in_progress').length
-    const ok      = sites.filter(s => s.status === 'ok').length
-    const warn    = sites.filter(s => s.status === 'warn').length
-    const alert   = sites.filter(s => s.status === 'alert').length
-    const avgDays = sites.filter(s => s.days !== null).reduce((a, b) => a + b.days, 0) / (sites.filter(s => s.days !== null).length || 1)
-    return { total, inProg, ok, warn, alert, avgDays: Math.round(avgDays) }
-  }, [sites])
-
   // Filtros
   const orgs = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
 
@@ -120,6 +109,17 @@ export default function useSitesCoverageReport() {
       })
       .sort((a, b) => (b.days ?? -1) - (a.days ?? -1))
   }, [sites, filterOrg, filterStatus, search])
+
+  // KPIs — calculan sobre filtered para reaccionar a los filtros activos
+  const kpis = useMemo(() => {
+    const total   = filtered.length
+    const inProg  = filtered.filter(s => s.status === 'in_progress').length
+    const ok      = filtered.filter(s => s.status === 'ok').length
+    const warn    = filtered.filter(s => s.status === 'warn').length
+    const alert   = filtered.filter(s => s.status === 'alert').length
+    const avgDays = filtered.filter(s => s.days !== null).reduce((a, b) => a + b.days, 0) / (filtered.filter(s => s.days !== null).length || 1)
+    return { total, inProg, ok, warn, alert, avgDays: Math.round(avgDays) }
+  }, [filtered])
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * pageSize

@@ -43,11 +43,11 @@ export default function useGeoMapReport() {
   })).filter(v => !isNaN(v.lat) && !isNaN(v.lng)), [visits])
 
   const kpis = useMemo(() => ({
-    total:   enriched.length,
-    closed:  enriched.filter(v => v.status === 'closed').length,
-    open:    enriched.filter(v => v.status === 'open').length,
-    orgs:    [...new Set(enriched.map(v => v.org_code))].filter(Boolean).length,
-  }), [enriched])
+    total:   filtered.length,
+    closed:  filtered.filter(v => v.status === 'closed').length,
+    open:    filtered.filter(v => v.status === 'open').length,
+    orgs:    [...new Set(filtered.map(v => v.org_code))].filter(Boolean).length,
+  }), [filtered])
 
   const orgs       = useMemo(() => [...new Set(enriched.map(v => v.org_code).filter(Boolean))].sort(), [enriched])
   const inspectors = useMemo(() => [...new Set(enriched.map(v => v.inspector).filter(v => v !== '—'))].sort(), [enriched])

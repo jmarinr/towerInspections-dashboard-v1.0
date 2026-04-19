@@ -99,8 +99,15 @@ export default function useInspectorQualityReport() {
     }).sort((a, b) => b.qualityScore - a.qualityScore)
   }, [visits, subs])
 
+  const orgs = useMemo(() => [...new Set(inspectors.map(i => i.orgCode).filter(Boolean))].sort(), [inspectors])
+
+  const filtered = useMemo(() =>
+    filterOrg ? inspectors.filter(i => i.orgCode === filterOrg) : inspectors,
+    [inspectors, filterOrg]
+  )
+
   const kpis = useMemo(() => {
-    const real = inspectors.filter(i => !i.username?.includes('henkancx'))
+    const real = filtered.filter(i => !i.username?.includes('henkancx') && i.orders > 0)
     if (!real.length) return { avg: 0, top: null, bottom: null, avgClosure: 0 }
     const avg = Math.round(real.reduce((a,b) => a + b.qualityScore, 0) / real.length)
     const avgClosure = Math.round(real.reduce((a,b) => a + b.closureRate, 0) / real.length)
@@ -109,14 +116,7 @@ export default function useInspectorQualityReport() {
       top:    real[0],
       bottom: real[real.length - 1],
     }
-  }, [inspectors])
-
-  const orgs = useMemo(() => [...new Set(inspectors.map(i => i.orgCode).filter(Boolean))].sort(), [inspectors])
-
-  const filtered = useMemo(() =>
-    filterOrg ? inspectors.filter(i => i.orgCode === filterOrg) : inspectors,
-    [inspectors, filterOrg]
-  )
+  }, [filtered])
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * pageSize

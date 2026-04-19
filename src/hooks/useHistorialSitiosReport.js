@@ -82,18 +82,6 @@ export default function useHistorialSitiosReport() {
       .sort((a, b) => b.vCount - a.vCount)
   }, [visits, subs])
 
-  const kpis = useMemo(() => {
-    const multiSite = sites.filter(s => s.vCount >= 2)
-    const improved  = multiSite.filter(s => s.improvement > 0).length
-    const declined  = multiSite.filter(s => s.improvement < 0).length
-    return {
-      totalSites:  sites.length,
-      multiVisit:  multiSite.length,
-      singleVisit: sites.filter(s => s.vCount === 1).length,
-      improved, declined, stable: multiSite.length - improved - declined,
-    }
-  }, [sites])
-
   const orgs = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
 
   const filtered = useMemo(() =>
@@ -108,6 +96,18 @@ export default function useHistorialSitiosReport() {
     }),
     [sites, filterMin, filterOrg, search]
   )
+
+  const kpis = useMemo(() => {
+    const multiSite = filtered.filter(s => s.vCount >= 2)
+    const improved  = multiSite.filter(s => s.improvement > 0).length
+    const declined  = multiSite.filter(s => s.improvement < 0).length
+    return {
+      totalSites:  filtered.length,
+      multiVisit:  multiSite.length,
+      singleVisit: filtered.filter(s => s.vCount === 1).length,
+      improved, declined, stable: multiSite.length - improved - declined,
+    }
+  }, [filtered])
 
   const paginated = useMemo(() => {
     const start = (currentPage - 1) * pageSize

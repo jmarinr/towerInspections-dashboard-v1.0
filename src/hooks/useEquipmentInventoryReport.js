@@ -138,10 +138,10 @@ export default function useEquipmentInventoryReport() {
   )
 
   // ── KPIs — sobre el cuatrimestre seleccionado ─────────────────────────────
-  const totalEquipment = quarterFilteredItems.length
-  const totalTowers    = useMemo(() => new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean)).size,    [quarterFilteredItems])
-  const antennaTypes   = useMemo(() => new Set(quarterFilteredItems.map(i => i.tipoEquipo).filter(Boolean)).size, [quarterFilteredItems])
-  const activeCarriers = useMemo(() => new Set(quarterFilteredItems.map(i => i.carrier).filter(Boolean)).size,    [quarterFilteredItems])
+  const totalEquipment = filteredItems.length
+  const totalTowers    = useMemo(() => new Set(filteredItems.map(i => i.idSitio).filter(Boolean)).size,    [filteredItems])
+  const antennaTypes   = useMemo(() => new Set(filteredItems.map(i => i.tipoEquipo).filter(Boolean)).size, [filteredItems])
+  const activeCarriers = useMemo(() => new Set(filteredItems.map(i => i.carrier).filter(Boolean)).size,    [filteredItems])
 
   // ── Filter options — derivadas del cuatrimestre activo ────────────────────
   const filterOptions = useMemo(() => ({
