@@ -137,12 +137,6 @@ export default function useEquipmentInventoryReport() {
     [allItems, selectedQuarter]
   )
 
-  // ── KPIs — sobre el cuatrimestre seleccionado ─────────────────────────────
-  const totalEquipment = filteredItems.length
-  const totalTowers    = useMemo(() => new Set(filteredItems.map(i => i.idSitio).filter(Boolean)).size,    [filteredItems])
-  const antennaTypes   = useMemo(() => new Set(filteredItems.map(i => i.tipoEquipo).filter(Boolean)).size, [filteredItems])
-  const activeCarriers = useMemo(() => new Set(filteredItems.map(i => i.carrier).filter(Boolean)).size,    [filteredItems])
-
   // ── Filter options — derivadas del cuatrimestre activo ────────────────────
   const filterOptions = useMemo(() => ({
     sites:    [...new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean))].sort(),
@@ -163,6 +157,12 @@ export default function useEquipmentInventoryReport() {
     }),
     [quarterFilteredItems, filters]
   )
+
+  // ── KPIs — reactivos a los filtros activos ────────────────────────────────
+  const totalEquipment = filteredItems.length
+  const totalTowers    = useMemo(() => new Set(filteredItems.map(i => i.idSitio).filter(Boolean)).size,    [filteredItems])
+  const antennaTypes   = useMemo(() => new Set(filteredItems.map(i => i.tipoEquipo).filter(Boolean)).size, [filteredItems])
+  const activeCarriers = useMemo(() => new Set(filteredItems.map(i => i.carrier).filter(Boolean)).size,    [filteredItems])
 
   const totalFiltered = filteredItems.length
 

@@ -201,14 +201,6 @@ export default function useDamageReport() {
     [allItems, selectedQuarter]
   )
 
-  // ── KPIs ───────────────────────────────────────────────────────────────────
-  const totalDamages  = filteredItems.length
-  const totalPending  = useMemo(() => filteredItems.filter(i => i.status === 'pendiente').length, [filteredItems])
-  const totalRepaired = useMemo(() => filteredItems.filter(i => i.status === 'reparado').length,  [filteredItems])
-  const totalQuoted   = useMemo(() => filteredItems.filter(i => i.status === 'cotizado').length,  [filteredItems])
-  const totalRegular  = useMemo(() => filteredItems.filter(i => i.category === 'Regular').length, [filteredItems])
-  const totalMalo     = useMemo(() => filteredItems.filter(i => i.category === 'Malo').length,    [filteredItems])
-
   const filterOptions = useMemo(() => ({
     sites:      [...new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean))].sort(),
     categories: [...new Set(quarterFilteredItems.map(i => i.category).filter(Boolean))].sort(),
@@ -224,6 +216,14 @@ export default function useDamageReport() {
     }),
     [quarterFilteredItems, filters]
   )
+
+  // ── KPIs — reactivos a los filtros activos ────────────────────────────────
+  const totalDamages  = filteredItems.length
+  const totalPending  = useMemo(() => filteredItems.filter(i => i.status === 'pendiente').length, [filteredItems])
+  const totalRepaired = useMemo(() => filteredItems.filter(i => i.status === 'reparado').length,  [filteredItems])
+  const totalQuoted   = useMemo(() => filteredItems.filter(i => i.status === 'cotizado').length,  [filteredItems])
+  const totalRegular  = useMemo(() => filteredItems.filter(i => i.category === 'Regular').length, [filteredItems])
+  const totalMalo     = useMemo(() => filteredItems.filter(i => i.category === 'Malo').length,    [filteredItems])
 
   const totalFiltered = filteredItems.length
 
