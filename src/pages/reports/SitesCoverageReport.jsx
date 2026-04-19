@@ -2,6 +2,7 @@ import { MapPin } from 'lucide-react'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
 import Pagination from '../../components/ui/Pagination'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const STATUS_CONFIG = {
   in_progress: { label: 'En curso',   bg: '#dbeafe', color: '#1d4ed8', border: '#93c5fd' },
@@ -44,6 +45,24 @@ export default function SitesCoverageReport({ hook }) {
         <KpiCard label="14–21 días"       value={kpis.warn}    color="#ca8a04" sub="requieren seguimiento" />
         <KpiCard label=">21 días"         value={kpis.alert}   color="#dc2626" sub="crítico — sin visita reciente" />
       </div>
+      <ReportInfo
+        title="Cobertura de Sitios"
+        description="Muestra cuántos días han transcurrido desde la última visita cerrada en cada sitio de la red. Permite identificar sitios que llevan mucho tiempo sin inspección y priorizar la programación de visitas antes de incumplir SLAs o ciclos de mantenimiento."
+        howToUse={[
+          "Usa el filtro de Estado para ver solo los sitios en alerta (>21 días) o en seguimiento (14-21 días).",
+          "Ordena la tabla por la columna Días para identificar los más urgentes.",
+          "Exporta a Excel para compartir la lista de sitios vencidos con el equipo de campo.",
+          "Un sitio 'En Progreso' significa que tiene una orden abierta actualmente — no se considera vencido.",
+        ]}
+        howToInterpret={[
+          "Verde (≤14 días): Sitio inspeccionado recientemente, dentro del ciclo normal.",
+          "Amarillo (14-21 días): Requiere seguimiento — programar visita próximamente.",
+          "Rojo (>21 días): Crítico — el sitio lleva más de 3 semanas sin inspección cerrada.",
+          "En Progreso: Hay una orden abierta activa — el inspector está trabajando en ese sitio.",
+          "Los días se calculan desde la última actividad (cierre si la orden está cerrada, inicio si está abierta).",
+        ]}
+      />
+
       <div className="flex flex-wrap gap-3 items-center">
         <input value={search} onChange={e => setFilter('search', e.target.value)}
           placeholder="Buscar sitio o ID…"

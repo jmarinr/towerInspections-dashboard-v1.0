@@ -12,6 +12,7 @@ import Select     from '../../components/ui/Select'
 import Spinner    from '../../components/ui/Spinner'
 import Pagination from '../../components/ui/Pagination'
 import EmptyState from '../../components/ui/EmptyState'
+import ReportInfo from '../../components/ui/ReportInfo'
 import Modal      from '../../components/ui/Modal'
 
 function KpiPrimary({ icon: Icon, label, value }) {
@@ -168,6 +169,25 @@ export default function DamageReport({ hookData }) {
       </div>
 
       {/* Filtros — cuatrimestre primero */}
+      <ReportInfo
+        title="Damage Report"
+        description="Consolida todos los ítems en estado Regular o Malo detectados en los formularios de Mantenimiento Preventivo, Puesta a Tierra y Sistema de Ascenso. Permite gestionar el estado de resolución de cada daño directamente desde el panel."
+        howToUse={[
+          "Filtra por Estado para ver solo los daños Pendientes de resolución.",
+          "Cambia el estado de un daño directamente desde el dropdown en la columna Estado.",
+          "Haz click en el ícono '+' para añadir una nota o comentario a un daño.",
+          "Filtra por Categoría para ver solo los 'Malo' que son más urgentes.",
+          "Exporta a Excel para compartir con el equipo de mantenimiento o para cotizaciones.",
+        ]}
+        howToInterpret={[
+          "Malo: Condición deficiente que requiere intervención inmediata.",
+          "Regular: Condición degradada que debe monitorearse y planificarse para reparación.",
+          "Pendiente → Cotizado → Reparado es el flujo esperado de resolución de un daño.",
+          "Si muchos daños del mismo tipo aparecen en múltiples sitios, puede indicar un problema sistémico de mantenimiento.",
+          "La columna Formulario Origen indica qué parte de la torre o sistema tiene el problema.",
+        ]}
+      />
+
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
           <div className="flex-1 min-w-[150px]">

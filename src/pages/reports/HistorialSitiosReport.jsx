@@ -3,6 +3,7 @@ import { ChevronRight, ChevronDown } from 'lucide-react'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
 import Pagination from '../../components/ui/Pagination'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 function KpiCard({ label, value, color, sub }) {
   return (
@@ -77,6 +78,24 @@ export default function HistorialSitiosReport({ hook }) {
         <KpiCard label="Retrocedieron"   value={kpis.declined}    color="#dc2626" sub="menor completitud" />
       </div>
       <div className="flex flex-wrap gap-3 items-center">
+      <ReportInfo
+        title="Historial por Sitio"
+        description="Lista los sitios que han recibido múltiples visitas y muestra la progresión de completitud de formularios entre visitas. Permite evaluar si las inspecciones sucesivas mejoran la calidad del trabajo en un mismo sitio."
+        howToUse={[
+          "Filtra por '2+ visitas' para ver solo sitios con historial de múltiples inspecciones.",
+          "Expande una fila (clic en la flecha) para ver el detalle de cada visita: fecha, inspector, completitud y mejora vs. primera visita.",
+          "Usa el badge de Mejora (↑/↓) para identificar sitios donde la calidad retrocedió — pueden necesitar seguimiento.",
+          "Exporta a Excel para un análisis detallado de progresión visita a visita.",
+        ]}
+        howToInterpret={[
+          "+Xpp ↑: La completitud mejoró X puntos porcentuales vs. la primera visita.",
+          "-Xpp ↓: La completitud empeoró. Puede ser por condiciones del sitio, cambio de inspector o formularios pendientes.",
+          "Sin cambio: La completitud se mantuvo igual entre visitas.",
+          "Un sitio con muchas visitas pero baja completitud puede indicar problemas técnicos recurrentes o formularios difíciles de llenar en ese sitio específico.",
+          "El porcentaje de completitud se calcula sobre los formularios únicos por visita (deduplica re-envíos).",
+        ]}
+      />
+
         <input value={search} onChange={e => setFilter('search', e.target.value)} placeholder="Buscar sitio…"
           className="flex-1 min-w-[160px] px-3 py-2 rounded-xl text-[13px] border"
           style={{ background:'var(--bg-input)', borderColor:'var(--border)', color:'var(--text-primary)' }} />

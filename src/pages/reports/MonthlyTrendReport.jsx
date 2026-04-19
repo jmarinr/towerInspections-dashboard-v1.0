@@ -1,6 +1,7 @@
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, Cell } from 'recharts'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const INSP_COLORS = ['#0284C7','#7c3aed','#16a34a','#d97706']
 
@@ -28,6 +29,25 @@ export default function MonthlyTrendReport({ hook }) {
         <KpiCard label="Crecimiento"    value={kpis.growth !== null ? `${kpis.growth > 0 ? '+' : ''}${kpis.growth}%` : '—'} color={growthColor} sub="último vs anterior" />
       </div>
       <div className="flex gap-3 items-center">
+      <ReportInfo
+        title="Tendencia Mensual"
+        description="Muestra la evolución mensual del volumen de órdenes, tasa de cierre y completitud de formularios. Permite identificar tendencias de crecimiento, estacionalidad y mejoras operativas en el tiempo."
+        howToUse={[
+          "Filtra por organización para comparar tendencias entre CG y HQ por separado.",
+          "El gráfico de barras muestra el volumen de órdenes — útil para detectar meses de alta actividad.",
+          "El gráfico de líneas muestra las tasas — si la tasa de cierre baja cuando el volumen sube, el equipo puede estar sobrecargado.",
+          "El gráfico por inspector muestra quién contribuyó más en cada mes.",
+          "Con 2 meses de datos la tendencia es indicativa. La utilidad crece con más meses de historial.",
+        ]}
+        howToInterpret={[
+          "Crecimiento positivo: El equipo está inspeccionando más sitios mes a mes — señal de expansión o campaña activa.",
+          "Tasa de cierre alta (>60%): Mayoría de órdenes se cierran correctamente en el período.",
+          "Si el volumen crece pero la tasa de cierre baja: el equipo puede estar abriendo más órdenes de las que puede cerrar.",
+          "Completitud de forms alta (>65%): Los inspectores están finalizando la mayoría de los formularios.",
+          "El salto Mar→Abr 2026 (+170%) refleja una expansión significativa de operaciones o una campaña intensiva.",
+        ]}
+      />
+
         <select value={filterOrg} onChange={e => setFilter('org', e.target.value)}
           className="px-3 py-2 rounded-xl text-[13px] border"
           style={{ background:'var(--bg-input)', borderColor:'var(--border)', color:'var(--text-primary)' }}>

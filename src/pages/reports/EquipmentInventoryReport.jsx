@@ -11,6 +11,7 @@ import Select     from '../../components/ui/Select'
 import Spinner    from '../../components/ui/Spinner'
 import Pagination from '../../components/ui/Pagination'
 import EmptyState from '../../components/ui/EmptyState'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const TYPE_TONE    = { 'Panel': 'teal', 'MW': 'purple', 'Microondas': 'purple', 'Omnidireccional': 'emerald' }
 const CARRIER_TONE = { 'Movistar': 'teal', 'Claro': 'danger', 'Entel': 'warning', 'WOM': 'purple', 'Compartido': 'neutral' }
@@ -70,6 +71,24 @@ export default function EquipmentInventoryReport({ hookData }) {
       </div>
 
       {/* Filtros — cuatrimestre primero */}
+      <ReportInfo
+        title="Equipment Inventory"
+        description="Consolida todos los equipos de antenas registrados en el formulario de Inventario (Equipment Inventory v2) de cada orden de trabajo. Cada fila representa un equipo individual con sus especificaciones técnicas."
+        howToUse={[
+          "Filtra por cuatrimestre para ver el inventario de un período específico.",
+          "Usa el filtro de Carrier para ver solo los equipos de un operador (Claro, Movistar, etc.).",
+          "Filtra por Tipo de Antena para analizar la distribución de MW, RF, RRU, etc.",
+          "Exporta a Excel para compartir el inventario con el cliente PTI o para auditorías técnicas.",
+        ]}
+        howToInterpret={[
+          "Cada fila es un equipo dentro de una orden de trabajo — un sitio puede tener múltiples equipos.",
+          "Los campos de orientación (Cara y Grados) identifican hacia dónde apunta el equipo en la torre.",
+          "Dimensiones en metros: Alto, Diámetro, Ancho, Profundidad para cálculo de carga de viento.",
+          "Área M²: superficie frontal del equipo, usada para análisis estructural de la torre.",
+          "Si hay celdas vacías (—), el inspector no registró ese campo en el formulario.",
+        ]}
+      />
+
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
           {/* Cuatrimestre */}

@@ -1,6 +1,7 @@
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const FORM_COLORS = {
   'mantenimiento':'#0284C7','mantenimiento-ejecutado':'#0891b2','inventario-v2':'#7c3aed',
@@ -33,6 +34,24 @@ export default function FormComplianceReport({ hook }) {
       </div>
       <div className="rounded-2xl p-5 th-shadow" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
         <h3 className="text-[14px] font-bold th-text-p mb-4">Tasa de Completitud por Formulario</h3>
+      <ReportInfo
+        title="Cumplimiento de Formularios"
+        description="Muestra la tasa de completitud (formularios finalizados / total de filas) para cada tipo de formulario, con tendencia mensual para detectar mejoras o retrocesos en el tiempo."
+        howToUse={[
+          "Identifica qué formularios tienen las tasas más bajas para enfocar capacitación en esas áreas.",
+          "Usa el filtro de formulario en la tendencia mensual para ver la evolución de un formulario específico.",
+          "Exporta a Excel para tener dos hojas: resumen por formulario y tendencia mensual.",
+          "Compara los meses disponibles para ver si la tasa de completitud mejora conforme el equipo gana experiencia.",
+        ]}
+        howToInterpret={[
+          "Verde (≥65%): Tasa aceptable — la mayoría de los formularios se completan correctamente.",
+          "Amarillo (50-64%): Atención — casi la mitad de los formularios quedan sin finalizar.",
+          "Rojo (<50%): Crítico — más de la mitad no se finalizan. Revisar si el formulario es difícil o si hay problemas de conectividad.",
+          "Los porcentajes cuentan filas de submissions, no visitas únicas. Múltiples envíos de un mismo formulario incrementan el total.",
+          "Fotos Adicionales históricamente tiene la tasa más baja porque suele llenarse al final y los inspectores pueden cerrar antes.",
+        ]}
+      />
+
         <div className="space-y-4">
           {[...byForm].sort((a,b) => b.rate - a.rate).map(f => (
             <div key={f.code}>

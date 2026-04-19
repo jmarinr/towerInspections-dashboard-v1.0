@@ -2,6 +2,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
 import Pagination from '../../components/ui/Pagination'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const SLA_COLORS = {
   closed: { label:'Cerrada',    bg:'#dcfce7', color:'#15803d', border:'#86efac' },
@@ -50,6 +51,24 @@ export default function SlaReport({ hook }) {
         <KpiCard label="Duración Prom."   value={fmtDur(kpis.avgClosedMin)} color="#16a34a" sub="órdenes cerradas" />
       </div>
       {kpis.maxOpen && (
+      <ReportInfo
+        title="SLA de Cierre"
+        description="Monitorea el tiempo de vida de las órdenes abiertas y la distribución de duración de las cerradas. Permite identificar órdenes que llevan demasiado tiempo abiertas antes de que se conviertan en un problema operativo."
+        howToUse={[
+          "Filtra por 'Críticas' para ver solo las órdenes que llevan más de 7 días abiertas — requieren acción inmediata.",
+          "Filtra por inspector para identificar quién tiene más órdenes envejecidas.",
+          "El histograma de duración muestra la distribución de tiempos de cierre — útil para definir SLAs formales.",
+          "Exporta a Excel para incluir en reportes semanales de operaciones.",
+        ]}
+        howToInterpret={[
+          "OK (0-3 días): Orden reciente, dentro del ciclo normal de trabajo.",
+          "En Espera (3-7 días): La orden lleva más de lo habitual. Verificar si hay bloqueos operativos.",
+          "Crítica (>7 días): Requiere atención. El inspector puede necesitar apoyo o la orden puede tener problemas técnicos.",
+          "La duración de órdenes cerradas con valor 0 corresponde a órdenes cerradas por el sistema antiguo (antes de v2.7.1) — no representan duración real.",
+          "El promedio de duración solo considera órdenes cerradas con duración >0 para mayor precisión.",
+        ]}
+      />
+
         <div className="px-4 py-3 rounded-xl text-[12px]" style={{ background:'#fee2e2', border:'1px solid #fca5a5', color:'#dc2626' }}>
           <strong>⚠️ Orden más antigua:</strong> {kpis.maxOpen.order_number} — {kpis.maxOpen.ageDays} días abierta · Inspector: {kpis.maxOpen.inspector}
         </div>

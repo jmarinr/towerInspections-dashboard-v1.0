@@ -7,6 +7,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const ORG_COLORS = { CG: '#0ea5e9', HQ: '#818cf8', HK: '#34d399' }
 
@@ -170,6 +171,24 @@ export default function GeoMapReport({ hook }) {
       </div>
 
       {/* Mapa */}
+      <ReportInfo
+        title="Dispersión Geográfica"
+        description="Mapa interactivo de Panamá que muestra la ubicación GPS registrada al iniciar cada orden. Permite visualizar la cobertura geográfica de las inspecciones y detectar zonas concentradas o sin cobertura."
+        howToUse={[
+          "Filtra por organización o inspector para ver la cobertura de un equipo específico.",
+          "Usa scroll para hacer zoom en una región específica (Chiriquí, Coclé, Panamá, etc.).",
+          "Haz click en cualquier punto para ver el ID del sitio, nombre, inspector y fecha.",
+          "Exporta a Excel para obtener las coordenadas lat/lng y usarlas en otras herramientas de análisis geoespacial.",
+        ]}
+        howToInterpret={[
+          "Puntos azules (CG): Órdenes cerradas de la organización Chiriquí/Oeste.",
+          "Puntos morados (HQ): Órdenes cerradas de la organización Central/HQ.",
+          "Puntos amarillos: Órdenes abiertas — el inspector está actualmente trabajando en ese sitio.",
+          "La concentración de puntos en la región de Chiriquí refleja que CG tiene más sitios inspeccionados en ese período.",
+          "Los puntos de HQ aparecen en la zona central (Coclé, Herrera) que es su área de cobertura.",
+        ]}
+      />
+
       <div className="rounded-2xl overflow-hidden th-shadow" style={{ border:'1px solid var(--border)' }}>
         <div className="px-5 py-3" style={{ background:'var(--bg-card)', borderBottom:'1px solid var(--border)' }}>
           <h3 className="text-[13px] font-bold th-text-p">Mapa de Panamá — Sitios Inspeccionados</h3>

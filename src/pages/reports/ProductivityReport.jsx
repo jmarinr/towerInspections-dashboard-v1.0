@@ -224,6 +224,26 @@ export default function ProductivityReport({ hookData }) {
       </div>
 
       {/* Filtros */}
+      <ReportInfo
+        title="Productivity Report"
+        description="Analiza el tiempo que tarda cada inspector en completar las órdenes y formularios individuales. Incluye benchmarks históricos y semáforos para identificar formularios que toman más tiempo de lo normal."
+        howToUse={[
+          "Filtra por inspector para analizar el tiempo de trabajo de una persona específica.",
+          "Expande una orden (clic en la fila) para ver el tiempo por formulario individual.",
+          "Los semáforos comparan cada formulario contra el promedio histórico del mismo tipo.",
+          "Las órdenes 'En curso' no tienen duración total — se calculará cuando se cierren.",
+          "Exporta a Excel para análisis detallado con todos los timestamps de inicio y fin.",
+        ]}
+        howToInterpret={[
+          "Verde: El formulario se completó en tiempo normal (dentro del promedio histórico).",
+          "Amarillo: +20% sobre el promedio. Puede ser normal en sitios complejos.",
+          "Rojo: +50% sobre el promedio. Revisar si hubo dificultades técnicas o de conectividad.",
+          "— (guión): No hay suficientes muestras históricas para establecer un benchmark (mínimo 3).",
+          "Los tiempos con prefijo ~ son aproximados porque el formulario fue enviado antes de activar el registro de timestamps (órdenes antiguas).",
+          "La duración de la orden NO es la suma de formularios — los inspectores pueden trabajar en paralelo.",
+        ]}
+      />
+
       <Card className="p-4">
         <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
           <div className="flex-1 min-w-[150px]">

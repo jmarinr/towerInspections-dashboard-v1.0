@@ -1,5 +1,6 @@
 import Spinner from '../../components/ui/Spinner'
 import LoadError from '../../components/ui/LoadError'
+import ReportInfo from '../../components/ui/ReportInfo'
 
 const scoreColor = s => s >= 75 ? '#16a34a' : s >= 50 ? '#ca8a04' : '#dc2626'
 const rateColor  = r => r >= 75 ? '#16a34a' : r >= 50 ? '#ca8a04' : '#dc2626'
@@ -36,6 +37,24 @@ export default function InspectorQualityReport({ hook }) {
         <KpiCard label="Requiere Atención"  value={kpis.bottom?.name?.split(' ')[0] || '—'} color="#dc2626" sub={`Score ${kpis.bottom?.qualityScore ?? 0}`} />
       </div>
       <div className="flex gap-3 items-center">
+      <ReportInfo
+        title="Calidad por Inspector"
+        description="Calcula un score de calidad (0-100) para cada inspector combinando tres métricas: tasa de cierre de órdenes (40%), completitud de formularios (40%) y porcentaje de órdenes con todos los formularios requeridos completados (20%)."
+        howToUse={[
+          "Filtra por organización para comparar inspectores dentro de la misma empresa.",
+          "El score integra tasa de cierre + completitud para una visión holística de rendimiento.",
+          "Las tarjetas muestran el promedio de días con órdenes abiertas — útil para detectar inspectores con órdenes estancadas.",
+          "Exporta a Excel para incluir en reportes de gestión o evaluaciones de desempeño.",
+        ]}
+        howToInterpret={[
+          "Score ≥75 (verde): Inspector de alto desempeño. Tasa de cierre y completitud de formularios excelentes.",
+          "Score 50-74 (amarillo): Desempeño moderado. Revisar en qué métrica está fallando para capacitación dirigida.",
+          "Score <50 (rojo): Requiere atención inmediata. Puede indicar problemas operativos o de capacitación.",
+          "Órdenes abiertas: Si un inspector tiene muchas órdenes abiertas con >7 días, puede tener dificultades para cerrar.",
+          "El score es orientativo basado en datos históricos — contexto del territorio y volumen de sitios también influye.",
+        ]}
+      />
+
         <select value={filterOrg} onChange={e => setFilter('org', e.target.value)}
           className="px-3 py-2 rounded-xl text-[13px] border"
           style={{ background: 'var(--bg-input)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}>
