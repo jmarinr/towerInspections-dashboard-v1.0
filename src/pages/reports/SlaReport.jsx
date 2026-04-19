@@ -69,6 +69,7 @@ export default function SlaReport({ hook }) {
         ]}
       />
 
+      {kpis.maxOpen && (
         <div className="px-4 py-3 rounded-xl text-[12px]" style={{ background:'#fee2e2', border:'1px solid #fca5a5', color:'#dc2626' }}>
           <strong>⚠️ Orden más antigua:</strong> {kpis.maxOpen.order_number} — {kpis.maxOpen.ageDays} días abierta · Inspector: {kpis.maxOpen.inspector}
         </div>
