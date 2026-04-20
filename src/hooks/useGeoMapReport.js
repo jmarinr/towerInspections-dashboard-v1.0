@@ -7,6 +7,12 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
 import { extractRegion, regionLabel } from '../utils/regionUtils'
 
+// Bounding box de Panamá — filtra puntos fuera del país (ej: Costa Rica)
+const PANAMA_BOUNDS = { minLat: 7.1, maxLat: 9.9, minLng: -83.1, maxLng: -77.1 }
+const inPanama = (lat, lng) =>
+  lat >= PANAMA_BOUNDS.minLat && lat <= PANAMA_BOUNDS.maxLat &&
+  lng >= PANAMA_BOUNDS.minLng && lng <= PANAMA_BOUNDS.maxLng
+
 export default function useGeoMapReport() {
   const [visits,    setVisits]    = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -43,7 +49,7 @@ export default function useGeoMapReport() {
     inspector: v.inspector_name || v.inspector_username || '—',
     region:    extractRegion(v.order_number),
     dateLabel: v.started_at ? new Date(v.started_at).toLocaleDateString('es', { day:'numeric', month:'short' }) : '—',
-  })).filter(v => !isNaN(v.lat) && !isNaN(v.lng)), [visits])
+  })).filter(v => !isNaN(v.lat) && !isNaN(v.lng) && inPanama(v.lat, v.lng)), [visits])
 
   const orgs       = useMemo(() => [...new Set(enriched.map(v => v.org_code).filter(Boolean))].sort(), [enriched])
   const inspectors = useMemo(() => [...new Set(enriched.map(v => v.inspector).filter(v => v !== '—'))].sort(), [enriched])
