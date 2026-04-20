@@ -226,8 +226,6 @@ export default function DamageReport({ hookData }) {
               {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
-          <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
-
         </div>
       </Card>
 

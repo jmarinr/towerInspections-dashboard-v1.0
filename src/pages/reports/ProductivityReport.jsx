@@ -282,10 +282,7 @@ export default function ProductivityReport({ hookData }) {
               {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
-          <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
-
-        </div>
-      </Card>
+                </Card>
 
       {/* Banner referencial */}
       <div className="flex items-center gap-2 px-3.5 py-2 rounded-lg"
@@ -427,5 +424,6 @@ export default function ProductivityReport({ hookData }) {
         )}
       </Card>
     </div>
+  </div>
   )
 }
