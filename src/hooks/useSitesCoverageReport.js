@@ -93,7 +93,7 @@ export default function useSitesCoverageReport() {
     return Object.values(map).map(s => {
       const days   = daysSince(s.lastActivity)
       const status = s.hasOpenVisit ? 'in_progress' : statusFromDays(days)
-      return { ...s, days, status, region: extractRegion(s.visits?.[0]?.order_number) }
+      return { ...s, days, status, region: extractRegion(s.lastOrderNumber) }
     })
   }, [rawVisits])
 
