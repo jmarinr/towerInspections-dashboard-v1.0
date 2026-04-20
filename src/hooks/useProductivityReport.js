@@ -13,7 +13,7 @@ import { normalizeFormCode, getFormMeta } from '../data/formTypes'
 import {
   getQuarterOptions, getCurrentQuarterOption, isInQuarter, getQuarterKey,
 } from '../utils/quarterUtils'
-
+import { extractRegion } from '../utils/regionUtils'
 // ── Umbrales ajustables — cambiar cuando se definan estándares oficiales ──────
 export const SEMAFORO_THRESHOLDS  = { YELLOW: 0.20, RED: 0.50 }
 export const MIN_BENCHMARK_SAMPLES = 3

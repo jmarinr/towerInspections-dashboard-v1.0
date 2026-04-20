@@ -133,11 +133,11 @@ export default function EquipmentInventoryReport({ hookData }) {
               {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
-          <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
-            Mostrando <span className="font-bold th-text-p mx-1">
-              {totalFiltered === 0 ? 0 : `${from}–${to}`}
-            </span> de <span className="font-bold th-text-p mx-1">{totalFiltered}</span> equipos
-          </div>
+        </div>
+        <div className="text-[12px] th-text-m font-medium mt-2 text-right">
+          Mostrando <span className="font-bold th-text-p mx-1">
+            {totalFiltered === 0 ? 0 : `${from}–${to}`}
+          </span> de <span className="font-bold th-text-p mx-1">{totalFiltered}</span> equipos
         </div>
       </Card>
 

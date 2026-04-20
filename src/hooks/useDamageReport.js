@@ -14,6 +14,7 @@ import { LOG } from '../lib/logEvent'
 import {
   getQuarterOptions, getCurrentQuarterOption, isInQuarter,
 } from '../utils/quarterUtils'
+import { extractRegion } from '../utils/regionUtils'
 
 const PM_CODES        = ['preventive-maintenance', 'mantenimiento']
 const GROUNDING_CODES = ['grounding-system-test',  'puesta-tierra']

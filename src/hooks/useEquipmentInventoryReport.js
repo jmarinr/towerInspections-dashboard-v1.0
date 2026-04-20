@@ -12,6 +12,7 @@ import {
   getQuarterOptions, getCurrentQuarterOption,
   isInQuarter,
 } from '../utils/quarterUtils'
+import { extractRegion } from '../utils/regionUtils'
 
 const EQUIPMENT_V2_CODES = ['equipment-v2', 'inventario-v2']
 
@@ -42,6 +43,7 @@ function mapItem(item, idSitio, siteVisitId, overrideCarrier, source, orderId, o
     orderId,
     orderLabel,
     orderStartDate,
+    region: extractRegion(orderLabel),
     alturaMts:         item.alturaMts         ?? null,
     // Torre → cara (Cara 1, Pierna A…) · Carrier → grados (0°, 45°…)
     orientacionCara:   source === 'torre'   ? (item.orientacion || null) : null,
