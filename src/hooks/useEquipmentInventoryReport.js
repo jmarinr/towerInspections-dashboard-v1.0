@@ -144,6 +144,7 @@ export default function useEquipmentInventoryReport() {
     types:    [...new Set(quarterFilteredItems.map(i => i.tipoEquipo).filter(Boolean))].sort(),
     heights:  [...new Set(quarterFilteredItems.map(i => i.alturaMts).filter(v => v != null))]
                 .sort((a, b) => a - b).map(String),
+    regions:  [...new Set(quarterFilteredItems.map(i => i.region).filter(Boolean))].sort(),
   }), [quarterFilteredItems])
 
   // ── Filtrado en memoria ────────────────────────────────────────────────────
@@ -153,6 +154,7 @@ export default function useEquipmentInventoryReport() {
       if (filters.carrier && item.carrier   !== filters.carrier) return false
       if (filters.type    && item.tipoEquipo !== filters.type)   return false
       if (filters.height  && String(item.alturaMts) !== filters.height) return false
+      if (filters.region  && item.region !== filters.region) return false
       return true
     }),
     [quarterFilteredItems, filters]

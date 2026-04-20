@@ -167,6 +167,12 @@ export default function GeoMapReport({ hook }) {
           <option value="">Todos los inspectores</option>
           {inspectors.map(i => <option key={i} value={i}>{i}</option>)}
         </select>
+        <select value={hook.filterRegion ?? ''} onChange={e => hook.setFilter('region', e.target.value)}
+          className="px-3 py-2 rounded-xl text-[13px] border"
+          style={{ background:'var(--bg-input)', borderColor:'var(--border)', color:'var(--text-primary)' }}>
+          <option value="">Todas las regiones</option>
+          {(hook.regions ?? []).map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
         <span className="text-[12px] th-text-m ml-auto">{totalFiltered} sitios visibles</span>
       </div>
 

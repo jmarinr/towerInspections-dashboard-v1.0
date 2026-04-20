@@ -219,6 +219,10 @@ export default function DamageReport({ hookData }) {
               <option value="">Todos los Estados</option>
               {filterOptions.statuses.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </Select>
+            <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
+              <option value="">Todas las regiones</option>
+              {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
+            </Select>
           </div>
           <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
             Mostrando <span className="font-bold th-text-p mx-1">

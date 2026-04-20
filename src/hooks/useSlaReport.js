@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 import { getQuarterOptions, getCurrentQuarterOption, isInQuarter, getQuarterKey } from '../utils/quarterUtils'
 
 const SLA_WARN_DAYS  = 3   // abiertas >3 días → amarillo
@@ -17,6 +18,7 @@ export default function useSlaReport() {
   const [selectedQuarter, setSelectedQuarter] = useState(null)
   const [filterInspector, setFilterInspector] = useState('')
   const [filterStatus,    setFilterStatus]    = useState('')
+  const [filterRegion,    setFilterRegion]    = useState('')
   const [currentPage,     setCurrentPage]     = useState(1)
   const [pageSize]        = useState(15)
 
@@ -85,6 +87,10 @@ export default function useSlaReport() {
     [...new Set(quarterFiltered.map(v => v.inspector).filter(v => v !== '—'))].sort(),
     [quarterFiltered]
   )
+  const regions = useMemo(() =>
+    [...new Set(quarterFiltered.map(v => v.region).filter(Boolean))].sort(),
+    [quarterFiltered]
+  )
 
   const filtered = useMemo(() =>
     quarterFiltered.filter(v => {
@@ -93,9 +99,10 @@ export default function useSlaReport() {
       if (filterStatus === 'warn'  && v.slaStatus !== 'warn')  return false
       if (filterStatus === 'open'  && v.status    !== 'open')  return false
       if (filterStatus === 'closed'&& v.status    !== 'closed')return false
+      if (filterRegion    && v.region    !== filterRegion)       return false
       return true
     }),
-    [quarterFiltered, filterInspector, filterStatus]
+    [quarterFiltered, filterInspector, filterStatus, filterRegion]
   )
 
   const kpis = useMemo(() => {
@@ -137,6 +144,7 @@ export default function useSlaReport() {
   const setFilter = useCallback((key, val) => {
     if (key === 'inspector') { setFilterInspector(val); setCurrentPage(1) }
     if (key === 'status')    { setFilterStatus(val);    setCurrentPage(1) }
+    if (key === 'region')    { setFilterRegion(val);    setCurrentPage(1) }
   }, [])
 
   const exportToExcel = useCallback(async () => {
@@ -166,7 +174,7 @@ export default function useSlaReport() {
   return {
     visits: filtered, paginated, kpis, inspectors, durationBuckets,
     quarterOptions, selectedQuarter, setSelectedQuarter: q => { setSelectedQuarter(q); setCurrentPage(1) },
-    filterInspector, filterStatus, setFilter,
+    filterInspector, filterStatus, filterRegion, setFilter, regions,
     currentPage, setCurrentPage, pageSize,
     totalFiltered: filtered.length,
     exportToExcel,

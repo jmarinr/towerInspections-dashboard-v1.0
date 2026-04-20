@@ -84,6 +84,7 @@ function extractDamages(submission) {
         damageKey: `${fc}_${subId}_${itemId}`, submissionId: subId,
         formCode: 'preventive-maintenance', formLabel: 'Preventive Maintenance Inspection',
         idSitio, orderId, orderLabel, orderStartDate,
+        region: extractRegion(orderLabel),
         description: MAINT_ITEM_MAP[itemId] || `Ítem ${itemId}`,
         category: raw === 'malo' ? 'Malo' : 'Regular',
         status: 'pendiente', auditComment: '',
@@ -205,6 +206,7 @@ export default function useDamageReport() {
     sites:      [...new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean))].sort(),
     categories: [...new Set(quarterFilteredItems.map(i => i.category).filter(Boolean))].sort(),
     statuses:   ['pendiente', 'cotizado', 'reparado'],
+    regions:    [...new Set(quarterFilteredItems.map(i => i.region).filter(Boolean))].sort(),
   }), [quarterFilteredItems])
 
   const filteredItems = useMemo(() =>
@@ -212,6 +214,7 @@ export default function useDamageReport() {
       if (filters.site     && item.idSitio  !== filters.site)     return false
       if (filters.category && item.category !== filters.category) return false
       if (filters.status   && item.status   !== filters.status)   return false
+      if (filters.region   && item.region   !== filters.region)   return false
       return true
     }),
     [quarterFilteredItems, filters]

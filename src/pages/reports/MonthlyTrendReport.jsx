@@ -54,6 +54,12 @@ export default function MonthlyTrendReport({ hook }) {
           <option value="">Todas las organizaciones</option>
           {orgs.map(o => <option key={o} value={o}>{o}</option>)}
         </select>
+        <select value={hook.filterRegion ?? ''} onChange={e => hook.setFilter('region', e.target.value)}
+          className="px-3 py-2 rounded-xl text-[13px] border"
+          style={{ background:'var(--bg-input)', borderColor:'var(--border)', color:'var(--text-primary)' }}>
+          <option value="">Todas las regiones</option>
+          {(hook.regions ?? []).map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
       </div>
       <div className="rounded-2xl p-5 th-shadow" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
         <h3 className="text-[13px] font-bold th-text-p mb-4">Órdenes por Mes — Total vs Cerradas</h3>

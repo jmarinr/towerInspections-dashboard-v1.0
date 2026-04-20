@@ -163,6 +163,7 @@ function normalizeOrder(visit, subs, benchmarks) {
     orderDuration:    duration,
     orderDurationStr: formatDuration(duration),
     isInProgress:     !visit.closed_at,
+    region:           extractRegion(visit.order_number),
     formCount:        forms.length,
     forms,
   }
@@ -174,7 +175,7 @@ export default function useProductivityReport() {
   const [isLoading,       setIsLoading]       = useState(true)
   const [error,           setError]           = useState(null)
   const [selectedQuarter, setSelectedQuarter] = useState(null)
-  const [filters,         setFiltersState]    = useState({ inspector: '', site: '', formType: '' })
+  const [filters,         setFiltersState]    = useState({ inspector: '', site: '', formType: '', region: '' })
   const [currentPage,     setCurrentPageState] = useState(1)
   const [pageSize,        setPageSizeState]   = useState(10)
 
@@ -239,6 +240,7 @@ export default function useProductivityReport() {
       if (filters.inspector && o.inspector.name !== filters.inspector) return false
       if (filters.site      && o.idSitio          !== filters.site)    return false
       if (filters.formType  && !o.forms.some(f => f.formLabel === filters.formType)) return false
+      if (filters.region    && o.region !== filters.region)                            return false
       return true
     }),
     [quarterFilteredOrders, filters]
@@ -249,6 +251,7 @@ export default function useProductivityReport() {
     inspectors: [...new Set(quarterFilteredOrders.map(o => o.inspector.name).filter(Boolean))].sort(),
     sites:      [...new Set(quarterFilteredOrders.map(o => o.idSitio).filter(Boolean))].sort(),
     formTypes:  [...new Set(quarterFilteredOrders.flatMap(o => o.forms.map(f => f.formLabel)).filter(Boolean))].sort(),
+    regions:    [...new Set(quarterFilteredOrders.map(o => o.region).filter(Boolean))].sort(),
   }), [quarterFilteredOrders])
 
   // ── KPIs: calculan sobre filteredOrders ───────────────────────────────────

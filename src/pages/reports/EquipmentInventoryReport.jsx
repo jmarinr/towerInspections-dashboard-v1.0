@@ -128,6 +128,10 @@ export default function EquipmentInventoryReport({ hookData }) {
               <option value="">Todas las Alturas</option>
               {filterOptions.heights.map(h => <option key={h} value={h}>{h} m</option>)}
             </Select>
+            <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
+              <option value="">Todas las regiones</option>
+              {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
+            </Select>
           </div>
           <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
             Mostrando <span className="font-bold th-text-p mx-1">

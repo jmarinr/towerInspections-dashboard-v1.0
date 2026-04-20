@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 
 const REQUIRED_FORMS = ['mantenimiento','mantenimiento-ejecutado','inventario-v2','sistema-ascenso','additional-photo-report','puesta-tierra']
 
@@ -59,6 +60,9 @@ export default function useInspectorQualityReport() {
       const ins = map[key]
       ins.orders++
       if (v.status === 'closed') ins.closed++
+      const vReg = extractRegion(v.order_number)
+      if (vReg && !ins.regions) ins.regions = new Set()
+      if (vReg) ins.regions.add(vReg)
 
       // Days open (for open orders)
       if (v.status === 'open' && v.started_at) {
@@ -99,11 +103,21 @@ export default function useInspectorQualityReport() {
     }).sort((a, b) => b.qualityScore - a.qualityScore)
   }, [visits, subs])
 
-  const orgs = useMemo(() => [...new Set(inspectors.map(i => i.orgCode).filter(Boolean))].sort(), [inspectors])
+  const orgs     = useMemo(() => [...new Set(inspectors.map(i => i.orgCode).filter(Boolean))].sort(), [inspectors])
+  const [filterRegion, setFilterRegion] = useState('')
+  const regions  = useMemo(() => {
+    const all = new Set()
+    inspectors.forEach(i => i.regions?.forEach(r => all.add(r)))
+    return [...all].sort()
+  }, [inspectors])
 
   const filtered = useMemo(() =>
-    filterOrg ? inspectors.filter(i => i.orgCode === filterOrg) : inspectors,
-    [inspectors, filterOrg]
+    inspectors.filter(i => {
+      if (filterOrg    && i.orgCode !== filterOrg)              return false
+      if (filterRegion && !(i.regions?.has(filterRegion)))      return false
+      return true
+    }),
+    [inspectors, filterOrg, filterRegion]
   )
 
   const kpis = useMemo(() => {
@@ -124,7 +138,8 @@ export default function useInspectorQualityReport() {
   }, [filtered, currentPage, pageSize])
 
   const setFilter = useCallback((key, val) => {
-    if (key === 'org') { setFilterOrg(val); setCurrentPage(1) }
+    if (key === 'org')    { setFilterOrg(val);    setCurrentPage(1) }
+    if (key === 'region') { setFilterRegion(val); setCurrentPage(1) }
   }, [])
 
   const exportToExcel = useCallback(async () => {
@@ -155,7 +170,7 @@ export default function useInspectorQualityReport() {
 
   return {
     inspectors, filtered, paginated, kpis, orgs,
-    filterOrg, setFilter,
+    filterOrg, filterRegion, setFilter, regions,
     currentPage, setCurrentPage, pageSize,
     totalFiltered: filtered.length,
     exportToExcel,

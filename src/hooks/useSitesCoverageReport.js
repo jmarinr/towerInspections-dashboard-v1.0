@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 
 const THRESHOLD_WARN    = 14  // días sin visita → amarillo
 const THRESHOLD_ALERT   = 21  // días sin visita → rojo
@@ -28,6 +29,7 @@ export default function useSitesCoverageReport() {
   const [error,      setError]      = useState(null)
   const [filterOrg,  setFilterOrg]  = useState('')
   const [filterStatus, setFilterStatus] = useState('')
+  const [filterRegion, setFilterRegion] = useState('')
   const [search,     setSearch]     = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize]   = useState(15)
@@ -67,6 +69,7 @@ export default function useSitesCoverageReport() {
           lastActivity: null,
           lastInspector: null,
           hasOpenVisit: false,
+        lastOrderNumber: null,
         }
       }
       const s = map[key]
@@ -77,6 +80,7 @@ export default function useSitesCoverageReport() {
         if (!s.lastActivity || dt > s.lastActivity) {
           s.lastActivity   = dt
           s.lastInspector  = v.inspector_name || v.inspector_username
+          s.lastOrderNumber = v.order_number
         }
       } else {
         s.hasOpenVisit = true
@@ -89,18 +93,20 @@ export default function useSitesCoverageReport() {
     return Object.values(map).map(s => {
       const days   = daysSince(s.lastActivity)
       const status = s.hasOpenVisit ? 'in_progress' : statusFromDays(days)
-      return { ...s, days, status }
+      return { ...s, days, status, region: extractRegion(s.visits?.[0]?.order_number) }
     })
   }, [rawVisits])
 
   // Filtros
-  const orgs = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
+  const orgs    = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
+  const regions = useMemo(() => [...new Set(sites.map(s => s.region).filter(Boolean))].sort(), [sites])
 
   const filtered = useMemo(() => {
     return sites
       .filter(s => {
         if (filterOrg    && s.orgCode !== filterOrg)          return false
         if (filterStatus && s.status  !== filterStatus)       return false
+        if (filterRegion && s.region  !== filterRegion)       return false
         if (search) {
           const q = search.toLowerCase()
           return s.siteId?.toLowerCase().includes(q) || s.siteName?.toLowerCase().includes(q)
@@ -129,6 +135,7 @@ export default function useSitesCoverageReport() {
   const setFilter = useCallback((key, val) => {
     if (key === 'org')    { setFilterOrg(val);    setCurrentPage(1) }
     if (key === 'status') { setFilterStatus(val); setCurrentPage(1) }
+    if (key === 'region') { setFilterRegion(val);  setCurrentPage(1) }
     if (key === 'search') { setSearch(val);        setCurrentPage(1) }
   }, [])
 
@@ -157,7 +164,8 @@ export default function useSitesCoverageReport() {
 
   return {
     sites, filtered, paginated, kpis, orgs,
-    filterOrg, filterStatus, search, setFilter,
+    filterOrg, filterStatus, filterRegion, search, setFilter,
+    regions,
     currentPage, setCurrentPage, pageSize,
     totalFiltered: filtered.length,
     exportToExcel,

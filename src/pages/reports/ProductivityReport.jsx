@@ -274,6 +274,10 @@ export default function ProductivityReport({ hookData }) {
               <option value="">Todos los Formularios</option>
               {filterOptions.formTypes.map(f => <option key={f} value={f}>{f}</option>)}
             </Select>
+            <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
+              <option value="">Todas las regiones</option>
+              {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
+            </Select>
           </div>
           <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
             Mostrando <span className="font-bold th-text-p mx-1">

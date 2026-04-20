@@ -112,6 +112,12 @@ export default function HistorialSitiosReport({ hook }) {
           <option value={2}>2+ visitas</option>
           <option value={3}>3+ visitas</option>
         </select>
+        <select value={hook.filterRegion ?? ''} onChange={e => hook.setFilter('region', e.target.value)}
+          className="px-3 py-2 rounded-xl text-[13px] border"
+          style={{ background:'var(--bg-input)', borderColor:'var(--border)', color:'var(--text-primary)' }}>
+          <option value="">Todas las regiones</option>
+          {(hook.regions ?? []).map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
       </div>
       <div className="overflow-x-auto rounded-xl" style={{ border:'1px solid var(--border)' }}>
         <table className="w-full text-[13px]" style={{ background:'var(--bg-card)' }}>

@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 
 function toMonth(isoStr) {
   if (!isoStr) return null
@@ -23,14 +24,15 @@ export default function useMonthlyTrendReport() {
   const [subs,      setSubs]      = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error,     setError]     = useState(null)
-  const [filterOrg, setFilterOrg] = useState('')
+  const [filterOrg,    setFilterOrg]    = useState('')
+  const [filterRegion, setFilterRegion] = useState('')
 
   useEffect(() => {
     let cancelled = false
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let vQuery = supabase.from('site_visits').select('id, org_code, status, started_at, closed_at, inspector_username')
+    let vQuery = supabase.from('site_visits').select('id, org_code, status, started_at, closed_at, inspector_username, order_number')
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized, created_at, org_code')
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
@@ -43,11 +45,16 @@ export default function useMonthlyTrendReport() {
     return () => { cancelled = true }
   }, [])
 
-  const orgs = useMemo(() => [...new Set(visits.map(v => v.org_code).filter(Boolean))].sort(), [visits])
+  const orgs     = useMemo(() => [...new Set(visits.map(v => v.org_code).filter(Boolean))].sort(), [visits])
+  const regions  = useMemo(() => [...new Set(visits.map(v => extractRegion(v.order_number)).filter(Boolean))].sort(), [visits])
 
   const filteredVisits = useMemo(() =>
-    filterOrg ? visits.filter(v => v.org_code === filterOrg) : visits,
-    [visits, filterOrg]
+    visits.filter(v => {
+      if (filterOrg    && v.org_code !== filterOrg)              return false
+      if (filterRegion && extractRegion(v.order_number) !== filterRegion) return false
+      return true
+    }),
+    [visits, filterOrg, filterRegion]
   )
   const filteredSubs = useMemo(() =>
     filterOrg ? subs.filter(s => s.org_code === filterOrg) : subs,
@@ -122,7 +129,8 @@ export default function useMonthlyTrendReport() {
   }, [inspectorMonthly])
 
   const setFilter = useCallback((key, val) => {
-    if (key === 'org') setFilterOrg(val)
+    if (key === 'org')    setFilterOrg(val)
+    if (key === 'region') setFilterRegion(val)
   }, [])
 
   const exportToExcel = useCallback(async () => {
@@ -148,7 +156,7 @@ export default function useMonthlyTrendReport() {
 
   return {
     monthly, inspectorMonthly, inspectorKeys, kpis, orgs,
-    filterOrg, setFilter,
+    filterOrg, filterRegion, setFilter, regions,
     exportToExcel,
     isLoading, error,
   }

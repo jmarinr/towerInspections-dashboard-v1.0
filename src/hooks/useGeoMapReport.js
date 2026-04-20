@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 
 export default function useGeoMapReport() {
   const [visits,    setVisits]    = useState([])
@@ -13,6 +14,7 @@ export default function useGeoMapReport() {
   const [filterOrg, setFilterOrg] = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterInspector, setFilterInspector] = useState('')
+  const [filterRegion,    setFilterRegion]    = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -39,20 +41,23 @@ export default function useGeoMapReport() {
     lat:       parseFloat(v.start_lat),
     lng:       parseFloat(v.start_lng),
     inspector: v.inspector_name || v.inspector_username || '—',
+    region:    extractRegion(v.order_number),
     dateLabel: v.started_at ? new Date(v.started_at).toLocaleDateString('es', { day:'numeric', month:'short' }) : '—',
   })).filter(v => !isNaN(v.lat) && !isNaN(v.lng)), [visits])
 
   const orgs       = useMemo(() => [...new Set(enriched.map(v => v.org_code).filter(Boolean))].sort(), [enriched])
   const inspectors = useMemo(() => [...new Set(enriched.map(v => v.inspector).filter(v => v !== '—'))].sort(), [enriched])
+  const regions    = useMemo(() => [...new Set(enriched.map(v => v.region).filter(Boolean))].sort(), [enriched])
 
   const filtered = useMemo(() =>
     enriched.filter(v => {
       if (filterOrg       && v.org_code  !== filterOrg)       return false
       if (filterStatus    && v.status    !== filterStatus)     return false
       if (filterInspector && v.inspector !== filterInspector)  return false
+      if (filterRegion    && v.region    !== filterRegion)      return false
       return true
     }),
-    [enriched, filterOrg, filterStatus, filterInspector]
+    [enriched, filterOrg, filterStatus, filterInspector, filterRegion]
   )
 
   const kpis = useMemo(() => ({
@@ -89,6 +94,7 @@ export default function useGeoMapReport() {
     if (key === 'org')       setFilterOrg(val)
     if (key === 'status')    setFilterStatus(val)
     if (key === 'inspector') setFilterInspector(val)
+    if (key === 'region')    setFilterRegion(val)
   }, [])
 
   const exportToExcel = useCallback(async () => {
@@ -115,7 +121,7 @@ export default function useGeoMapReport() {
 
   return {
     scatterData, filtered, kpis, orgs, inspectors,
-    filterOrg, filterStatus, filterInspector, setFilter,
+    filterOrg, filterStatus, filterInspector, filterRegion, setFilter, regions,
     totalFiltered: filtered.length,
     exportToExcel,
     getColor, ORG_COLORS,

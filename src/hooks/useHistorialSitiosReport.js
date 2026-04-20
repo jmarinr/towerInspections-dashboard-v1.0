@@ -5,6 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 
 export default function useHistorialSitiosReport() {
   const [visits,    setVisits]    = useState([])
@@ -13,7 +14,8 @@ export default function useHistorialSitiosReport() {
   const [error,     setError]     = useState(null)
   const [search,    setSearch]    = useState('')
   const [filterOrg, setFilterOrg] = useState('')
-  const [filterMin, setFilterMin] = useState(2)  // visitas mínimas
+  const [filterMin, setFilterMin] = useState(2)
+  const [filterRegion, setFilterRegion] = useState('')  // visitas mínimas
   const [currentPage, setCurrentPage] = useState(1)
   const [pageSize]  = useState(10)
 
@@ -22,7 +24,7 @@ export default function useHistorialSitiosReport() {
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let vQuery = supabase.from('site_visits').select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name').order('started_at', { ascending: true })
+    let vQuery = supabase.from('site_visits').select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number').order('started_at', { ascending: true })
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized')
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
@@ -49,6 +51,7 @@ export default function useHistorialSitiosReport() {
       const key = v.site_id || v.id
       if (!siteMap[key]) siteMap[key] = { siteId: v.site_id, siteName: v.site_name, orgCode: v.org_code, visits: [] }
       const visitSubs = subsByVisit[v.id] || []
+      const visitRegion = extractRegion(v.order_number)
       const byCode = {}
       for (const s of visitSubs) {
         if (!byCode[s.form_code] || s.finalized) byCode[s.form_code] = s
@@ -57,7 +60,8 @@ export default function useHistorialSitiosReport() {
       const finForms   = Object.values(byCode).filter(s => s.finalized).length
       siteMap[key].visits.push({
         visitId:     v.id,
-        orderNumber: null,
+        orderNumber: v.order_number,
+        region:      visitRegion,
         status:      v.status,
         startedAt:   v.started_at,
         closedAt:    v.closed_at,
@@ -73,28 +77,31 @@ export default function useHistorialSitiosReport() {
       .map(s => {
         const vCount = s.visits.length
         const lastV  = s.visits[vCount - 1]
+        const siteRegion = lastV?.region || extractRegion(s.visits[0]?.orderNumber)
         const firstV = s.visits[0]
         const improvement = vCount >= 2
           ? lastV.rate - firstV.rate
           : null
-        return { ...s, vCount, lastV, firstV, improvement }
+        return { ...s, vCount, lastV, firstV, improvement, region: siteRegion }
       })
       .sort((a, b) => b.vCount - a.vCount)
   }, [visits, subs])
 
-  const orgs = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
+  const orgs     = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
+  const regions  = useMemo(() => [...new Set(sites.map(s => s.region).filter(Boolean))].sort(), [sites])
 
   const filtered = useMemo(() =>
     sites.filter(s => {
       if (s.vCount < filterMin)                        return false
-      if (filterOrg && s.orgCode !== filterOrg)        return false
+      if (filterOrg    && s.orgCode !== filterOrg)     return false
+      if (filterRegion && s.region  !== filterRegion)    return false
       if (search) {
         const q = search.toLowerCase()
         return s.siteId?.toLowerCase().includes(q) || s.siteName?.toLowerCase().includes(q)
       }
       return true
     }),
-    [sites, filterMin, filterOrg, search]
+    [sites, filterMin, filterOrg, filterRegion, search]
   )
 
   const kpis = useMemo(() => {
@@ -117,6 +124,7 @@ export default function useHistorialSitiosReport() {
   const setFilter = useCallback((key, val) => {
     if (key === 'org')    { setFilterOrg(val);  setCurrentPage(1) }
     if (key === 'min')    { setFilterMin(val);   setCurrentPage(1) }
+    if (key === 'region') { setFilterRegion(val); setCurrentPage(1) }
     if (key === 'search') { setSearch(val);      setCurrentPage(1) }
   }, [])
 
@@ -152,7 +160,7 @@ export default function useHistorialSitiosReport() {
 
   return {
     sites, filtered, paginated, kpis, orgs,
-    filterOrg, filterMin, search, setFilter,
+    filterOrg, filterMin, filterRegion, search, setFilter, regions,
     currentPage, setCurrentPage, pageSize,
     totalFiltered: filtered.length,
     exportToExcel,
