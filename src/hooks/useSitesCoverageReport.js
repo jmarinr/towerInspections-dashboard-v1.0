@@ -42,7 +42,7 @@ export default function useSitesCoverageReport() {
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
     let query = supabase
       .from('site_visits')
-      .select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name')
+      .select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number')
       .order('started_at', { ascending: false })
     if (orgCode) query = query.eq('org_code', orgCode)
     query.then(({ data, error: err }) => {

@@ -90,15 +90,12 @@ export default function EquipmentInventoryReport({ hookData }) {
       />
 
       <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
-          {/* Cuatrimestre */}
-          <div className="flex-1 min-w-[150px]">
-            <Select
-              value={selectedQuarter?.value || ''}
-              onChange={e => {
-                const opt = quarterOptions.find(o => o.value === e.target.value)
-                if (opt) setSelectedQuarter(opt)
-              }}>
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex-1 min-w-[140px]">
+            <Select value={selectedQuarter?.value || ''} onChange={e => {
+              const opt = quarterOptions.find(o => o.value === e.target.value)
+              if (opt) setSelectedQuarter(opt)
+            }}>
               {quarterOptions.length === 0
                 ? <option value="">Sin datos</option>
                 : quarterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)
@@ -117,27 +114,24 @@ export default function EquipmentInventoryReport({ hookData }) {
               {filterOptions.carriers.map(c => <option key={c} value={c}>{c}</option>)}
             </Select>
           </div>
-          <div className="flex-1 min-w-[130px]">
+          <div className="flex-1 min-w-[120px]">
             <Select value={filters.type} onChange={e => setFilter('type', e.target.value)}>
               <option value="">Todos los Tipos</option>
               {filterOptions.types.map(t => <option key={t} value={t}>{t}</option>)}
             </Select>
           </div>
-          <div className="flex-1 min-w-[130px]">
+          <div className="flex-1 min-w-[120px]">
             <Select value={filters.height} onChange={e => setFilter('height', e.target.value)}>
               <option value="">Todas las Alturas</option>
               {filterOptions.heights.map(h => <option key={h} value={h}>{h} m</option>)}
             </Select>
+          </div>
+          <div className="flex-1 min-w-[120px]">
             <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
               <option value="">Todas las regiones</option>
               {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
-        </div>
-        <div className="text-[12px] th-text-m font-medium mt-2 text-right">
-          Mostrando <span className="font-bold th-text-p mx-1">
-            {totalFiltered === 0 ? 0 : `${from}–${to}`}
-          </span> de <span className="font-bold th-text-p mx-1">{totalFiltered}</span> equipos
         </div>
       </Card>
 
@@ -230,6 +224,9 @@ export default function EquipmentInventoryReport({ hookData }) {
             </div>
             <Pagination currentPage={currentPage} totalItems={totalFiltered}
               pageSize={pageSize} onPageChange={setCurrentPage} />
+            <div className="text-[12px] th-text-m font-medium">
+              Mostrando <span className="font-bold th-text-p">{totalFiltered === 0 ? 0 : `${from}–${to}`}</span> de <span className="font-bold th-text-p">{totalFiltered}</span> equipos
+            </div>
           </div>
         )}
       </Card>

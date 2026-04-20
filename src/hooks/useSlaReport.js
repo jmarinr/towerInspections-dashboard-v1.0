@@ -73,7 +73,8 @@ export default function useSlaReport() {
       ageDays,
       ageHours,
       slaStatus,
-      inspector: v.inspector_name || v.inspector_username || '—',
+      inspector:  v.inspector_name || v.inspector_username || '—',
+      region:     extractRegion(v.order_number),
       quarterKey: v.started_at ? getQuarterKey(v.started_at) : null,
     }
   }), [visits])

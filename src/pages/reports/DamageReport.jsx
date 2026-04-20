@@ -189,7 +189,7 @@ export default function DamageReport({ hookData }) {
       />
 
       <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[150px]">
             <Select value={selectedQuarter?.value || ''}
               onChange={e => {
@@ -219,16 +219,15 @@ export default function DamageReport({ hookData }) {
               <option value="">Todos los Estados</option>
               {filterOptions.statuses.map(s => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </Select>
+          </div>
+          <div className="flex-1 min-w-[130px]">
             <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
               <option value="">Todas las regiones</option>
               {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
           <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
-            Mostrando <span className="font-bold th-text-p mx-1">
-              {totalFiltered === 0 ? 0 : `${from}–${to}`}
-            </span> de <span className="font-bold th-text-p mx-1">{totalFiltered}</span> daños
-          </div>
+
         </div>
       </Card>
 
@@ -318,6 +317,9 @@ export default function DamageReport({ hookData }) {
             </div>
             <Pagination currentPage={currentPage} totalItems={totalFiltered}
               pageSize={pageSize} onPageChange={setCurrentPage} />
+            <div className="text-[12px] th-text-m font-medium">
+              Mostrando <span className="font-bold th-text-p">{totalFiltered === 0 ? 0 : `${from}–${to}`}</span> de <span className="font-bold th-text-p">{totalFiltered}</span> daños
+            </div>
           </div>
         )}
       </Card>

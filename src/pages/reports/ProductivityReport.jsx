@@ -246,7 +246,7 @@ export default function ProductivityReport({ hookData }) {
       />
 
       <Card className="p-4">
-        <div className="flex flex-col sm:flex-row gap-3 flex-wrap items-center">
+        <div className="flex flex-wrap gap-3 items-center">
           <div className="flex-1 min-w-[150px]">
             <Select value={selectedQuarter?.value || ''}
               onChange={e => {
@@ -275,16 +275,15 @@ export default function ProductivityReport({ hookData }) {
               <option value="">Todos los Formularios</option>
               {filterOptions.formTypes.map(f => <option key={f} value={f}>{f}</option>)}
             </Select>
+          </div>
+          <div className="flex-1 min-w-[120px]">
             <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
               <option value="">Todas las regiones</option>
               {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
             </Select>
           </div>
           <div className="whitespace-nowrap text-[12px] th-text-m font-medium px-1 flex-shrink-0">
-            Mostrando <span className="font-bold th-text-p mx-1">
-              {totalFiltered === 0 ? 0 : `${from}–${to}`}
-            </span> de <span className="font-bold th-text-p mx-1">{totalFiltered}</span> órdenes
-          </div>
+
         </div>
       </Card>
 
@@ -421,6 +420,9 @@ export default function ProductivityReport({ hookData }) {
             </div>
             <Pagination currentPage={currentPage} totalItems={totalFiltered}
               pageSize={pageSize} onPageChange={setCurrentPage} />
+            <div className="text-[12px] th-text-m font-medium">
+              Mostrando <span className="font-bold th-text-p">{totalFiltered === 0 ? 0 : `${from}–${to}`}</span> de <span className="font-bold th-text-p">{totalFiltered}</span> órdenes
+            </div>
           </div>
         )}
       </Card>

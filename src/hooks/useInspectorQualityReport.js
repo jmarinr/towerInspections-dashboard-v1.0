@@ -23,7 +23,7 @@ export default function useInspectorQualityReport() {
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let vQuery = supabase.from('site_visits').select('id, inspector_username, inspector_name, org_code, status, started_at, closed_at')
+    let vQuery = supabase.from('site_visits').select('id, inspector_username, inspector_name, org_code, status, started_at, closed_at, order_number')
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized, org_code')
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
