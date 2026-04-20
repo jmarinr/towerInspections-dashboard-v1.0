@@ -17,6 +17,7 @@ import Select     from '../../components/ui/Select'
 import Spinner    from '../../components/ui/Spinner'
 import Pagination from '../../components/ui/Pagination'
 import EmptyState from '../../components/ui/EmptyState'
+import ReportInfo from '../../components/ui/ReportInfo'
 import { SEMAFORO_THRESHOLDS, MIN_BENCHMARK_SAMPLES } from '../../hooks/useProductivityReport'
 
 // ── KPI Cards ─────────────────────────────────────────────────────────────────
