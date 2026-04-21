@@ -227,7 +227,13 @@ export default function Reports() {
     if (!user) return false
     if (user.role === 'admin') return true
     const mk = `${user.role}:${key}`
-    return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
+    if (mk in permMatrix) return permMatrix[mk] === true
+    // Fallback por defecto si no hay entrada en role_permissions:
+    // viewer puede VER pero no escribir/exportar
+    if (user.role === 'viewer') {
+      return key === 'reports.view'  // viewer siempre puede ver reportes
+    }
+    return user.canWrite || false
   }
 
   // Todos los hooks siempre activos (Rules of Hooks)
