@@ -17,6 +17,7 @@ import useFormComplianceReport      from '../hooks/useFormComplianceReport'
 import useHistorialSitiosReport     from '../hooks/useHistorialSitiosReport'
 import useSlaReport                 from '../hooks/useSlaReport'
 import useGeoMapReport              from '../hooks/useGeoMapReport'
+import useGroupedDamageReport       from '../hooks/useGroupedDamageReport'
 import useMonthlyTrendReport        from '../hooks/useMonthlyTrendReport'
 import EquipmentInventoryReport     from './reports/EquipmentInventoryReport'
 import DamageReport                 from './reports/DamageReport'
@@ -27,6 +28,7 @@ import FormComplianceReport         from './reports/FormComplianceReport'
 import HistorialSitiosReport        from './reports/HistorialSitiosReport'
 import SlaReport                    from './reports/SlaReport'
 import GeoMapReport                 from './reports/GeoMapReport'
+import GroupedDamageReport          from './reports/GroupedDamageReport'
 import MonthlyTrendReport           from './reports/MonthlyTrendReport'
 
 const REPORTS = [
@@ -99,6 +101,13 @@ const REPORTS = [
     descriptionShort: 'Volumen mensual · Tasas · Inspectores',
     icon: TrendingUp, color: '#be123c', colorLight: '#ffe4e6',
     component: MonthlyTrendReport, isNew: true,
+  },
+  {
+    id: 'grouped-damage', label: 'Daños Agrupados por Descripción',
+    description: 'Agrupación por tipo de daño · Sitios afectados por grupo · Cotización y ruta de correctivo',
+    descriptionShort: 'Daños agrupados · Sitios afectados · Cotización',
+    icon: AlertTriangle, color: '#d97706', colorLight: '#fef3c7',
+    component: GroupedDamageReport, isNew: true,
   },
 ]
 
@@ -231,7 +240,8 @@ export default function Reports() {
   const historialHook    = useHistorialSitiosReport()
   const slaHook          = useSlaReport()
   const geoHook          = useGeoMapReport()
-  const trendHook        = useMonthlyTrendReport()
+  const groupedDamageHook  = useGroupedDamageReport()
+  const trendHook          = useMonthlyTrendReport()
 
   const hookMap = {
     'equipment-inventory': equipmentHook,
@@ -244,6 +254,7 @@ export default function Reports() {
     'sla-report':          slaHook,
     'geo-map':             geoHook,
     'monthly-trend':       trendHook,
+    'grouped-damage':      groupedDamageHook,
   }
 
   // Guard de acceso
