@@ -188,6 +188,15 @@ function ReportPicker({ onSelect }) {
 function ReportWrapper({ reportDef, hook, onBack }) {
   const { component: Component, label, color, isNew } = reportDef
   const { exportToExcel, isLoading } = hook
+  const user       = useAuthStore(s => s.user)
+  const permMatrix = useAdminStore(s => s.permMatrix)
+  const canExport  = (() => {
+    if (!user) return false
+    if (user.role === 'admin') return true
+    const mk = `${user.role}:reports.export_excel`
+    if (mk in permMatrix) return permMatrix[mk] === true
+    return user.canWrite || false
+  })()
 
   return (
     <div className="space-y-4">
@@ -204,7 +213,7 @@ function ReportWrapper({ reportDef, hook, onBack }) {
             {isNew && <NewBadge />}
           </div>
         </div>
-        {exportToExcel && (
+        {canExport && exportToExcel && (
           <button onClick={exportToExcel} disabled={isLoading}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all hover:opacity-90 active:scale-[.98] flex-shrink-0 disabled:opacity-50"
             style={{ background: '#0284C7', boxShadow: '0 2px 8px rgba(2,132,199,0.22)' }}>
