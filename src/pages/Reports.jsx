@@ -238,9 +238,9 @@ export default function Reports() {
     const mk = `${user.role}:${key}`
     if (mk in permMatrix) return permMatrix[mk] === true
     // Fallback por defecto si no hay entrada en role_permissions:
-    // viewer puede VER pero no escribir/exportar
+    // viewer puede VER y EXPORTAR pero no cambiar estados
     if (user.role === 'viewer') {
-      return key === 'reports.view'  // viewer siempre puede ver reportes
+      return key === 'reports.view' || key === 'reports.export_excel'
     }
     return user.canWrite || false
   }
