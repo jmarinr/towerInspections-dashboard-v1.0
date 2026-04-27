@@ -254,47 +254,76 @@ export async function fetchSubmissionsForVisit(visitId) {
 
 /**
  * Fetch all submissions for an order detail, including their assets.
- * Searches sibling form code variants (Spanish/English) to find assets.
+ *
+ * FIX: Siempre busca assets en TODOS los siblings del mismo form_code,
+ * no solo cuando directAssets.length === 0. Hace MERGE (no replace),
+ * deduplicando por asset_type y quedándose con el más reciente.
+ *
+ * Problema anterior: la submission "ganadora" del dedup por form_code puede
+ * no tener assets, estando estos en otra fila del mismo form_code. La
+ * condición `if (assets.length === 0)` hacía que si la ganadora tenía
+ * aunque sea 1 asset, se ignoraban los demás siblings con el resto.
  */
 export async function fetchSubmissionsWithAssetsForVisit(visitId) {
   const submissions = await fetchSubmissionsForVisit(visitId)
 
-  const withAssets = await Promise.all(
-    submissions.map(async (sub) => {
-      try {
-        let assets = await fetchSubmissionAssets(sub.id)
+  // Traer TODOS los submission_ids de esta visita de una sola query
+  const { data: allSiblingRows } = await supabase
+    .from('submissions')
+    .select('id, form_code, org_code')
+    .eq('site_visit_id', visitId)
 
-        if (assets.length === 0 && sub.org_code && sub.form_code) {
-          const siblingCodes = getFormCodeSiblings(sub.form_code)
-          const allCodes = [sub.form_code, ...siblingCodes]
+  const allSiblingMap = {}
+  ;(allSiblingRows || []).forEach(r => {
+    const canonical = normalizeFormCode(r.form_code)
+    if (!allSiblingMap[canonical]) allSiblingMap[canonical] = []
+    allSiblingMap[canonical].push(r.id)
+  })
 
-          // NOTA: no filtramos por device_id — el inspector puede haber usado
-          // dispositivos distintos. site_visit_id + org_code + form_code es suficiente.
-          const { data: siblings } = await supabase
-            .from('submissions')
-            .select('id')
-            .eq('org_code', sub.org_code)
-            .eq('site_visit_id', visitId)
-            .in('form_code', allCodes)
-            .neq('id', sub.id)
+  // Traer TODOS los assets de la visita en una sola query
+  const allVisitSubIds = (allSiblingRows || []).map(r => r.id)
+  let allAssets = []
+  if (allVisitSubIds.length > 0) {
+    const { data: assetRows } = await supabase
+      .from('submission_assets')
+      .select('*')
+      .in('submission_id', allVisitSubIds)
+      .not('public_url', 'is', null)
+      .order('created_at', { ascending: true })
+    allAssets = assetRows || []
+  }
 
-          if (siblings?.length) {
-            const { data: siblingAssets } = await supabase
-              .from('submission_assets')
-              .select('*')
-              .in('submission_id', siblings.map(s => s.id))
-              .order('created_at', { ascending: true })
+  // Indexar assets por submission_id
+  const assetsBySubId = {}
+  allAssets.forEach(a => {
+    if (!assetsBySubId[a.submission_id]) assetsBySubId[a.submission_id] = []
+    assetsBySubId[a.submission_id].push(a)
+  })
 
-            if (siblingAssets?.length) assets = siblingAssets
+  // Para cada submission ganadora, acumular assets de TODOS sus siblings
+  const withAssets = submissions.map(sub => {
+    try {
+      const canonical   = normalizeFormCode(sub.form_code)
+      const siblingIds  = allSiblingMap[canonical] || [sub.id]
+
+      // Merge: acumular todos los assets de todos los siblings
+      const merged = {}
+      siblingIds.forEach(sid => {
+        ;(assetsBySubId[sid] || []).forEach(a => {
+          const existing = merged[a.asset_type]
+          // Mantener el más reciente por asset_type
+          if (!existing || a.created_at > existing.created_at) {
+            merged[a.asset_type] = a
           }
-        }
+        })
+      })
 
-        return { ...sub, assets }
-      } catch {
-        return { ...sub, assets: [] }
-      }
-    })
-  )
+      return { ...sub, assets: Object.values(merged) }
+    } catch {
+      return { ...sub, assets: [] }
+    }
+  })
+
   return withAssets
 }
 
