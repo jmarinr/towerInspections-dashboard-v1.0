@@ -32,6 +32,9 @@ export const useAuthStore = create((set, get) => ({
       } else if (event === 'TOKEN_REFRESHED') {
         set({ sessionWarning: false })
       } else if (event === 'SIGNED_OUT') {
+        // Invalidar stats para que el próximo usuario no vea datos del anterior
+        const { useSubmissionsStore } = await import('./useSubmissionsStore')
+        useSubmissionsStore.setState({ stats: null, lastFetch: null })
         set({ isAuthed: false, user: null, isLoading: false, sessionWarning: false })
       }
     })
@@ -139,6 +142,8 @@ export const useAuthStore = create((set, get) => ({
     const user = get().user
     if (user) LOG.authLogout(user.email, user.role)
     await supabase.auth.signOut()
+    const { useSubmissionsStore } = await import('./useSubmissionsStore')
+    useSubmissionsStore.setState({ stats: null, lastFetch: null })
     set({ isAuthed: false, user: null, sessionWarning: false })
   },
 

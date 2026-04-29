@@ -155,8 +155,8 @@ export default function Dashboard() {
             {(recent || []).filter(s => isFormVisible(s.form_code)).slice(0, 9).map((sub, i, arr) => {
               const m    = getFormMeta(sub.form_code)
               const I    = m.icon
-              const site = extractSiteInfo(sub)
-              const who  = extractSubmittedBy(sub)
+              const siteName      = sub.site_name      || sub.site?.nombreSitio || '—'
+              const inspectorName = sub.inspector_name || sub.who?.name         || '—'
               const fin  = sub.finalized || isFinalized(sub)
               const date = sub.updated_at
                 ? new Date(sub.updated_at).toLocaleDateString('es', { day: 'numeric', month: 'short' })
@@ -173,10 +173,10 @@ export default function Dashboard() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[13px] font-medium th-text-p truncate">
-                      {site.nombreSitio || <span className="th-text-m">Sin nombre</span>}
+                      {siteName !== '—' ? siteName : <span className="th-text-m">Sin nombre</span>}
                       <span className="th-text-m font-normal ml-1.5">· {m.shortLabel}</span>
                     </div>
-                    <div className="text-[11px] th-text-m mt-0.5">{who?.name || '—'}</div>
+                    <div className="text-[11px] th-text-m mt-0.5">{inspectorName}</div>
                   </div>
                   <div className="flex flex-col items-end gap-1 flex-shrink-0">
                     {fin

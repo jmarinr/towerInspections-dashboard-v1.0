@@ -199,38 +199,49 @@ export const useSubmissionsStore = create((set, get) => ({
   loadStats: async () => {
     if (get().isLoadingStats) return
 
-    // Optimización: si ya tenemos submissions cargados (<5min), calcular stats localmente
-    // sin hacer una query adicional a la DB
     const submissions = get().submissions
     const lastFetch   = get().lastFetch
     const statsAge    = get().stats?._ts ? Date.now() - get().stats._ts : Infinity
     if (submissions.length > 0 && lastFetch && statsAge < 300000) return // stats frescas <5min
 
+    const user = useAuthStore.getState().user
+    const VIEWER_EXCLUDED = ['HK']
+
     if (submissions.length > 0 && lastFetch && Date.now() - lastFetch < 60000) {
-      // Calcular stats desde los datos ya en memoria
+      // Calcular stats desde los datos ya en memoria — aplicar filtro de rol
+      const filtered = submissions.filter(s => {
+        if (user?.role === 'supervisor' && user?.company?.org_code) {
+          return s.org_code === user.company.org_code
+        }
+        if (user?.role === 'viewer') {
+          return !VIEWER_EXCLUDED.includes(s.org_code)
+        }
+        return true // admin
+      })
+
       const byFormCode = {}
       const now = Date.now()
       const weekAgo = now - 7 * 24 * 60 * 60 * 1000
       let recentCount = 0
-      for (const s of submissions) {
+      for (const s of filtered) {
         const fc = s.form_code || 'unknown'
         byFormCode[fc] = (byFormCode[fc] || 0) + 1
         if (new Date(s.updated_at).getTime() > weekAgo) recentCount++
       }
       set({
         stats: {
-          total: submissions.length,
+          total: filtered.length,
           byFormCode,
           recentCount,
-          recent: submissions.slice(0, 5),
+          recent: filtered.slice(0, 9),
           totalVisits: 0, openVisits: 0, closedVisits: 0, recentVisits: [],
           _ts: Date.now(),
           _fromCache: true,
         },
         isLoadingStats: false,
       })
-      // Refrescar en background con datos reales para completar las stats de visitas
-      fetchDashboardStats()
+      // Refrescar en background con datos reales
+      fetchDashboardStats(user)
         .then(stats => set({ stats: { ...stats, _ts: Date.now() } }))
         .catch(() => {})
       return
@@ -242,7 +253,7 @@ export const useSubmissionsStore = create((set, get) => ({
       if (get().isLoadingStats) set({ isLoadingStats: false })
     }, 45000)
     try {
-      const stats = await fetchDashboardStats()
+      const stats = await fetchDashboardStats(user)
       clearTimeout(timeout)
       set({ stats: { ...stats, _ts: Date.now() }, isLoadingStats: false })
     } catch (err) {

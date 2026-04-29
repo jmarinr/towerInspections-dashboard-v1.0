@@ -330,27 +330,41 @@ export async function fetchSubmissionsWithAssetsForVisit(visitId) {
 /**
  * Dashboard stats.
  */
-export async function fetchDashboardStats() {
-  // Fetch solo columnas necesarias — sin payload JSON para evitar transferir MBs innecesarios
-  const [subRes, visitRes] = await Promise.all([
-    supabase.from('submissions')
-      .select('id, form_code, updated_at, finalized, org_code, created_at, device_id, site_visit_id, app_version')
-      .order('updated_at', { ascending: false }),
-    supabase.from('site_visits')
-      .select('id, status, started_at, order_number, site_name, inspector_name, inspector_username')
-      .order('started_at', { ascending: false })
-      .then(r => r).catch(() => ({ data: [], error: null })),
-  ])
+export async function fetchDashboardStats(user = null) {
+  const VIEWER_EXCLUDED_ORG_CODES = ['HK']
 
+  // ── Query de submissions con filtro por rol ─────────────────────────────
+  let subQuery = supabase
+    .from('submissions')
+    .select('id, form_code, updated_at, finalized, org_code, created_at, device_id, site_visit_id, app_version')
+    .order('updated_at', { ascending: false })
+
+  if (user?.role === 'supervisor' && user?.company?.org_code) {
+    subQuery = subQuery.eq('org_code', user.company.org_code)
+  } else if (user?.role === 'viewer') {
+    subQuery = subQuery.not('org_code', 'in', `(${VIEWER_EXCLUDED_ORG_CODES.map(c => `"${c}"`).join(',')})`)
+  }
+
+  // ── Query de visitas ────────────────────────────────────────────────────
+  const visitQuery = supabase
+    .from('site_visits')
+    .select('id, status, started_at, order_number, site_name, site_id, inspector_name, inspector_username')
+    .order('started_at', { ascending: false })
+    .then(r => r).catch(() => ({ data: [], error: null }))
+
+  const [subRes, visitRes] = await Promise.all([subQuery, visitQuery])
   if (subRes.error) throw subRes.error
-  // Con select parcial, normalizeSubmission no tiene payload — filtrar por form_code directamente
-  const rows = (subRes.data || [])
-    .filter(s => s.form_code && isFormVisible(s.form_code))
-  const visits = visitRes.data || []
 
-  // Normalize form codes for grouping
-  // using static import
+  const rows   = (subRes.data || []).filter(s => s.form_code && isFormVisible(s.form_code))
+  let   visits = visitRes.data || []
 
+  // Para supervisor y viewer: limitar visitas a las que pertenecen sus submissions
+  if (user?.role !== 'admin') {
+    const allowedVisitIds = new Set(rows.map(r => r.site_visit_id).filter(Boolean))
+    visits = visits.filter(v => allowedVisitIds.has(v.id))
+  }
+
+  // ── KPIs ────────────────────────────────────────────────────────────────
   const total = rows.length
   const byFormCode = {}
   for (const r of rows) {
@@ -361,11 +375,24 @@ export async function fetchDashboardStats() {
   const now = Date.now()
   const weekAgo = now - 7 * 24 * 60 * 60 * 1000
   const recentCount = rows.filter(r => new Date(r.updated_at).getTime() > weekAgo).length
-  const recent = rows.slice(0, 5).map(r => ({ ...r, site: { idSitio: r.id?.slice(0,8), nombreSitio: '' }, submittedBy: null }))
 
-  // Visit stats
-  const totalVisits = visits.length
-  const openVisits = visits.filter(v => v.status === 'open').length
+  // ── Actividad reciente: enriquecer con datos de la visita ────────────────
+  const visitMap = {}
+  for (const v of visits) visitMap[v.id] = v
+
+  const recent = rows.slice(0, 9).map(r => {
+    const visit = visitMap[r.site_visit_id] || {}
+    return {
+      ...r,
+      site_name:      visit.site_name      || '',
+      site_id:        visit.site_id        || '',
+      inspector_name: visit.inspector_name || visit.inspector_username || '',
+    }
+  })
+
+  // ── Stats de visitas ────────────────────────────────────────────────────
+  const totalVisits  = visits.length
+  const openVisits   = visits.filter(v => v.status === 'open').length
   const closedVisits = visits.filter(v => v.status === 'closed').length
   const recentVisits = visits.slice(0, 5)
 
