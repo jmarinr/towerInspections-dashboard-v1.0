@@ -266,7 +266,6 @@ export default function Submissions() {
                   <tr key={sub.id}
                     onClick={() => navigate(`/submissions/${sub.id}`)}
                     className="cursor-pointer transition-colors group animate-row-enter"
-                    style={{ animationDelay: `${Math.min(i * 30, 200)}ms` }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
 
