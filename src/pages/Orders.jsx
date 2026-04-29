@@ -5,6 +5,8 @@ import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
 import Pagination from '../components/ui/Pagination'
 import { useOrdersStore } from '../store/useOrdersStore'
+import { useSubmissionsStore } from '../store/useSubmissionsStore'
+import { extractRegion, regionLabel } from '../utils/regionUtils'
 
 const PAGE_SIZE = 25
 import { useAuthStore } from '../store/useAuthStore'
@@ -72,12 +74,33 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
   )
 }
 
+function VisitKpiCard({ label, value, accent = false, borderColor }) {
+  return (
+    <div className="rounded-2xl p-4 border th-shadow flex flex-col gap-2"
+      style={{
+        background:  accent ? 'var(--stat-accent-bg)' : 'var(--bg-card)',
+        borderColor: accent ? 'transparent' : borderColor || 'var(--border)',
+        borderLeft:  !accent && borderColor ? `3px solid ${borderColor}` : undefined,
+      }}>
+      <div className="text-[26px] font-bold leading-none tabular-nums"
+        style={{ color: accent ? 'var(--stat-accent-text)' : 'var(--text-primary)' }}>
+        {value}
+      </div>
+      <div className="text-[11.5px] font-medium"
+        style={{ color: accent ? 'rgba(255,255,255,0.6)' : 'var(--text-secondary)' }}>
+        {label}
+      </div>
+    </div>
+  )
+}
+
 export default function Orders() {
   const load         = useOrdersStore((s) => s.load)
   const isLoading    = useOrdersStore((s) => s.isLoading)
   const storeError   = useOrdersStore((s) => s.error)
   const orders       = useOrdersStore((s) => s.orders)
   const filterStatus = useOrdersStore((s) => s.filterStatus)
+  const filterRegion = useOrdersStore((s) => s.filterRegion)
   const search       = useOrdersStore((s) => s.search)
   const setFilter    = useOrdersStore((s) => s.setFilter)
   const getFiltered  = useOrdersStore((s) => s.getFiltered)
@@ -90,9 +113,46 @@ export default function Orders() {
     useOrdersStore.setState({ error: null })
     load(true)
   }, [authReady])
-  const filtered = useMemo(() => { setPage(1); return getFiltered() }, [orders, filterStatus, search])
+
+  const submissions  = useSubmissionsStore((s) => s.submissions)
+  const filtered = useMemo(() => { setPage(1); return getFiltered() }, [orders, filterStatus, filterRegion, search])
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page])
-  const hasFilter = search || filterStatus !== 'all'
+  const hasFilter = search || filterStatus !== 'all' || filterRegion !== 'all'
+
+  // KPIs — calculados sobre filtered sin nuevas queries
+  const subsByVisit = useMemo(() => {
+    const map = {}
+    for (const sub of submissions) {
+      if (!sub.site_visit_id) continue
+      if (!map[sub.site_visit_id]) map[sub.site_visit_id] = []
+      map[sub.site_visit_id].push(sub)
+    }
+    return map
+  }, [submissions])
+
+  const kpis = useMemo(() => {
+    let cerradas = 0, abiertas = 0, pendientes = 0, borrador = 0
+    for (const o of filtered) {
+      const subs        = subsByVisit[o.id] || []
+      const hasSubs     = subs.length > 0
+      const hasFinalized = subs.some(s => s.finalized === true)
+      if (o.status === 'closed')                                cerradas++
+      else if (o.status === 'open' && !hasSubs)                 pendientes++
+      else if (o.status === 'open' && hasSubs && !hasFinalized) borrador++
+      else if (o.status === 'open' && hasSubs)                  abiertas++
+    }
+    return { total: filtered.length, cerradas, abiertas, pendientes, borrador }
+  }, [filtered, subsByVisit])
+
+  // Opciones de región derivadas dinámicamente del dataset completo
+  const regionOptions = useMemo(() => {
+    const regions = new Set()
+    for (const o of orders) {
+      const r = extractRegion(o.order_number)
+      if (r) regions.add(r)
+    }
+    return [...regions].sort()
+  }, [orders])
 
   return (
     <div className="space-y-5">
@@ -103,6 +163,15 @@ export default function Orders() {
         <span className="text-[12px] font-semibold th-text-m th-bg-base px-2.5 py-0.5 rounded-full tabular-nums">
           {filtered.length}
         </span>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <VisitKpiCard label="Total Visitas"  value={kpis.total}      accent />
+        <VisitKpiCard label="Cerradas"       value={kpis.cerradas}   borderColor="#10b981" />
+        <VisitKpiCard label="Abiertas"       value={kpis.abiertas}   borderColor="#0284C7" />
+        <VisitKpiCard label="Pendientes"     value={kpis.pendientes} borderColor="#f59e0b" />
+        <VisitKpiCard label="Borrador"       value={kpis.borrador}   borderColor="#6366f1" />
       </div>
 
       {/* Filters */}
@@ -129,8 +198,17 @@ export default function Orders() {
           <option value="closed">Cerradas</option>
         </select>
 
+        <select value={filterRegion} onChange={e => setFilter({ filterRegion: e.target.value })}
+          className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
+            focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all th-text-s">
+          <option value="all">Todas las Regiones</option>
+          {regionOptions.map(r => (
+            <option key={r} value={r}>{regionLabel(r)}</option>
+          ))}
+        </select>
+
         {hasFilter && (
-          <button onClick={() => setFilter({ search: '', filterStatus: 'all' })}
+          <button onClick={() => setFilter({ search: '', filterStatus: 'all', filterRegion: 'all' })}
             className="h-9 px-3 text-[13px] th-text-m hover:th-text-p th-bg-card border th-border
               rounded-lg shadow-sm flex items-center gap-1.5 transition-colors hover:bg-slate-50/40">
             <X size={13} />Limpiar

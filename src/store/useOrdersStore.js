@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { useAuthStore } from './useAuthStore'
 import { useSubmissionsStore } from './useSubmissionsStore'
+import { extractRegion } from '../utils/regionUtils'
 
 export const useOrdersStore = create((set, get) => ({
   orders: [],
@@ -9,6 +10,7 @@ export const useOrdersStore = create((set, get) => ({
   loadingStartedAt: null,
   error:            null,
   filterStatus: 'all',
+  filterRegion: 'all',
   search: '',
   lastFetch: null,
 
@@ -62,7 +64,7 @@ export const useOrdersStore = create((set, get) => ({
   setFilter: (patch) => set(patch),
 
   getFiltered: () => {
-    const { orders, filterStatus, search } = get()
+    const { orders, filterStatus, filterRegion, search } = get()
 
     const user    = useAuthStore.getState().user
     const VIEWER_EXCLUDED_ORG_CODES = ['HK']
@@ -102,6 +104,11 @@ export const useOrdersStore = create((set, get) => ({
       // Filtrar por estado
       const statusOk = filterStatus === 'all' || o.status === filterStatus
       if (!statusOk) return false
+      // Filtrar por región
+      if (filterRegion !== 'all') {
+        const region = extractRegion(o.order_number)
+        if (region !== filterRegion) return false
+      }
       // Filtrar por búsqueda
       if (!q) return true
       return [
