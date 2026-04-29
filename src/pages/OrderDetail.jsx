@@ -315,7 +315,7 @@ export default function OrderDetail() {
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Completado
                         </span>
                       : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Borrador
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />En progreso
                         </span>}
                     <ChevronRight size={14} className="th-text-m group-hover:text-sky-600 transition-colors" />
                   </div>

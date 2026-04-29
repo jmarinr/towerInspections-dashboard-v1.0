@@ -18,7 +18,7 @@ const PERMISSION_GROUPS = [
     permissions: [
       { key:'submissions.view_all',      label:'Ver formularios de todas las empresas', desc:'Solo relevante para admin global' },
       { key:'submissions.edit',          label:'Editar campos de formularios',           desc:'Modificar datos con registro de auditoría' },
-      { key:'submissions.change_status', label:'Cambiar estado de formularios',          desc:'Marcar como Completado o revertir a Borrador' },
+      { key:'submissions.change_status', label:'Cambiar estado de formularios',          desc:'Marcar como Completado o revertir a En progreso' },
       { key:'submissions.export_pdf',    label:'Exportar PDF',                           desc:'Generar y descargar reportes en PDF' },
       { key:'submissions.export_photos', label:'Descargar fotos',                        desc:'Descargar paquete ZIP de fotografías' },
     ]

@@ -74,9 +74,9 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
   )
 }
 
-function VisitKpiCard({ label, value, accent = false, borderColor }) {
+function VisitKpiCard({ label, value, accent = false, borderColor, className = '' }) {
   return (
-    <div className="rounded-2xl p-4 border th-shadow flex flex-col gap-2"
+    <div className={`rounded-2xl p-4 border th-shadow flex flex-col gap-2 ${className}`}
       style={{
         background:  accent ? 'var(--stat-accent-bg)' : 'var(--bg-card)',
         borderColor: accent ? 'transparent' : borderColor || 'var(--border)',
@@ -87,7 +87,7 @@ function VisitKpiCard({ label, value, accent = false, borderColor }) {
         {value}
       </div>
       <div className="text-[11.5px] font-medium"
-        style={{ color: accent ? 'rgba(255,255,255,0.6)' : 'var(--text-secondary)' }}>
+        style={{ color: accent ? 'var(--stat-accent-sub)' : 'var(--text-secondary)' }}>
         {label}
       </div>
     </div>
@@ -167,11 +167,11 @@ export default function Orders() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <VisitKpiCard label="Total Visitas"  value={kpis.total}      accent />
-        <VisitKpiCard label="Cerradas"       value={kpis.cerradas}   borderColor="#10b981" />
-        <VisitKpiCard label="Abiertas"       value={kpis.abiertas}   borderColor="#0284C7" />
-        <VisitKpiCard label="Pendientes"     value={kpis.pendientes} borderColor="#f59e0b" />
-        <VisitKpiCard label="Borrador"       value={kpis.borrador}   borderColor="#6366f1" />
+        <VisitKpiCard label="Total Visitas"  value={kpis.total}      accent           className="animate-kpi-enter delay-50" />
+        <VisitKpiCard label="Cerradas"       value={kpis.cerradas}   borderColor="#0d9488" className="animate-kpi-enter delay-100" />
+        <VisitKpiCard label="Abiertas"       value={kpis.abiertas}   borderColor="#475569" className="animate-kpi-enter delay-150" />
+        <VisitKpiCard label="Pendientes"     value={kpis.pendientes} borderColor="#d97706" className="animate-kpi-enter delay-200" />
+        <VisitKpiCard label="En progreso"    value={kpis.borrador}   borderColor="#6366f1" className="animate-kpi-enter delay-250" />
       </div>
 
       {/* Filters */}

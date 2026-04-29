@@ -8,9 +8,9 @@ import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { getFormMeta, isFormVisible } from '../data/formTypes'
 import { extractSiteInfo, isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 
-function StatCard({ icon: Icon, label, value, sub, primary = false }) {
+function StatCard({ icon: Icon, label, value, sub, primary = false, className = '' }) {
   return (
-    <div className="rounded-2xl p-5 border th-shadow animate-slide-up flex flex-col gap-3 transition-colors"
+    <div className={`rounded-2xl p-5 border th-shadow animate-slide-up flex flex-col gap-3 transition-colors ${className}`}
       style={{
         background:   primary ? 'var(--stat-accent-bg)' : 'var(--bg-card)',
         borderColor:  primary ? 'transparent' : 'var(--border)',
@@ -79,10 +79,10 @@ export default function Dashboard() {
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={ClipboardList} label="Formularios totales" value={total} primary />
-        <StatCard icon={TrendingUp}   label="Última semana"        value={recentCount} sub="nuevos envíos" />
-        <StatCard icon={FolderOpen}   label="Visitas activas"      value={openVisits || 0} sub={`de ${totalVisits || 0} totales`} />
-        <StatCard icon={Camera}       label="Último envío"         value={lastDate} />
+        <StatCard icon={ClipboardList} label="Formularios totales" value={total} primary className="delay-50" />
+        <StatCard icon={TrendingUp}   label="Última semana"        value={recentCount} sub="nuevos envíos" className="delay-100" />
+        <StatCard icon={FolderOpen}   label="Visitas activas"      value={openVisits || 0} sub={`de ${totalVisits || 0} totales`} className="delay-150" />
+        <StatCard icon={Camera}       label="Último envío"         value={lastDate} className="delay-200" />
       </div>
 
       {/* Main grid */}
@@ -184,7 +184,7 @@ export default function Dashboard() {
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Completado
                         </span>
                       : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Borrador
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />En progreso
                         </span>}
                     {date && <span className="text-[10px] th-text-m">{date}</span>}
                   </div>

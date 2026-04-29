@@ -998,9 +998,9 @@ export default function SubmissionDetail() {
   const handleFinalizedToggle = () => {
     if (!user?.canWrite) return
     if (!hasPermission('submissions.change_status')) return
-    // Completado → Borrador: pide confirmación (acción de mayor impacto)
+    // Completado → En progreso: pide confirmación (acción de mayor impacto)
     if (fin) { setConfirmRevert(true); return }
-    // Borrador → Completado: acción directa
+    // En progreso → Completado: acción directa
     executeFinalizedToggle(true)
   }
 
@@ -1011,11 +1011,11 @@ export default function SubmissionDetail() {
       await updateSubmissionPayload(submissionId, submission.payload, { __finalized__: newVal })
       insertSubmissionEdit(submissionId, user.username, {
         estado: {
-          from:  fin ? 'Completado' : 'Borrador',
-          to:    newVal ? 'Completado' : 'Borrador',
+          from:  fin ? 'Completado' : 'En progreso',
+          to:    newVal ? 'Completado' : 'En progreso',
           label: 'Estado',
         },
-      }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a Borrador desde el panel')
+      }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a En progreso desde el panel')
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
 
       // ── Log del cambio de formulario ───────────────────────────────────────
@@ -1023,8 +1023,8 @@ export default function SubmissionDetail() {
       LOG.submissionStatusChanged(
         submissionId, siteName,
         user.email, user.role,
-        fin ? 'Completado' : 'Borrador',
-        newVal ? 'Completado' : 'Borrador'
+        fin ? 'Completado' : 'En progreso',
+        newVal ? 'Completado' : 'En progreso'
       )
 
       // ── Consistencia con la orden ──────────────────────────────────────────
@@ -1461,17 +1461,17 @@ export default function SubmissionDetail() {
                 {canWrite && !editMode && hasPermission('submissions.change_status')
                   ? (
                     <button onClick={handleFinalizedToggle} disabled={saving}
-                      title={fin ? 'Click para revertir a Borrador' : 'Click para marcar como Completado'}
+                      title={fin ? 'Click para revertir a En progreso' : 'Click para marcar como Completado'}
                       className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border transition-all hover:scale-105 active:scale-95
                         ${fin
                           ? 'text-good bg-good/10 border-good/20 hover:bg-good/20'
                           : 'text-warn bg-warn/10 border-warn/20 hover:bg-warn/20'}`}>
-                      {saving ? '…' : fin ? '✓ Completado' : '○ Borrador'}
+                      {saving ? '…' : fin ? '✓ Completado' : '○ En progreso'}
                     </button>
                   ) : (
                     fin
                       ? <span className="text-[10px] font-semibold text-good bg-good/10 px-2 py-0.5 rounded-full">Completado</span>
-                      : <span className="text-[10px] font-semibold text-warn bg-warn/10 px-2 py-0.5 rounded-full">Borrador</span>
+                      : <span className="text-[10px] font-semibold text-warn bg-warn/10 px-2 py-0.5 rounded-full">En progreso</span>
                   )}
               </div>
               <div className="text-[13px] th-text-m mt-0.5">{meta.label}</div>
@@ -1571,12 +1571,12 @@ export default function SubmissionDetail() {
         <EditHistory submissionId={submissionId} />
       </div>
 
-      {/* Modal de confirmación — Completado → Borrador */}
+      {/* Modal de confirmación — Completado → En progreso */}
       {confirmRevert && (
-        <Modal title="Revertir a Borrador" onClose={() => setConfirmRevert(false)}>
+        <Modal title="Revertir a En progreso" onClose={() => setConfirmRevert(false)}>
           <div className="space-y-4">
             <p className="text-[13px] th-text-p leading-relaxed">
-              ¿Confirmas que quieres revertir este formulario de <strong>Completado</strong> a <strong>Borrador</strong>?
+              ¿Confirmas que quieres revertir este formulario de <strong>Completado</strong> a <strong>En progreso</strong>?
             </p>
             <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
               Si la orden asociada estaba cerrada, se reabrirá automáticamente para mantener consistencia.
@@ -1590,7 +1590,7 @@ export default function SubmissionDetail() {
               <button onClick={() => executeFinalizedToggle(false)} disabled={saving}
                 className="px-4 py-2 rounded-xl text-[13px] font-semibold text-white disabled:opacity-50"
                 style={{ background: '#b45309' }}>
-                {saving ? '…' : 'Revertir a Borrador'}
+                {saving ? '…' : 'Revertir a En progreso'}
               </button>
             </div>
           </div>

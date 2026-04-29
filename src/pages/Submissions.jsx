@@ -87,7 +87,7 @@ function StatusPill({ fin }) {
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Completado
       </span>
     : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200 whitespace-nowrap">
-        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />Borrador
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />En progreso
       </span>
 }
 
@@ -265,7 +265,8 @@ export default function Submissions() {
                 return (
                   <tr key={sub.id}
                     onClick={() => navigate(`/submissions/${sub.id}`)}
-                    className="cursor-pointer transition-colors group"
+                    className="cursor-pointer transition-colors group animate-row-enter"
+                    style={{ animationDelay: `${Math.min(idx * 30, 200)}ms` }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--row-hover-bg)'}
                     onMouseLeave={e => e.currentTarget.style.background = ''}>
 
@@ -312,7 +313,7 @@ export default function Submissions() {
                       {/* Móvil: solo dot */}
                       <span className="sm:hidden flex items-center justify-center">
                         <span className={`w-2.5 h-2.5 rounded-full ${fin ? 'bg-emerald-500' : 'bg-amber-400'}`}
-                          title={fin ? 'Completado' : 'Borrador'} />
+                          title={fin ? 'Completado' : 'En progreso'} />
                       </span>
                       {/* Desktop: badge completo */}
                       <span className="hidden sm:inline">
