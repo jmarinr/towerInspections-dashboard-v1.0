@@ -165,9 +165,14 @@ export async function fetchSubmissionWithAssets(id) {
  * Fetch all site visits (orders).
  */
 export async function fetchSiteVisits({ status, limit = 2000 } = {}) {
+  // Incluimos un conteo de submissions para calcular sub-estados sin depender
+  // del store de submissions. Supabase retorna submissions como array embebido.
   let query = supabase
     .from('site_visits')
-    .select('*')
+    .select(`
+      *,
+      submissions(id, form_code, finalized)
+    `)
     .order('started_at', { ascending: false })
     .limit(limit)
 
@@ -175,10 +180,36 @@ export async function fetchSiteVisits({ status, limit = 2000 } = {}) {
     query = query.eq('status', status)
   }
 
-  // q() wrapper protege contra queries que se cuelgan indefinidamente
   const { data, error } = await q(query, 30000)
   if (error) throw error
-  return data || []
+
+  // Calcular sub-estado directamente desde los submissions embebidos
+  const CANONICAL = {
+    'preventive-maintenance': 'mantenimiento',
+    'executed-maintenance':   'mantenimiento-ejecutado',
+    'inventario-v2':          'equipment-v2',
+    'safety-system':          'sistema-ascenso',
+    'additional-photo':       'additional-photo-report',
+    'reporte-fotos':          'additional-photo-report',
+    'puesta-tierra':          'grounding-system-test',
+  }
+  const normalize = c => CANONICAL[c] || c
+
+  return (data || []).map(v => {
+    const subs        = v.submissions || []
+    const hasSubs     = subs.length > 0
+    const hasFinalized = subs.some(s => s.finalized === true)
+
+    let subState
+    if (v.status === 'closed')              subState = 'closed'
+    else if (!hasSubs)                      subState = 'sin-iniciar'
+    else if (hasSubs && !hasFinalized)      subState = 'en-curso'
+    else                                    subState = 'con-avance'
+
+    // Eliminar el array submissions embebido — solo mantenemos el sub-estado calculado
+    const { submissions: _subs, ...rest } = v
+    return { ...rest, subState, hasSubs, hasFinalized }
+  })
 }
 
 /**

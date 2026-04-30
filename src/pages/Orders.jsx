@@ -154,20 +154,12 @@ export default function Orders() {
   const filtered = useMemo(() => {
     setPage(1)
     const base = getFiltered()
-    // Sub-estados: filtrar por estado de submissions si aplica
+    // Sub-estados: usar subState embebido en la visita (calculado en Supabase)
     if (['con-avance', 'sin-iniciar', 'en-curso'].includes(filterStatus)) {
-      return base.filter(o => {
-        const subs        = subsByVisit[o.id] || []
-        const hasSubs     = subs.length > 0
-        const hasFinalized = subs.some(s => s.finalized === true)
-        if (filterStatus === 'con-avance')  return hasSubs && hasFinalized
-        if (filterStatus === 'sin-iniciar') return !hasSubs
-        if (filterStatus === 'en-curso')    return hasSubs && !hasFinalized
-        return true
-      })
+      return base.filter(o => o.subState === filterStatus)
     }
     return base
-  }, [orders, filterStatus, filterRegion, search, subsByVisit])
+  }, [orders, filterStatus, filterRegion, search])
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page])
   const hasFilter = search || filterRegion !== 'all'
 
@@ -175,16 +167,13 @@ export default function Orders() {
   const kpis = useMemo(() => {
     let cerradas = 0, abiertas = 0, pendientes = 0, borrador = 0
     for (const o of filtered) {
-      const subs        = subsByVisit[o.id] || []
-      const hasSubs     = subs.length > 0
-      const hasFinalized = subs.some(s => s.finalized === true)
-      if (o.status === 'closed')                                cerradas++
-      else if (o.status === 'open' && !hasSubs)                 pendientes++
-      else if (o.status === 'open' && hasSubs && !hasFinalized) borrador++
-      else if (o.status === 'open' && hasSubs)                  abiertas++
+      if (o.subState === 'closed')       cerradas++
+      else if (o.subState === 'con-avance')  abiertas++
+      else if (o.subState === 'sin-iniciar') pendientes++
+      else if (o.subState === 'en-curso')    borrador++
     }
     return { total: filtered.length, cerradas, abiertas, pendientes, borrador }
-  }, [filtered, subsByVisit])
+  }, [filtered])
 
   // Opciones de región derivadas dinámicamente del dataset completo
   const regionOptions = useMemo(() => {
@@ -301,21 +290,14 @@ export default function Orders() {
             <tbody className="divide-y divide-slate-50">
               {paginated.map(o => {
                 const d    = o.started_at ? new Date(o.started_at) : null
-                const open = o.status === 'open'
-                const subs          = subsByVisit[o.id] || []
-                const hasSubs       = subs.length > 0
-                const hasFinalized  = subs.some(s => s.finalized === true)
-                const subState = !open ? 'closed'
-                  : !hasSubs ? 'sin-iniciar'
-                  : hasFinalized ? 'con-avance'
-                  : 'en-curso'
+                const subState = o.subState || (o.status === 'closed' ? 'closed' : 'sin-iniciar')
                 const STATE_BADGE = {
                   'closed':      { label: 'Cerrada',    bg: '#f1f5f9', color: '#475569', dot: '#94a3b8', ring: '#e2e8f0' },
                   'con-avance':  { label: 'Con avance', bg: '#f0fdfa', color: '#0f766e', dot: '#0d9488', ring: '#99f6e4' },
                   'sin-iniciar': { label: 'Sin iniciar',bg: '#fafafa',  color: '#6b7280', dot: '#9ca3af', ring: '#e5e7eb' },
                   'en-curso':    { label: 'En curso',   bg: '#fef3c7', color: '#92400e', dot: '#d97706', ring: '#fde68a' },
                 }
-                const badge = STATE_BADGE[subState]
+                const badge = STATE_BADGE[subState] || STATE_BADGE['sin-iniciar']
                 return (
                   <tr key={o.id} onClick={() => navigate(`/orders/${o.id}`)}
                     className="cursor-pointer transition-colors group"
