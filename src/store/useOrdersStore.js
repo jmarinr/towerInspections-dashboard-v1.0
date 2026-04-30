@@ -101,9 +101,18 @@ export const useOrdersStore = create((set, get) => ({
       if (allowedVisitIds && !allowedVisitIds.has(o.id)) return false
       // Viewer: excluir visitas de empresas internas (HenkanCX)
       if (excludedVisitIds && excludedVisitIds.has(o.id)) return false
-      // Filtrar por estado
-      const statusOk = filterStatus === 'all' || o.status === filterStatus
-      if (!statusOk) return false
+      // Filtrar por estado — soporta sub-estados de "open"
+      if (filterStatus !== 'all') {
+        if (filterStatus === 'closed') {
+          if (o.status !== 'closed') return false
+        } else if (filterStatus === 'open') {
+          if (o.status !== 'open') return false
+        } else if (['con-avance', 'sin-iniciar', 'en-curso'].includes(filterStatus)) {
+          if (o.status !== 'open') return false
+          // Sub-estados: el store prefiltra solo open;
+          // el useMemo del componente aplica el sub-filtro con submissions
+        }
+      }
       // Filtrar por región
       if (filterRegion !== 'all') {
         const region = extractRegion(o.order_number)

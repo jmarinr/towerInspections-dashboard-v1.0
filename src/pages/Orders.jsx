@@ -74,14 +74,38 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
   )
 }
 
-function VisitKpiCard({ label, value, accent = false, borderColor, className = '' }) {
+// Tooltips por estado
+const KPI_TOOLTIPS = {
+  'all':         'Todas las visitas según los filtros activos',
+  'closed':      'Inspección finalizada y cerrada',
+  'con-avance':  'Abierta con al menos 1 formulario finalizado',
+  'sin-iniciar': 'El inspector aún no ha enviado ningún formulario',
+  'en-curso':    'Formularios enviados pero ninguno finalizado aún',
+}
+
+function VisitKpiCard({ label, value, accent = false, borderColor, className = '', filterKey, activeFilter, onFilter }) {
+  const isActive = activeFilter === filterKey
   return (
-    <div className={`rounded-2xl p-4 border th-shadow flex flex-col gap-2 ${className}`}
+    <div
+      onClick={() => onFilter(isActive ? 'all' : filterKey)}
+      title={KPI_TOOLTIPS[filterKey] || ''}
+      className={`rounded-2xl p-4 border th-shadow flex flex-col gap-2 cursor-pointer select-none
+        transition-all duration-150 relative group ${className}
+        ${isActive ? 'ring-2 ring-offset-1' : 'hover:-translate-y-0.5 hover:shadow-md'}`}
       style={{
-        background:  accent ? 'var(--stat-accent-bg)' : 'var(--bg-card)',
-        borderColor: accent ? 'transparent' : borderColor || 'var(--border)',
+        background:  accent ? (isActive ? '#263446' : 'var(--stat-accent-bg)') : (isActive ? '#f1f5f9' : 'var(--bg-card)'),
+        borderColor: accent ? 'transparent' : isActive ? (borderColor || '#475569') : (borderColor || 'var(--border)'),
         borderLeft:  !accent && borderColor ? `3px solid ${borderColor}` : undefined,
+        ringColor:   borderColor || '#475569',
       }}>
+
+      {/* Hint "Filtrar" / "Filtrando" */}
+      <span className={`absolute top-2 right-2.5 text-[9px] font-semibold transition-opacity duration-150
+        ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+        style={{ color: accent ? 'rgba(255,255,255,0.5)' : borderColor || '#94a3b8' }}>
+        {isActive ? '● filtrando' : 'filtrar ↑'}
+      </span>
+
       <div className="text-[26px] font-bold leading-none tabular-nums"
         style={{ color: accent ? 'var(--stat-accent-text)' : 'var(--text-primary)' }}>
         {value}
@@ -115,9 +139,25 @@ export default function Orders() {
   }, [authReady])
 
   const submissions  = useSubmissionsStore((s) => s.submissions)
-  const filtered = useMemo(() => { setPage(1); return getFiltered() }, [orders, filterStatus, filterRegion, search])
+  const filtered = useMemo(() => {
+    setPage(1)
+    const base = getFiltered()
+    // Sub-estados: filtrar por estado de submissions si aplica
+    if (['con-avance', 'sin-iniciar', 'en-curso'].includes(filterStatus)) {
+      return base.filter(o => {
+        const subs        = subsByVisit[o.id] || []
+        const hasSubs     = subs.length > 0
+        const hasFinalized = subs.some(s => s.finalized === true)
+        if (filterStatus === 'con-avance')  return hasSubs && hasFinalized
+        if (filterStatus === 'sin-iniciar') return !hasSubs
+        if (filterStatus === 'en-curso')    return hasSubs && !hasFinalized
+        return true
+      })
+    }
+    return base
+  }, [orders, filterStatus, filterRegion, search, subsByVisit])
   const paginated = useMemo(() => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [filtered, page])
-  const hasFilter = search || filterStatus !== 'all' || filterRegion !== 'all'
+  const hasFilter = search || filterRegion !== 'all'
 
   // KPIs — calculados sobre filtered sin nuevas queries
   const subsByVisit = useMemo(() => {
@@ -165,13 +205,34 @@ export default function Orders() {
         </span>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs clickeables */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <VisitKpiCard label="Total Visitas"  value={kpis.total}      accent           className="animate-kpi-enter delay-50" />
-        <VisitKpiCard label="Cerradas"       value={kpis.cerradas}   borderColor="#0d9488" className="animate-kpi-enter delay-100" />
-        <VisitKpiCard label="Abiertas"       value={kpis.abiertas}   borderColor="#475569" className="animate-kpi-enter delay-150" />
-        <VisitKpiCard label="Pendientes"     value={kpis.pendientes} borderColor="#d97706" className="animate-kpi-enter delay-200" />
-        <VisitKpiCard label="En progreso"    value={kpis.borrador}   borderColor="#6366f1" className="animate-kpi-enter delay-250" />
+        <VisitKpiCard label="Total visitas"  value={kpis.total}      accent           filterKey="all"         activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-50" />
+        <VisitKpiCard label="Cerradas"       value={kpis.cerradas}   borderColor="#0d9488" filterKey="closed"      activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-100" />
+        <VisitKpiCard label="Con avance"     value={kpis.abiertas}   borderColor="#475569" filterKey="con-avance"  activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-150" />
+        <VisitKpiCard label="Sin iniciar"    value={kpis.pendientes} borderColor="#d97706" filterKey="sin-iniciar" activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-200" />
+        <VisitKpiCard label="En curso"       value={kpis.borrador}   borderColor="#6366f1" filterKey="en-curso"    activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-250" />
+      </div>
+
+      {/* Hint bar */}
+      <div className="flex items-center gap-2 px-1" style={{ minHeight: 28 }}>
+        {filterStatus === 'all' ? (
+          <span className="text-[11px] th-text-m flex items-center gap-1.5">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M1 3h10M2.5 6h7M4 9h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Toca una tarjeta para filtrar por ese estado
+          </span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] th-text-m">Filtrando por:</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+              style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}>
+              {{ 'closed': 'Cerradas', 'con-avance': 'Con avance', 'sin-iniciar': 'Sin iniciar', 'en-curso': 'En curso' }[filterStatus]}
+              <button onClick={() => setFilter({ filterStatus: 'all' })}
+                className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold"
+                style={{ background: '#94a3b8', color: '#fff' }}>✕</button>
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -190,18 +251,10 @@ export default function Orders() {
           )}
         </div>
 
-        <select value={filterStatus} onChange={e => setFilter({ filterStatus: e.target.value })}
-          className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
-            focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all th-text-s">
-          <option value="all">Todas</option>
-          <option value="open">Abiertas</option>
-          <option value="closed">Cerradas</option>
-        </select>
-
         <select value={filterRegion} onChange={e => setFilter({ filterRegion: e.target.value })}
           className="h-9 px-3 text-[13px] th-bg-card border th-border rounded-lg
             focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all th-text-s">
-          <option value="all">Todas las Regiones</option>
+          <option value="all">Todas las regiones</option>
           {regionOptions.map(r => (
             <option key={r} value={r}>{regionLabel(r)}</option>
           ))}
@@ -247,6 +300,20 @@ export default function Orders() {
               {paginated.map(o => {
                 const d    = o.started_at ? new Date(o.started_at) : null
                 const open = o.status === 'open'
+                const subs          = subsByVisit[o.id] || []
+                const hasSubs       = subs.length > 0
+                const hasFinalized  = subs.some(s => s.finalized === true)
+                const subState = !open ? 'closed'
+                  : !hasSubs ? 'sin-iniciar'
+                  : hasFinalized ? 'con-avance'
+                  : 'en-curso'
+                const STATE_BADGE = {
+                  'closed':      { label: 'Cerrada',    bg: '#f1f5f9', color: '#475569', dot: '#94a3b8', ring: '#e2e8f0' },
+                  'con-avance':  { label: 'Con avance', bg: '#f0fdfa', color: '#0f766e', dot: '#0d9488', ring: '#99f6e4' },
+                  'sin-iniciar': { label: 'Sin iniciar',bg: '#fafafa',  color: '#6b7280', dot: '#9ca3af', ring: '#e5e7eb' },
+                  'en-curso':    { label: 'En curso',   bg: '#fef3c7', color: '#92400e', dot: '#d97706', ring: '#fde68a' },
+                }
+                const badge = STATE_BADGE[subState]
                 return (
                   <tr key={o.id} onClick={() => navigate(`/orders/${o.id}`)}
                     className="cursor-pointer transition-colors group"
@@ -273,13 +340,11 @@ export default function Orders() {
                     </td>
 
                     <td className="px-4 py-3.5">
-                      {open
-                        ? <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Abierta
-                          </span>
-                        : <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 th-text-m ring-1 ring-inset ring-slate-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Cerrada
-                          </span>}
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ring-1 ring-inset"
+                        style={{ background: badge.bg, color: badge.color, '--tw-ring-color': badge.ring }}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: badge.dot }} />
+                        {badge.label}
+                      </span>
                     </td>
 
                     <td className="px-4 py-3.5 text-center">

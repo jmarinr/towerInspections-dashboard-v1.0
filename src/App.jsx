@@ -12,6 +12,7 @@ import Users from './pages/admin/Users'
 import Permissions from './pages/admin/Permissions'
 import Regions from './pages/admin/Regions'
 import Logs from './pages/admin/Logs'
+import SystemHealth from './pages/admin/SystemHealth'
 import { useAuthStore } from './store/useAuthStore'
 import { useThemeStore } from './store/useThemeStore'
 import Shell from './components/layout/Shell'
@@ -77,6 +78,7 @@ export default function App() {
       <Route path="/admin/regions"                element={<AdminPage><Regions /></AdminPage>} />
       <Route path="/admin/permissions"            element={<AdminPage><Permissions /></AdminPage>} />
       <Route path="/admin/logs"                   element={<AdminPage><Logs /></AdminPage>} />
+      <Route path="/admin/system"                 element={<AdminPage><SystemHealth /></AdminPage>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
