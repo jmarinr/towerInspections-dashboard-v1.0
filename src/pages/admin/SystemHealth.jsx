@@ -65,15 +65,18 @@ export default function SystemHealth() {
 
   // ── Verificar trigger ───────────────────────────────────────────────────────
   const checkTrigger = useCallback(async () => {
-    const { data } = await supabase.rpc('check_trigger_exists').catch(() => ({ data: null }))
-    // Fallback: verificar que la función existe vía una query de system
-    if (data !== null) { setTriggerOk(!!data); return }
-    // Verificar indirectamente ejecutando la función con un UUID ficticio
-    const { error: fnErr } = await supabase.rpc('check_and_close_visit', {
-      p_visit_id: '00000000-0000-0000-0000-000000000000'
-    })
-    // Si el error no es "function not found", la función existe
-    setTriggerOk(!fnErr || !fnErr.message?.includes('does not exist'))
+    try {
+      // Verificar que la función check_and_close_visit existe ejecutándola
+      // con un UUID que no existe — si no lanza "function not found", la función existe
+      const { error } = await supabase.rpc('check_and_close_visit', {
+        p_visit_id: '00000000-0000-0000-0000-000000000000'
+      })
+      // PGRST202 = función no encontrada → trigger inactivo
+      // cualquier otro error (o sin error) → función existe → trigger activo
+      setTriggerOk(!error || error.code !== 'PGRST202')
+    } catch {
+      setTriggerOk(false)
+    }
   }, [])
 
   // ── Cargar inconsistencias ──────────────────────────────────────────────────

@@ -139,6 +139,18 @@ export default function Orders() {
   }, [authReady])
 
   const submissions  = useSubmissionsStore((s) => s.submissions)
+
+  // subsByVisit debe estar antes de filtered (TDZ: filtered usa subsByVisit)
+  const subsByVisit = useMemo(() => {
+    const map = {}
+    for (const sub of submissions) {
+      if (!sub.site_visit_id) continue
+      if (!map[sub.site_visit_id]) map[sub.site_visit_id] = []
+      map[sub.site_visit_id].push(sub)
+    }
+    return map
+  }, [submissions])
+
   const filtered = useMemo(() => {
     setPage(1)
     const base = getFiltered()
@@ -160,16 +172,6 @@ export default function Orders() {
   const hasFilter = search || filterRegion !== 'all'
 
   // KPIs — calculados sobre filtered sin nuevas queries
-  const subsByVisit = useMemo(() => {
-    const map = {}
-    for (const sub of submissions) {
-      if (!sub.site_visit_id) continue
-      if (!map[sub.site_visit_id]) map[sub.site_visit_id] = []
-      map[sub.site_visit_id].push(sub)
-    }
-    return map
-  }, [submissions])
-
   const kpis = useMemo(() => {
     let cerradas = 0, abiertas = 0, pendientes = 0, borrador = 0
     for (const o of filtered) {
