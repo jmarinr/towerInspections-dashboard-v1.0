@@ -42,8 +42,8 @@ export function extractSiteInfo(submission) {
   const { data } = resolveInner(submission)
   const si = data.siteInfo || {}; const fd = data.formData || {}; const dt = data.datos || {}
   return {
-    nombreSitio: si.nombreSitio || fd.nombreSitio || dt.nombreSitio || '—',
-    idSitio: si.idSitio || fd.idSitio || dt.idSitio || '—',
+    nombreSitio: si.nombreSitio || fd.nombreSitio || dt.nombreSitio || submission.site_name || '—',
+    idSitio: si.idSitio || fd.idSitio || dt.idSitio || submission.site_id || '—',
     proveedor: si.proveedor || fd.proveedor || dt.proveedor || '—',
     tipoSitio: si.tipoSitio || fd.tipoSitio || dt.tipoSitio || '',
     coordenadas: si.coordenadas || fd.coordenadas || '',

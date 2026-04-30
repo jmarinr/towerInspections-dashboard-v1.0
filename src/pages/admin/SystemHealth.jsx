@@ -318,7 +318,7 @@ export default function SystemHealth() {
       <div className="rounded-xl px-4 py-3 text-[11.5px] th-text-m space-y-1"
         style={{ background: 'var(--bg-base)', border: '1px solid var(--border)' }}>
         <p className="font-semibold th-text-p mb-1">¿Cómo funciona el trigger?</p>
-        <p>Cada vez que un inspector finaliza un formulario, Supabase ejecuta <code className="bg-slate-100 px-1 rounded text-[11px]">on_submission_finalized</code> automáticamente.</p>
+        <p>Cada vez que un inspector finaliza un formulario, el servicio ejecuta <code className="bg-slate-100 px-1 rounded text-[11px]">on_submission_finalized</code> automáticamente.</p>
         <p>Si detecta que los 6 formularios requeridos están finalizados, cierra la visita con <code className="bg-slate-100 px-1 rounded text-[11px]">status = 'closed'</code> sin depender del Inspector App.</p>
         <p>Esta página verifica el estado cada 60 segundos. Si aparece alguna inconsistencia, usa el botón "Cerrar ahora" para resolverla manualmente.</p>
       </div>

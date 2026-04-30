@@ -255,6 +255,14 @@ export default function Submissions() {
                 const fin     = sub.finalized || isFinalized(sub)
                 const score   = getScore(sub)
 
+                // Fallback: si el payload no tiene site info, usar datos de la visita
+                const siteName = (site.nombreSitio && site.nombreSitio !== '—')
+                  ? site.nombreSitio
+                  : (sub.site_name || null)
+                const siteId   = (site.idSitio && site.idSitio !== '—')
+                  ? site.idSitio
+                  : (sub.site_id || null)
+
                 // Date: prefer startedAt from meta, then sub.created_at
                 const rawDate = inspMeta.startedAt || sub.created_at || ''
                 const { date, time } = fmtDate(rawDate)
@@ -277,10 +285,10 @@ export default function Submissions() {
                     {/* Sitio */}
                     <td className="px-4 py-3.5 min-w-0">
                       <div className="text-[13px] font-semibold th-text-p truncate max-w-[220px]">
-                        {site.nombreSitio || <span className="th-text-m font-normal">Sin nombre</span>}
+                        {siteName || <span className="th-text-m font-normal">Sin nombre</span>}
                       </div>
-                      {site.idSitio && (
-                        <div className="text-[11px] th-text-m mt-0.5">ID: {site.idSitio}</div>
+                      {siteId && (
+                        <div className="text-[11px] th-text-m mt-0.5">ID: {siteId}</div>
                       )}
                     </td>
 

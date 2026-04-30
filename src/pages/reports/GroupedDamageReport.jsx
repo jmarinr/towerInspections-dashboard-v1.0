@@ -364,7 +364,7 @@ export default function GroupedDamageReport({ hook }) {
           "Si todos los sitios de un grupo están 'Pendiente', el daño no ha sido atendido en ninguna torre.",
           "El filtro de Estado muestra grupos que tengan AL MENOS UN sitio en ese estado.",
           "Los grupos están ordenados por mayor número de sitios afectados para priorizar el trabajo de mayor impacto.",
-          "La columna Nota Cotización persiste en Supabase — visible para todos los usuarios del panel.",
+          "La columna Nota Cotización se guarda en la base de datos — visible para todos los usuarios del panel.",
         ]}
       />
 

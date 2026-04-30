@@ -31,7 +31,10 @@ import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/f
 export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, limit = 2000 } = {}) {
   let query = supabase
     .from('submissions')
-    .select('*')
+    .select(`
+      *,
+      site_visits!submissions_site_visit_id_fkey(site_id, site_name)
+    `)
     .order('updated_at', { ascending: false })
     .limit(limit)
 
@@ -39,12 +42,10 @@ export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, lim
     query = query.eq('form_code', formCode)
   }
 
-  // Filtro por empresa: solo aplica si orgCode está definido
   if (orgCode) {
     query = query.eq('org_code', orgCode)
   }
 
-  // Viewer: excluir siempre las empresas de prueba (HK = HenkanCX)
   if (excludeOrgCodes && excludeOrgCodes.length > 0) {
     query = query.not('org_code', 'in', `(${excludeOrgCodes.map(c => `"${c}"`).join(',')})`)
   }
@@ -52,8 +53,15 @@ export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, lim
   const { data, error } = await query
   if (error) throw error
 
-  return (data || [])
-    .map(normalizeSubmission)
+  // Aplanar site_visits embebido → site_id y site_name directamente en la submission
+  return (data || []).map(s => {
+    const { site_visits: sv, ...rest } = s
+    return normalizeSubmission({
+      ...rest,
+      site_id:   rest.site_id   || sv?.site_id   || null,
+      site_name: rest.site_name || sv?.site_name  || null,
+    })
+  })
     .filter(s => {
       const p = s.payload || {}
       const inner = p.payload || p
