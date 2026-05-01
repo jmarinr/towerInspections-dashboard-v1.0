@@ -231,18 +231,18 @@ export default function Submissions() {
 
           {/* Header row — usando <table> real para alineación correcta */}
           <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[520px]">
+              <table className="w-full text-left border-collapse min-w-[600px]">
             <thead>
               <tr className="border-b th-border-l">
-                <th className="px-3 sm:px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[140px] sm:w-[170px]">Tipo</th>
+                <th className="px-3 sm:px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[160px]">Tipo</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Sitio</th>
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[90px] hidden md:table-cell">Orden</th>
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[130px] hidden md:table-cell">Inspector</th>
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[120px] hidden lg:table-cell">Fecha</th>
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[32px] sm:w-[120px]">
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[200px] hidden lg:table-cell">Orden</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[150px] hidden md:table-cell">Inspector</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[110px] hidden lg:table-cell">Fecha</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[120px]">
                   <span className="hidden sm:inline">Estado</span>
                 </th>
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[70px] hidden sm:table-cell text-center">Score</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider w-[80px] hidden sm:table-cell text-center">Score</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -293,18 +293,18 @@ export default function Submissions() {
                     </td>
 
                     {/* Orden */}
-                    <td className="px-4 py-3.5 hidden md:table-cell">
+                    <td className="px-4 py-3.5 hidden lg:table-cell">
                       {hasOrder
                         ? <Link to={`/orders/${visitId}`} onClick={e => e.stopPropagation()}
-                            className="text-[12px] font-semibold text-sky-600 hover:text-sky-700 hover:underline transition-colors">
-                            {orderMap[visitId] || '--'}
+                            className="text-[12px] font-semibold text-sky-600 hover:text-sky-700 hover:underline transition-colors whitespace-nowrap">
+                            {orderMap[visitId] || '—'}
                           </Link>
                         : <span className="text-[12px] th-text-m">—</span>}
                     </td>
 
                     {/* Inspector */}
                     <td className="px-4 py-3.5 hidden md:table-cell">
-                      <span className="text-[13px] th-text-s truncate block max-w-[120px]">
+                      <span className="text-[13px] th-text-s truncate block max-w-[140px]">
                         {who?.name || '—'}
                       </span>
                     </td>
