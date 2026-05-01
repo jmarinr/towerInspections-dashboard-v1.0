@@ -13,6 +13,8 @@ import Permissions from './pages/admin/Permissions'
 import Regions from './pages/admin/Regions'
 import Logs from './pages/admin/Logs'
 import SystemHealth from './pages/admin/SystemHealth'
+import TowerInventory from './pages/TowerInventory'
+import TowerDetail from './pages/tower-inventory/TowerDetail'
 import { useAuthStore } from './store/useAuthStore'
 import { useThemeStore } from './store/useThemeStore'
 import Shell from './components/layout/Shell'
@@ -71,6 +73,8 @@ export default function App() {
       <Route path="/submissions"                  element={<Page><Submissions /></Page>} />
       <Route path="/submissions/:submissionId"    element={<Page><SubmissionDetail /></Page>} />
       <Route path="/reports"                      element={<Page><Reports /></Page>} />
+      <Route path="/tower-inventory"              element={<Page><TowerInventory /></Page>} />
+      <Route path="/tower-inventory/:siteId"      element={<Page><TowerDetail /></Page>} />
 
       {/* Rutas de administración — solo admin */}
       <Route path="/admin/users"                  element={<AdminPage><Users /></AdminPage>} />
