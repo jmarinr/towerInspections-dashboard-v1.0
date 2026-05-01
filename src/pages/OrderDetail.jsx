@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2, LockKeyhole, Unlock } from 'lucide-react'
+import { ArrowLeft, ChevronRight, AlertTriangle, MapPin, User, Calendar, Hash, Image, ClipboardList, CheckCircle2, LockKeyhole, Unlock, XCircle } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
 import Modal from '../components/ui/Modal'
@@ -66,6 +66,10 @@ export default function OrderDetail() {
   const [statusLoading, setStatusLoading] = useState(false)
   const [statusError,   setStatusError]   = useState(null)
   const [confirmStatus, setConfirmStatus] = useState(false)
+  const [confirmCancel, setConfirmCancel] = useState(false)
+  const [cancelReason,  setCancelReason]  = useState('')
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError,   setCancelError]   = useState(null)
   const permMatrix = useAdminStore(s => s.permMatrix)
 
   useEffect(() => {
@@ -120,6 +124,9 @@ export default function OrderDetail() {
   }
 
   const open        = order.status === 'open'
+  const closed      = order.status === 'closed'
+  const cancelled   = order.status === 'cancelled'
+  const isAdmin     = useAuthStore.getState().isAdmin()
   const finalized   = submissions.filter(s => s.finalized || isFinalized(s)).length
   const totalPhotos = submissions.reduce((n, s) => n + (s.assets || []).filter(a => a.public_url).length, 0)
   const gps         = order.start_lat && order.start_lng
@@ -131,6 +138,37 @@ export default function OrderDetail() {
   // Detectar inconsistencia: orden abierta con todos los formularios completados
   const allFormsFinalized = visibleSubs.length > 0 && visibleSubs.every(s => s.finalized || isFinalized(s))
   const hasInconsistency  = open && allFormsFinalized
+
+  // ── Cancel handlers ────────────────────────────────────────────────────────
+  const handleCancelClick = () => {
+    setCancelReason('')
+    setCancelError(null)
+    setConfirmCancel(true)
+  }
+
+  const handleConfirmCancel = async () => {
+    setCancelLoading(true)
+    setCancelError(null)
+    const actor = useAuthStore.getState().user
+    try {
+      await updateSiteVisitStatus(order.id, 'cancelled', {
+        cancelReason: cancelReason.trim() || null,
+        cancelledBy:  actor?.id,
+      })
+      LOG.visitStatusChanged(
+        order.id, order.order_number,
+        actor?.email, actor?.role,
+        order.status, 'cancelled', 'manual'
+      )
+      await loadDetail(orderId)
+      setConfirmCancel(false)
+    } catch (e) {
+      setCancelError('No se pudo cancelar la visita. Verifica tus permisos o conexión.')
+      console.error('[OrderDetail] cancel:', e)
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   // ── Status toggle ──────────────────────────────────────────────────────────
   const pendingForms = visibleSubs.filter(s => !(s.finalized || isFinalized(s))).length
@@ -206,13 +244,17 @@ export default function OrderDetail() {
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-[18px] sm:text-[22px] font-bold th-text-p">{order.order_number}</h1>
-              {open
-                ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Abierta
+              {cancelled
+                ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-50 text-red-600 ring-1 ring-inset ring-red-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />Cancelada
                   </span>
-                : <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 th-text-m ring-1 ring-inset ring-slate-200">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Cerrada
-                  </span>}
+                : open
+                  ? <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Abierta
+                    </span>
+                  : <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-slate-100 th-text-m ring-1 ring-inset ring-slate-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />Cerrada
+                    </span>}
             </div>
             {order.site_name && (
               <div className="text-[14px] th-text-m mt-1">{order.site_name}</div>
@@ -222,25 +264,41 @@ export default function OrderDetail() {
           {/* Botón cerrar/reabrir — solo roles con permiso visits.change_status */}
           {user?.canWrite && hasPermission('visits.change_status') && (
             <div className="flex flex-col items-end gap-2 flex-shrink-0">
-              <button
-                onClick={handleStatusToggleClick}
-                disabled={statusLoading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold border transition-all disabled:opacity-50"
-                style={{
-                  background:   open ? '#fef2f2' : '#f0fdf4',
-                  color:        open ? '#b91c1c' : '#166534',
-                  borderColor:  open ? '#fecaca' : '#bbf7d0',
-                }}>
-                {statusLoading
-                  ? <Spinner size={13} />
-                  : open
-                    ? <><LockKeyhole size={13} strokeWidth={2} />Cerrar visita</>
-                    : <><Unlock size={13} strokeWidth={2} />Reabrir visita</>}
-              </button>
+              {/* Toggle open ↔ closed — oculto si está cancelada */}
+              {!cancelled && (
+                <button
+                  onClick={handleStatusToggleClick}
+                  disabled={statusLoading}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold border transition-all disabled:opacity-50"
+                  style={{
+                    background:   open ? '#fef2f2' : '#f0fdf4',
+                    color:        open ? '#b91c1c' : '#166534',
+                    borderColor:  open ? '#fecaca' : '#bbf7d0',
+                  }}>
+                  {statusLoading
+                    ? <Spinner size={13} />
+                    : open
+                      ? <><LockKeyhole size={13} strokeWidth={2} />Cerrar visita</>
+                      : <><Unlock size={13} strokeWidth={2} />Reabrir visita</>}
+                </button>
+              )}
               {statusError && (
                 <p className="text-[11px] font-medium text-right" style={{ color: '#b91c1c', maxWidth: 240 }}>
                   {statusError}
                 </p>
+              )}
+              {/* Botón cancelar — solo admin, solo si no está cancelada */}
+              {isAdmin && !cancelled && (
+                <button
+                  onClick={handleCancelClick}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium
+                    border transition-colors"
+                  style={{ color: '#dc2626', borderColor: '#fecaca', background: 'transparent' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <XCircle size={13} />
+                  Cancelar visita
+                </button>
               )}
             </div>
           )}
@@ -355,6 +413,56 @@ export default function OrderDetail() {
             </div>
           </div>
         </Modal>
+      )}
+
+      {/* Modal de confirmación — Cancelar visita */}
+      {confirmCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl space-y-4"
+            style={{ background: 'var(--bg-card)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: '#fef2f2' }}>
+                <XCircle size={20} style={{ color: '#dc2626' }} />
+              </div>
+              <div>
+                <div className="text-[14px] font-semibold th-text-p">Cancelar visita</div>
+                <div className="text-[12px] th-text-m mt-0.5">Esta acción no se puede deshacer</div>
+              </div>
+            </div>
+            <p className="text-[12.5px] th-text-s leading-relaxed">
+              La visita <strong>{order.order_number}</strong> quedará cancelada permanentemente.
+              Los formularios asociados se conservan pero la visita no aparecerá en reportes.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-[11.5px] font-medium th-text-m">
+                Razón de cancelación <span className="th-text-s">(opcional)</span>
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={e => setCancelReason(e.target.value)}
+                placeholder="Ej: Visita creada por error, sitio duplicado..."
+                rows={3}
+                className="w-full px-3 py-2 text-[12.5px] border rounded-lg resize-none focus:outline-none th-text-p"
+                style={{ background: 'var(--bg-base)', borderColor: 'var(--border)' }} />
+            </div>
+            {cancelError && (
+              <p className="text-[12px]" style={{ color: '#dc2626' }}>{cancelError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setConfirmCancel(false)} disabled={cancelLoading}
+                className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium border th-text-s transition-colors"
+                style={{ background: 'var(--bg-base)', borderColor: 'var(--border)' }}>
+                Volver
+              </button>
+              <button onClick={handleConfirmCancel} disabled={cancelLoading}
+                className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium text-white transition-colors disabled:opacity-50"
+                style={{ background: cancelLoading ? '#ef4444aa' : '#dc2626' }}>
+                {cancelLoading ? 'Cancelando...' : 'Confirmar cancelación'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

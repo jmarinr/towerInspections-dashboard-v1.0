@@ -81,6 +81,7 @@ const KPI_TOOLTIPS = {
   'con-avance':  'Abierta con al menos 1 formulario finalizado',
   'sin-iniciar': 'El inspector aún no ha enviado ningún formulario',
   'en-curso':    'Formularios enviados pero ninguno finalizado aún',
+  'cancelled':   'Visita cancelada — no aparece en reportes',
 }
 
 function VisitKpiCard({ label, value, accent = false, borderColor, className = '', filterKey, activeFilter, onFilter }) {
@@ -165,14 +166,15 @@ export default function Orders() {
 
   // KPIs — calculados sobre filtered sin nuevas queries
   const kpis = useMemo(() => {
-    let cerradas = 0, abiertas = 0, pendientes = 0, borrador = 0
+    let cerradas = 0, abiertas = 0, pendientes = 0, borrador = 0, canceladas = 0
     for (const o of filtered) {
-      if (o.subState === 'closed')       cerradas++
+      if (o.subState === 'cancelled')      canceladas++
+      else if (o.subState === 'closed')    cerradas++
       else if (o.subState === 'con-avance')  abiertas++
       else if (o.subState === 'sin-iniciar') pendientes++
       else if (o.subState === 'en-curso')    borrador++
     }
-    return { total: filtered.length, cerradas, abiertas, pendientes, borrador }
+    return { total: filtered.length, cerradas, abiertas, pendientes, borrador, canceladas }
   }, [filtered])
 
   // Opciones de región derivadas dinámicamente del dataset completo
@@ -197,12 +199,13 @@ export default function Orders() {
       </div>
 
       {/* KPIs clickeables */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         <VisitKpiCard label="Total visitas"  value={kpis.total}      accent           filterKey="all"         activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-50" />
         <VisitKpiCard label="Cerradas"       value={kpis.cerradas}   borderColor="#0d9488" filterKey="closed"      activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-100" />
         <VisitKpiCard label="Con avance"     value={kpis.abiertas}   borderColor="#475569" filterKey="con-avance"  activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-150" />
         <VisitKpiCard label="Sin iniciar"    value={kpis.pendientes} borderColor="#d97706" filterKey="sin-iniciar" activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-200" />
         <VisitKpiCard label="En curso"       value={kpis.borrador}   borderColor="#6366f1" filterKey="en-curso"    activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-250" />
+        <VisitKpiCard label="Canceladas"     value={kpis.canceladas} borderColor="#ef4444" filterKey="cancelled"   activeFilter={filterStatus} onFilter={f => setFilter({ filterStatus: f })} className="animate-kpi-enter delay-300" />
       </div>
 
       {/* Hint bar */}
@@ -217,7 +220,7 @@ export default function Orders() {
             <span className="text-[11px] th-text-m">Filtrando por:</span>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
               style={{ background: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}>
-              {{ 'closed': 'Cerradas', 'con-avance': 'Con avance', 'sin-iniciar': 'Sin iniciar', 'en-curso': 'En curso' }[filterStatus]}
+              {{ 'closed': 'Cerradas', 'con-avance': 'Con avance', 'sin-iniciar': 'Sin iniciar', 'en-curso': 'En curso', 'cancelled': 'Canceladas' }[filterStatus]}
               <button onClick={() => setFilter({ filterStatus: 'all' })}
                 className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-[9px] font-bold"
                 style={{ background: '#94a3b8', color: '#fff' }}>✕</button>
@@ -296,6 +299,7 @@ export default function Orders() {
                   'con-avance':  { label: 'Con avance', bg: '#f0fdfa', color: '#0f766e', dot: '#0d9488', ring: '#99f6e4' },
                   'sin-iniciar': { label: 'Sin iniciar',bg: '#fafafa',  color: '#6b7280', dot: '#9ca3af', ring: '#e5e7eb' },
                   'en-curso':    { label: 'En curso',   bg: '#fef3c7', color: '#92400e', dot: '#d97706', ring: '#fde68a' },
+                  'cancelled':   { label: 'Cancelada',  bg: '#fef2f2', color: '#dc2626', dot: '#ef4444', ring: '#fecaca' },
                 }
                 const badge = STATE_BADGE[subState] || STATE_BADGE['sin-iniciar']
                 return (

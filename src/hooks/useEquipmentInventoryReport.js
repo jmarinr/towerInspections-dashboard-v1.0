@@ -103,14 +103,16 @@ export default function useEquipmentInventoryReport() {
 
     supabase
       .from('submissions')
-      .select('id, site_visit_id, payload, site_visits(id, order_number, started_at)')
+      .select('id, site_visit_id, payload, site_visits(id, order_number, started_at, status)')
       .in('form_code', EQUIPMENT_V2_CODES)
       .eq('finalized', true)
       .order('created_at', { ascending: false })
       .then(({ data, error: err }) => {
         if (cancelled) return
         if (err) { setError(err.message); setIsLoading(false); return }
-        const flat = (data || []).flatMap(flattenItems)
+        const flat = (data || [])
+          .filter(s => s.site_visits?.status !== 'cancelled')
+          .flatMap(flattenItems)
         setAllItems(flat)
         setIsLoading(false)
       })

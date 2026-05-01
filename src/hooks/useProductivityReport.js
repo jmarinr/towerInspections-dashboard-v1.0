@@ -189,6 +189,7 @@ export default function useProductivityReport() {
       supabase
         .from('site_visits')
         .select('id, order_number, site_id, site_name, started_at, closed_at, inspector_name, inspector_username, status')
+        .neq('status', 'cancelled')
         .order('started_at', { ascending: false }),
       supabase
         .from('submissions')

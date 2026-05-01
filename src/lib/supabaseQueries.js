@@ -209,7 +209,8 @@ export async function fetchSiteVisits({ status, limit = 2000 } = {}) {
     const hasFinalized = subs.some(s => s.finalized === true)
 
     let subState
-    if (v.status === 'closed')              subState = 'closed'
+    if (v.status === 'cancelled')           subState = 'cancelled'
+    else if (v.status === 'closed')         subState = 'closed'
     else if (!hasSubs)                      subState = 'sin-iniciar'
     else if (hasSubs && !hasFinalized)      subState = 'en-curso'
     else                                    subState = 'con-avance'
@@ -238,10 +239,19 @@ export async function fetchSiteVisitById(id) {
  * Update the status of a site visit (open ↔ closed).
  * Returns the updated row.
  */
-export async function updateSiteVisitStatus(visitId, status) {
-  const updatePayload = status === 'closed'
-    ? { status, closed_at: new Date().toISOString() }
-    : { status, closed_at: null }
+export async function updateSiteVisitStatus(visitId, status, options = {}) {
+  const { cancelReason = null, cancelledBy = null } = options
+
+  const updatePayload =
+    status === 'closed'    ? { status, closed_at: new Date().toISOString() } :
+    status === 'cancelled' ? {
+      status,
+      cancelled_at:  new Date().toISOString(),
+      cancelled_by:  cancelledBy,
+      cancel_reason: cancelReason,
+      closed_at:     null,
+    } :
+    { status, closed_at: null }
 
   const { data, error } = await supabase
     .from('site_visits')
@@ -430,9 +440,10 @@ export async function fetchDashboardStats(user = null) {
   })
 
   // ── Stats de visitas ────────────────────────────────────────────────────
-  const totalVisits  = visits.length
-  const openVisits   = visits.filter(v => v.status === 'open').length
-  const closedVisits = visits.filter(v => v.status === 'closed').length
+  const totalVisits   = visits.length
+  const openVisits    = visits.filter(v => v.status === 'open').length
+  const closedVisits  = visits.filter(v => v.status === 'closed').length
+  // cancelled no entra en ningún conteo del dashboard
   const recentVisits = visits.slice(0, 5)
 
   return { total, byFormCode, recentCount, recent, totalVisits, openVisits, closedVisits, recentVisits }

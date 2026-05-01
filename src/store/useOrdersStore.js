@@ -107,8 +107,8 @@ export const useOrdersStore = create((set, get) => ({
           if (o.status !== 'closed') return false
         } else if (filterStatus === 'open') {
           if (o.status !== 'open') return false
-        } else if (['con-avance', 'sin-iniciar', 'en-curso'].includes(filterStatus)) {
-          // Sub-estados: usar subState calculado en fetchSiteVisits desde Supabase
+        } else if (['con-avance', 'sin-iniciar', 'en-curso', 'cancelled'].includes(filterStatus)) {
+          // Sub-estados: usar subState calculado en fetchSiteVisits desde la base de datos
           if (o.subState !== filterStatus) return false
         }
       }
