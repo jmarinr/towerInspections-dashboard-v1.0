@@ -12,10 +12,11 @@ const EQUIPMENT_CODES = ['equipment-v2', 'inventario-v2']
 
 function extractRaw(sub) {
   try {
-    const p = sub.payload
+    let p = sub.payload
     if (!p) return {}
-    if (typeof p === 'string') return JSON.parse(p)
-    return p
+    if (typeof p === 'string') p = JSON.parse(p)
+    // El payload real puede venir envuelto en payload.payload.data o payload.data
+    return p?.payload?.data || p?.data || p || {}
   } catch { return {} }
 }
 
