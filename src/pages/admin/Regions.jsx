@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import React from 'react'
 import { Plus, Pencil, MapPin, ToggleLeft, ToggleRight, X, Check, Trash2,
-         ChevronDown, ChevronRight, Building2, Search } from 'lucide-react'
+         ChevronDown, ChevronRight, Building2, Search, ShieldAlert } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -10,6 +10,7 @@ import { q } from '../../lib/dbUtils'
 // ── Modal región ──────────────────────────────────────────────────────────────
 function RegionModal({ region, onSave, onClose }) {
   const [name, setName] = useState(region?.name || '')
+  const [internal, setInternal] = useState(region?.internal ?? false)
   const [saving, setSaving] = useState(false)
   const [error,  setError]  = useState('')
   const isNew = !region?.id
@@ -48,9 +49,10 @@ function RegionModal({ region, onSave, onClose }) {
     if (!name.trim()) { setError('El nombre es obligatorio'); return }
     setSaving(true); setError('')
     try {
+      const payload = { name: name.trim(), internal }
       const { error: err } = await q(isNew
-        ? supabase.from('regions').insert({ name: name.trim() })
-        : supabase.from('regions').update({ name: name.trim() }).eq('id', region.id))
+        ? supabase.from('regions').insert(payload)
+        : supabase.from('regions').update(payload).eq('id', region.id))
       if (err) { setError(err.message); return }
       onSave()
     } catch (e) {
@@ -76,6 +78,19 @@ function RegionModal({ region, onSave, onClose }) {
               className="w-full px-3 py-2 text-[13px] rounded-lg th-text-p"
               style={{ border:'1px solid var(--border)', background:'var(--bg-input)', outline:'none' }}
               onKeyDown={e=>e.key==='Enter'&&save()} />
+          </div>
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-2"
+            style={{ borderTop:'1px solid var(--border-light)' }}>
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={14} style={{ color: internal ? '#dc2626' : 'var(--text-muted)' }}/>
+              <div>
+                <div className="text-[13px] th-text-p">Región interna</div>
+                <div className="text-[11px] th-text-m">Solo visible para administradores</div>
+              </div>
+            </div>
+            <button onClick={()=>setInternal(v=>!v)}>
+              {internal ? <ToggleRight size={24} style={{ color:'#dc2626' }}/> : <ToggleLeft size={24} className="th-text-m"/>}
+            </button>
           </div>
         </div>
         <div className="flex justify-end gap-2 px-5 py-4 flex-shrink-0" style={{ borderTop:'1px solid var(--border-light)' }}>
@@ -247,6 +262,13 @@ function RegionCard({ region, onEditRegion, onRefresh }) {
           {open ? <ChevronDown size={14} style={{ color:'var(--text-muted)', flexShrink:0 }}/> : <ChevronRight size={14} style={{ color:'var(--text-muted)', flexShrink:0 }}/>}
           <MapPin size={14} style={{ color:'#0284C7', flexShrink:0 }}/>
           <span className="font-semibold text-[14px] th-text-p">{region.name}</span>
+          {region.internal && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0"
+              style={{ background:'#fef2f2', color:'#dc2626', border:'1px solid rgba(239,68,68,0.25)' }}
+              title="Región interna — solo visible para administradores">
+              <ShieldAlert size={10}/>INTERNA
+            </span>
+          )}
           <span className="text-[11px] font-mono px-2 py-0.5 rounded-md flex-shrink-0"
             style={{ background:'#0284C714', color:'#0284C7' }}>
             {sites.length} sitio{sites.length!==1?'s':''}

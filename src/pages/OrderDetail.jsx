@@ -12,7 +12,6 @@ import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { updateSiteVisitStatus } from '../lib/supabaseQueries'
 import { LOG } from '../lib/logEvent'
 import { useAdminStore } from '../store/useAdminStore'
-import { VIEWER_EXCLUDED_ORG_CODES } from '../config/viewerExclusions'
 
 function hasDamage(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
@@ -92,7 +91,7 @@ export default function OrderDetail() {
     </div>
   )
 
-  // Guard de acceso. v4.13.0 — respeta scope y region_ids.
+  // Guard de acceso. v4.13.1 — empresas/regiones internas filtradas por RLS.
   const user         = useAuthStore.getState().user
   const hasPermission = (key) => {
     if (!user) return false
@@ -103,9 +102,7 @@ export default function OrderDetail() {
 
   const orgCode   = (user?.scope === 'scoped' && user?.company?.org_code) ? user.company.org_code : null
   const regionIds = (user?.scope === 'scoped' && Array.isArray(user?.region_ids) && user.region_ids.length > 0) ? user.region_ids : null
-  const isViewerGlobal = user?.role === 'viewer' && user?.scope === 'global'
 
-  // Empresa de la orden: directamente desde order.org_code (preferido) o derivado de submissions
   const allSubmissions = useSubmissionsStore.getState().submissions
   const orderOrgCodes  = new Set(allSubmissions.filter(s => s.site_visit_id === orderId).map(s => s.org_code))
   const orderOrg       = order.org_code || (orderOrgCodes.size === 1 ? [...orderOrgCodes][0] : null)
@@ -126,16 +123,6 @@ export default function OrderDetail() {
     return (
       <div className="text-center py-20">
         <div className="text-[14px] th-text-m mb-3">Esta visita está fuera de tus regiones asignadas</div>
-        <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
-      </div>
-    )
-  }
-
-  // Viewer global: bloqueo por lista negra
-  if (isViewerGlobal && orderOrg && VIEWER_EXCLUDED_ORG_CODES.includes(orderOrg)) {
-    return (
-      <div className="text-center py-20">
-        <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>
         <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
       </div>
     )

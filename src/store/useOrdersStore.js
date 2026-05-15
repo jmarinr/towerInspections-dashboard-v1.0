@@ -2,12 +2,13 @@ import { create } from 'zustand'
 import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { useAuthStore } from './useAuthStore'
 import { extractRegion } from '../utils/regionUtils'
-import { VIEWER_EXCLUDED_ORG_CODES } from '../config/viewerExclusions'
 
 /**
- * v4.13.0 — filtros derivados del usuario actual.
+ * v4.13.1 — filtros derivados del usuario actual.
+ * La exclusión de empresas/regiones internas ahora vive en BD via flag
+ * `internal` + RLS. El frontend solo aplica:
  *   admin                            → ningún filtro
- *   supervisor/viewer scope=global   → viewer aplica lista negra; supervisor ve todo
+ *   supervisor/viewer scope=global   → confiar en RLS
  *   supervisor/viewer scope=scoped   → filtra por org_code (+ region_ids si los tiene)
  */
 function getOrgCodeFilter() {
@@ -25,13 +26,6 @@ function getRegionIdsFilter() {
   if (user.scope !== 'scoped') return null
   const ids = Array.isArray(user.region_ids) ? user.region_ids : []
   return ids.length > 0 ? ids : null
-}
-
-function getExcludeOrgCodes() {
-  const user = useAuthStore.getState().user
-  if (!user) return null
-  if (user.role === 'viewer' && user.scope === 'global') return VIEWER_EXCLUDED_ORG_CODES
-  return null
 }
 
 export const useOrdersStore = create((set, get) => ({
@@ -96,13 +90,8 @@ export const useOrdersStore = create((set, get) => ({
   getFiltered: () => {
     const { orders, filterStatus, filterRegion, search } = get()
 
-    // Defensa client-side de la lista negra para viewer global
-    const exclude = getExcludeOrgCodes()
-
     const q = search.trim().toLowerCase()
     return orders.filter((o) => {
-      // Viewer global: excluir visitas de empresas internas
-      if (exclude && o.org_code && exclude.includes(o.org_code)) return false
       // Filtrar por estado — soporta sub-estados con subState embebido
       if (filterStatus !== 'all') {
         if (filterStatus === 'closed') {

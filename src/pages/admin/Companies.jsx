@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight, MapPin, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Building2, Check, X, ToggleLeft, ToggleRight, MapPin, Trash2, ShieldAlert } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -16,6 +16,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     org_code: company?.org_code || '',
     country:  company?.country  || 'CR',
     active:   company?.active   ?? true,
+    internal: company?.internal ?? false,
   })
   const [selectedRegions, setSelectedRegions] = useState(initialRegions)
   const [saving, setSaving] = useState(false)
@@ -28,7 +29,7 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     if (!form.name.trim() || !form.org_code.trim()) { setError('Nombre y código son obligatorios'); return }
     setSaving(true); setError('')
     try {
-      const payload = { name: form.name.trim(), org_code: form.org_code.trim().toUpperCase(), country: form.country, active: form.active }
+      const payload = { name: form.name.trim(), org_code: form.org_code.trim().toUpperCase(), country: form.country, active: form.active, internal: form.internal }
       let companyId = company?.id
       if (isNew) {
         const { data, error: err } = await q(supabase.from('companies').insert(payload).select('id').single())
@@ -161,6 +162,19 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
               <p className="mt-1 text-[11px] th-text-m">{selectedRegions.length} región{selectedRegions.length!==1?'es':''} seleccionada{selectedRegions.length!==1?'s':''}</p>
             )}
           </div>
+          <div className="flex items-center justify-between flex-wrap gap-2 pt-2"
+            style={{ borderTop:'1px solid var(--border-light)' }}>
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={14} style={{ color: form.internal ? '#dc2626' : 'var(--text-muted)' }}/>
+              <div>
+                <div className="text-[13px] th-text-p">Empresa interna</div>
+                <div className="text-[11px] th-text-m">Solo visible para administradores</div>
+              </div>
+            </div>
+            <button onClick={()=>setForm(f=>({...f,internal:!f.internal}))}>
+              {form.internal ? <ToggleRight size={24} style={{ color:'#dc2626' }}/> : <ToggleLeft size={24} className="th-text-m"/>}
+            </button>
+          </div>
           <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-[13px] th-text-p">Estado activo</span>
             <button onClick={()=>setForm(f=>({...f,active:!f.active}))}>
@@ -251,7 +265,16 @@ export default function Companies() {
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background:'#e0f2fe' }}>
                         <Building2 size={14} style={{ color:'#0369a1' }}/>
                       </div>
-                      <span className="font-semibold th-text-p">{c.name}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold th-text-p">{c.name}</span>
+                        {c.internal && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                            style={{ background:'#fef2f2', color:'#dc2626', border:'1px solid rgba(239,68,68,0.25)' }}
+                            title="Empresa interna — solo visible para administradores">
+                            <ShieldAlert size={10}/>INTERNA
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-4 py-3">

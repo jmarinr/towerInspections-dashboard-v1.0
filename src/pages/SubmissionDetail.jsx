@@ -12,7 +12,6 @@ import Modal from '../components/ui/Modal'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
 import { useAuthStore } from '../store/useAuthStore'
 import { useAdminStore } from '../store/useAdminStore'
-import { VIEWER_EXCLUDED_ORG_CODES } from '../config/viewerExclusions'
 import { getFormMeta, normalizeFormCode } from '../data/formTypes'
 import {
   extractSiteInfo, extractMeta, getCleanPayload,
@@ -1122,11 +1121,11 @@ export default function SubmissionDetail() {
     </div>
   )
 
-  // v4.13.0 — guard de acceso por scope y regiones (defensa contra URL directa)
+  // v4.13.1 — guard de acceso por scope y regiones (defensa contra URL directa).
+  // Empresas/regiones internas las filtra RLS.
   {
     const orgCode   = (user?.scope === 'scoped' && user?.company?.org_code) ? user.company.org_code : null
     const regionIds = (user?.scope === 'scoped' && Array.isArray(user?.region_ids) && user.region_ids.length > 0) ? user.region_ids : null
-    const isViewerGlobal = user?.role === 'viewer' && user?.scope === 'global'
     const subOrg    = submission.org_code || null
     const subRegion = submission.region_id || null
 
@@ -1142,14 +1141,6 @@ export default function SubmissionDetail() {
       return (
         <div className="text-center py-20">
           <div className="text-[14px] th-text-m mb-3">Esta entrega está fuera de tus regiones asignadas</div>
-          <button onClick={() => navigate('/submissions')} className="text-accent hover:underline text-[13px]">← Volver</button>
-        </div>
-      )
-    }
-    if (isViewerGlobal && subOrg && VIEWER_EXCLUDED_ORG_CODES.includes(subOrg)) {
-      return (
-        <div className="text-center py-20">
-          <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta entrega</div>
           <button onClick={() => navigate('/submissions')} className="text-accent hover:underline text-[13px]">← Volver</button>
         </div>
       )
