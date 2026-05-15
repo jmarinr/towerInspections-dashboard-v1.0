@@ -38,10 +38,30 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
         const { error: err } = await q(supabase.from('companies').update(payload).eq('id', companyId))
         if (err) { setError(err.message); return }
       }
-      const { error: delErr } = await q(supabase.from('company_regions').delete().eq('company_id', companyId))
-      if (delErr) { setError(delErr.message); return }
-      if (selectedRegions.length > 0) {
-        const { error: insErr } = await q(supabase.from('company_regions').insert(selectedRegions.map(region_id => ({ company_id: companyId, region_id }))))
+
+      // v4.13.0 — borrar selectivamente. Solo se borran las regiones que ya no
+      // están seleccionadas; las que se mantienen no se tocan. Esto evita que
+      // el trigger `protect_company_region_in_use` falle si hay usuarios.
+      const existingIds = (company?.company_regions || []).map(cr => cr.region_id)
+      const toRemove    = existingIds.filter(id => !selectedRegions.includes(id))
+      const toAdd       = selectedRegions.filter(id => !existingIds.includes(id))
+
+      for (const region_id of toRemove) {
+        const { error: delErr } = await q(
+          supabase.from('company_regions').delete().eq('company_id', companyId).eq('region_id', region_id)
+        )
+        if (delErr) {
+          // Trigger SQL bloquea si hay usuarios asignados a esta (empresa, región)
+          const friendly = delErr.message?.includes('usuario(s) están asignados')
+            ? `No se puede quitar una región: hay usuarios asignados a ella en esta empresa. Reasígnalos primero en la sección Usuarios.`
+            : delErr.message
+          setError(friendly); return
+        }
+      }
+      if (toAdd.length > 0) {
+        const { error: insErr } = await q(
+          supabase.from('company_regions').insert(toAdd.map(region_id => ({ company_id: companyId, region_id })))
+        )
         if (insErr) { setError(insErr.message); return }
       }
       onSave()
@@ -64,7 +84,13 @@ function CompanyModal({ company, allRegions, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar empresa "${company.name}"? Esta acción eliminará también sus asociaciones de regiones.`)) return
     setSaving(true)
     try {
-      await q(supabase.from('company_regions').delete().eq('company_id', company.id))
+      const { error: crErr } = await q(supabase.from('company_regions').delete().eq('company_id', company.id))
+      if (crErr) {
+        const friendly = crErr.message?.includes('usuario(s) están asignados')
+          ? `No se puede eliminar la empresa: hay usuarios asignados a sus regiones. Reasígnalos o elimínalos primero en la sección Usuarios.`
+          : crErr.message
+        setError(friendly); return
+      }
       const { error: err } = await q(supabase.from('companies').delete().eq('id', company.id))
       if (err) { setError(err.message); return }
       onSave()

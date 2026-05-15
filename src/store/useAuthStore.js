@@ -71,7 +71,7 @@ export const useAuthStore = create((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('app_users')
-        .select('id, email, full_name, role, company_id, active, companies(name, org_code)')
+        .select('id, email, full_name, role, scope, company_id, active, companies(name, org_code), app_user_regions(region_id)')
         .eq('id', authId)
         .single()
 
@@ -102,7 +102,10 @@ export const useAuthStore = create((set, get) => ({
         return
       }
 
-      console.log('[Auth] profile loaded OK, role:', data.role)
+      console.log('[Auth] profile loaded OK, role:', data.role, 'scope:', data.scope)
+      const regionIds = Array.isArray(data.app_user_regions)
+        ? data.app_user_regions.map(r => r.region_id).filter(Boolean)
+        : []
       set({
         isAuthed:       true,
         isLoading:      false,
@@ -112,8 +115,10 @@ export const useAuthStore = create((set, get) => ({
           email:      data.email,
           name:       data.full_name,
           role:       data.role,
+          scope:      data.scope || (data.company_id ? 'scoped' : 'global'),
           company_id: data.company_id,
           company:    data.companies,
+          region_ids: regionIds,
           canWrite:   data.role !== 'viewer',
         },
       })
@@ -150,4 +155,8 @@ export const useAuthStore = create((set, get) => ({
   isAdmin:      () => get().user?.role === 'admin',
   isSupervisor: () => get().user?.role === 'supervisor',
   isViewer:     () => get().user?.role === 'viewer',
+  isGlobal:        () => get().user?.scope === 'global',
+  isScoped:        () => get().user?.scope === 'scoped',
+  hasRegionFilter: () => (get().user?.region_ids?.length || 0) > 0,
+  getRegionIds:    () => get().user?.region_ids || [],
 }))

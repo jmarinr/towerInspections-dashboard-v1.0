@@ -19,7 +19,7 @@ export const useAdminStore = create((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('app_users')
-        .select('*, companies(name, org_code)')
+        .select('*, companies(name, org_code), app_user_regions(region_id)')
         .order('full_name')
       clearTimeout(t)
       if (error) { set({ usersError: hasData ? null : error.message }); return }

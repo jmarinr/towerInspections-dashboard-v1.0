@@ -12,6 +12,7 @@ import { isFinalized, extractSubmittedBy } from '../lib/payloadUtils'
 import { updateSiteVisitStatus } from '../lib/supabaseQueries'
 import { LOG } from '../lib/logEvent'
 import { useAdminStore } from '../store/useAdminStore'
+import { VIEWER_EXCLUDED_ORG_CODES } from '../config/viewerExclusions'
 
 function hasDamage(sub) {
   const p = sub?.payload?.payload || sub?.payload || {}
@@ -91,8 +92,7 @@ export default function OrderDetail() {
     </div>
   )
 
-  // Guard: supervisor con empresa solo puede ver órdenes de su empresa
-  // Guard: viewer no puede ver órdenes de HenkanCX (org_code HK)
+  // Guard de acceso. v4.13.0 — respeta scope y region_ids.
   const user         = useAuthStore.getState().user
   const hasPermission = (key) => {
     if (!user) return false
@@ -100,12 +100,19 @@ export default function OrderDetail() {
     const mk = `${user.role}:${key}`
     return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
   }
-  const VIEWER_EXCLUDED_ORG_CODES = ['HK']
-  const orgCode      = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
+
+  const orgCode   = (user?.scope === 'scoped' && user?.company?.org_code) ? user.company.org_code : null
+  const regionIds = (user?.scope === 'scoped' && Array.isArray(user?.region_ids) && user.region_ids.length > 0) ? user.region_ids : null
+  const isViewerGlobal = user?.role === 'viewer' && user?.scope === 'global'
+
+  // Empresa de la orden: directamente desde order.org_code (preferido) o derivado de submissions
   const allSubmissions = useSubmissionsStore.getState().submissions
   const orderOrgCodes  = new Set(allSubmissions.filter(s => s.site_visit_id === orderId).map(s => s.org_code))
+  const orderOrg       = order.org_code || (orderOrgCodes.size === 1 ? [...orderOrgCodes][0] : null)
+  const orderRegion    = order.region_id || null
 
-  if (orgCode && orderOrgCodes.size > 0 && !orderOrgCodes.has(orgCode)) {
+  // Bloqueo por empresa (scoped)
+  if (orgCode && orderOrg && orderOrg !== orgCode) {
     return (
       <div className="text-center py-20">
         <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>
@@ -114,7 +121,18 @@ export default function OrderDetail() {
     )
   }
 
-  if (user?.role === 'viewer' && orderOrgCodes.size > 0 && [...orderOrgCodes].every(oc => VIEWER_EXCLUDED_ORG_CODES.includes(oc))) {
+  // Bloqueo por región (scoped con regiones asignadas; NULL no pasa)
+  if (regionIds && !regionIds.includes(orderRegion)) {
+    return (
+      <div className="text-center py-20">
+        <div className="text-[14px] th-text-m mb-3">Esta visita está fuera de tus regiones asignadas</div>
+        <button onClick={() => navigate('/orders')} className="text-sky-600 hover:underline text-[13px]">← Volver</button>
+      </div>
+    )
+  }
+
+  // Viewer global: bloqueo por lista negra
+  if (isViewerGlobal && orderOrg && VIEWER_EXCLUDED_ORG_CODES.includes(orderOrg)) {
     return (
       <div className="text-center py-20">
         <div className="text-[14px] th-text-m mb-3">No tienes acceso a esta visita</div>

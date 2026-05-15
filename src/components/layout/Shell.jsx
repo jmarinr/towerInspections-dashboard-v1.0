@@ -184,6 +184,14 @@ function SidebarContent({ user, onRefresh, onLogout, onNavClick }) {
             </div>
             <div className="text-[9px] truncate" style={{ color: 'var(--sidebar-user-role)' }}>
               {user?.role || ''}
+              {/* v4.13.0 — badge de scope efectivo */}
+              {user?.role && user.role !== 'admin' && user.role !== 'inspector' && (
+                user.scope === 'global'
+                  ? <span className="ml-1.5 inline-block px-1.5 py-[1px] rounded text-[8px] font-bold align-middle" style={{ background:'#fef2f2', color:'#dc2626' }}>GLOBAL</span>
+                  : <span className="ml-1.5 inline-block px-1.5 py-[1px] rounded text-[8px] font-semibold align-middle" style={{ background:'rgba(2,132,199,0.15)', color:'var(--accent)' }}>
+                      {user?.company?.name || 'Empresa'}{(user?.region_ids?.length || 0) > 0 ? ` · ${user.region_ids.length}r` : ''}
+                    </span>
+              )}
             </div>
           </div>
         </div>

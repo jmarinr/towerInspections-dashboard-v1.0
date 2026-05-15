@@ -25,9 +25,17 @@ function RegionModal({ region, onSave, onClose }) {
     if (!window.confirm(`¿Eliminar la región "${region.name}"? Esto también eliminará todos sus sitios.`)) return
     setSaving(true)
     try {
+      // v4.13.0 — al borrar una región, los triggers en cascada protegen:
+      // company_regions ON DELETE CASCADE de regions, pero el trigger
+      // protect_company_region_in_use bloquea si hay usuarios asignados.
       await q(supabase.from('sites').delete().eq('region_id', region.id))
       const { error: err } = await q(supabase.from('regions').delete().eq('id', region.id))
-      if (err) { setError(err.message); return }
+      if (err) {
+        const friendly = err.message?.includes('usuario(s) están asignados')
+          ? `No se puede eliminar la región "${region.name}": hay usuarios asignados a ella en una o más empresas. Reasígnalos primero.`
+          : err.message
+        setError(friendly); return
+      }
       onSave()
     } catch (e) {
       setError(e.message || 'Error inesperado.')

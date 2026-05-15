@@ -4,29 +4,40 @@ import { supabase } from '../lib/supabaseClient'
 import { logEvent } from '../lib/logEvent'
 import { useAuthStore } from './useAuthStore'
 import { normalizeFormCode } from '../data/formTypes'
-
-// Org codes excluidos para el rol viewer (empresas de prueba/internas)
-const VIEWER_EXCLUDED_ORG_CODES = ['HK']
+import { VIEWER_EXCLUDED_ORG_CODES } from '../config/viewerExclusions'
 
 /**
- * Devuelve el org_code a filtrar según el rol del usuario:
- *   - admin              → null (ve todo)
- *   - supervisor sin empresa → null (ve todo)
- *   - supervisor con empresa → org_code de su empresa
- *   - viewer             → null (ve todo excepto los excluidos)
+ * Filtros de acceso derivados del usuario actual.
+ * v4.13.0 — respeta scope ('global' | 'scoped') y region_ids.
+ *
+ *   admin                            → ningún filtro
+ *   supervisor/viewer scope=global   → para viewer aplica lista negra; supervisor ve todo
+ *   supervisor/viewer scope=scoped   → filtra por org_code (+ region_ids si los tiene)
  */
 function getOrgCodeFilter() {
   const user = useAuthStore.getState().user
   if (!user) return null
   if (user.role === 'admin') return null
-  if (user.role === 'viewer') return null
+  if (user.scope === 'global') return null
+  // scoped supervisor/viewer
   return user.company?.org_code || null
+}
+
+function getRegionIdsFilter() {
+  const user = useAuthStore.getState().user
+  if (!user) return null
+  if (user.role === 'admin') return null
+  if (user.scope !== 'scoped') return null
+  const ids = Array.isArray(user.region_ids) ? user.region_ids : []
+  return ids.length > 0 ? ids : null
 }
 
 function getExcludeOrgCodes() {
   const user = useAuthStore.getState().user
   if (!user) return null
-  return user.role === 'viewer' ? VIEWER_EXCLUDED_ORG_CODES : null
+  // Solo viewer GLOBAL aplica lista negra; viewer scoped ya está restringido a su empresa.
+  if (user.role === 'viewer' && user.scope === 'global') return VIEWER_EXCLUDED_ORG_CODES
+  return null
 }
 
 export const useSubmissionsStore = create((set, get) => ({
@@ -87,9 +98,10 @@ export const useSubmissionsStore = create((set, get) => ({
 
     try {
       const orgCode = getOrgCodeFilter()
+      const regionIds = getRegionIdsFilter()
       const excludeOrgCodes = getExcludeOrgCodes()
-      console.log('[Submissions] fetching, orgCode:', orgCode, 'exclude:', excludeOrgCodes)
-      const data = await fetchSubmissions({ orgCode, excludeOrgCodes })
+      console.log('[Submissions] fetching, orgCode:', orgCode, 'regionIds:', regionIds, 'exclude:', excludeOrgCodes)
+      const data = await fetchSubmissions({ orgCode, regionIds, excludeOrgCodes })
       clearTimeout(timeout)
 
       // Detectar cambios reales vs el estado anterior
@@ -127,14 +139,18 @@ export const useSubmissionsStore = create((set, get) => ({
 
   getFiltered: () => {
     const { submissions, filterFormCode, search } = get()
-    const user    = useAuthStore.getState().user
-    const orgCode = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
+    const user      = useAuthStore.getState().user
+    const orgCode   = getOrgCodeFilter()
+    const regionIds = getRegionIdsFilter()
+    const exclude   = getExcludeOrgCodes()
     const q = search.trim().toLowerCase()
     return submissions.filter(s => {
-      // Viewer: excluir org codes internos (HenkanCX)
-      if (user?.role === 'viewer' && s.org_code && VIEWER_EXCLUDED_ORG_CODES.includes(s.org_code)) return false
-      // Filtro por empresa (double-check client-side como safety net)
+      // Defensa client-side de la lista negra para viewer global
+      if (exclude && s.org_code && exclude.includes(s.org_code)) return false
+      // Filtro por empresa
       if (orgCode && s.org_code && s.org_code !== orgCode) return false
+      // Filtro por región (excluyente: NULL no pasa cuando hay filtro)
+      if (regionIds && !regionIds.includes(s.region_id)) return false
       const codeOk = filterFormCode === 'all' || normalizeFormCode(s.form_code) === filterFormCode
       if (!codeOk) return false
       if (!q) return true
@@ -205,18 +221,17 @@ export const useSubmissionsStore = create((set, get) => ({
     if (submissions.length > 0 && lastFetch && statsAge < 300000) return // stats frescas <5min
 
     const user = useAuthStore.getState().user
-    const VIEWER_EXCLUDED = ['HK']
 
     if (submissions.length > 0 && lastFetch && Date.now() - lastFetch < 60000) {
-      // Calcular stats desde los datos ya en memoria — aplicar filtro de rol
+      // Calcular stats desde los datos ya en memoria — aplicar filtro de rol/scope
+      const orgCode   = getOrgCodeFilter()
+      const regionIds = getRegionIdsFilter()
+      const exclude   = getExcludeOrgCodes()
       const filtered = submissions.filter(s => {
-        if (user?.role === 'supervisor' && user?.company?.org_code) {
-          return s.org_code === user.company.org_code
-        }
-        if (user?.role === 'viewer') {
-          return !VIEWER_EXCLUDED.includes(s.org_code)
-        }
-        return true // admin
+        if (exclude && s.org_code && exclude.includes(s.org_code)) return false
+        if (orgCode && s.org_code && s.org_code !== orgCode) return false
+        if (regionIds && !regionIds.includes(s.region_id)) return false
+        return true
       })
 
       const byFormCode = {}

@@ -1,4 +1,7 @@
 // supabase/functions/create-user/index.ts
+// v4.13.0 — acepta `scope` ('global' | 'scoped') y `region_ids` (uuid[]).
+// Inserta en app_users con scope explícito, y si scope='scoped' agrega filas
+// en app_user_regions. Cualquier error revierte la creación del auth user.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -13,13 +16,11 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Admin client con service role
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Verificar que quien llama es admin via JWT
     const authHeader = req.headers.get('Authorization') ?? ''
     const token = authHeader.replace('Bearer ', '').trim()
 
@@ -29,16 +30,13 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Obtener usuario del token usando service role
     const { data: { user: caller }, error: authError } = await supabaseAdmin.auth.getUser(token)
-
     if (authError || !caller) {
       return new Response(JSON.stringify({ error: 'Token inválido' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
 
-    // Verificar rol admin en app_users
     const { data: callerProfile } = await supabaseAdmin
       .from('app_users')
       .select('role')
@@ -51,11 +49,34 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Leer datos del nuevo usuario
-    const { email, password, full_name, role, company_id, supervisor_id, active } = await req.json()
+    // v4.13.0 — leer scope y region_ids además de los campos previos
+    const {
+      email, password, full_name, role,
+      company_id, supervisor_id, active,
+      scope, region_ids,
+    } = await req.json()
 
     if (!email || !password || !full_name) {
       return new Response(JSON.stringify({ error: 'email, password y full_name son obligatorios' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    // Validaciones de coherencia (defensivas — el trigger en BD las repite).
+    const effectiveScope = scope || (company_id ? 'scoped' : 'global')
+    if (!['global', 'scoped'].includes(effectiveScope)) {
+      return new Response(JSON.stringify({ error: 'scope inválido' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+
+    if (effectiveScope === 'global' && company_id) {
+      return new Response(JSON.stringify({ error: 'Usuario global no puede tener empresa' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      })
+    }
+    if (effectiveScope === 'scoped' && (role === 'supervisor' || role === 'viewer') && !company_id) {
+      return new Response(JSON.stringify({ error: `${role} scoped debe tener empresa asignada` }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
     }
@@ -73,7 +94,7 @@ Deno.serve(async (req) => {
       })
     }
 
-    // Crear perfil en app_users
+    // Crear perfil en app_users (incluye scope explícito)
     const { error: profileError } = await supabaseAdmin.from('app_users').insert({
       id:            authData.user.id,
       email:         email.trim(),
@@ -82,6 +103,7 @@ Deno.serve(async (req) => {
       company_id:    company_id    || null,
       supervisor_id: supervisor_id || null,
       active:        active        ?? true,
+      scope:         effectiveScope,
     })
 
     if (profileError) {
@@ -89,6 +111,28 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: profileError.message }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       })
+    }
+
+    // Insertar regiones asignadas (solo si scoped y se enviaron)
+    if (effectiveScope === 'scoped' && Array.isArray(region_ids) && region_ids.length > 0) {
+      const rows = region_ids
+        .filter((r: string) => typeof r === 'string' && r.length > 0)
+        .map((region_id: string) => ({ user_id: authData.user.id, region_id }))
+
+      if (rows.length > 0) {
+        const { error: regionsError } = await supabaseAdmin
+          .from('app_user_regions')
+          .insert(rows)
+
+        if (regionsError) {
+          // Revertir TODO: borrar app_users (CASCADE) y auth user
+          await supabaseAdmin.from('app_users').delete().eq('id', authData.user.id)
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+          return new Response(JSON.stringify({ error: `Error al asignar regiones: ${regionsError.message}` }), {
+            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          })
+        }
+      }
     }
 
     return new Response(JSON.stringify({ ok: true, user_id: authData.user.id }), {

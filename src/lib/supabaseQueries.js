@@ -26,9 +26,11 @@ import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/f
 
 /**
  * Fetch all submissions.
- * Si se pasa orgCode, filtra solo los de esa empresa (para supervisores con empresa asignada).
+ *  - orgCode:         filtra submissions de una empresa (supervisor/viewer scoped).
+ *  - regionIds:       filtra submissions a esas regiones (supervisor/viewer scoped con regiones).
+ *  - excludeOrgCodes: lista negra para viewer global (HK por defecto).
  */
-export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, limit = 2000 } = {}) {
+export async function fetchSubmissions({ formCode, orgCode, regionIds, excludeOrgCodes, limit = 2000 } = {}) {
   let query = supabase
     .from('submissions')
     .select(`
@@ -44,6 +46,11 @@ export async function fetchSubmissions({ formCode, orgCode, excludeOrgCodes, lim
 
   if (orgCode) {
     query = query.eq('org_code', orgCode)
+  }
+
+  if (Array.isArray(regionIds) && regionIds.length > 0) {
+    // Excluyente: submissions con region_id NULL no pasan cuando hay filtro de región.
+    query = query.in('region_id', regionIds)
   }
 
   if (excludeOrgCodes && excludeOrgCodes.length > 0) {
@@ -171,8 +178,10 @@ export async function fetchSubmissionWithAssets(id) {
 
 /**
  * Fetch all site visits (orders).
+ *  - orgCode:   filtra visitas de una empresa (supervisor/viewer scoped).
+ *  - regionIds: filtra visitas a esas regiones (supervisor/viewer scoped con regiones).
  */
-export async function fetchSiteVisits({ status, limit = 2000 } = {}) {
+export async function fetchSiteVisits({ status, orgCode, regionIds, limit = 2000 } = {}) {
   // Incluimos un conteo de submissions para calcular sub-estados sin depender
   // del store de submissions. Supabase retorna submissions como array embebido.
   let query = supabase
@@ -186,6 +195,15 @@ export async function fetchSiteVisits({ status, limit = 2000 } = {}) {
 
   if (status && status !== 'all') {
     query = query.eq('status', status)
+  }
+
+  if (orgCode) {
+    query = query.eq('org_code', orgCode)
+  }
+
+  if (Array.isArray(regionIds) && regionIds.length > 0) {
+    // Excluyente: visitas con region_id NULL no pasan cuando hay filtro de región.
+    query = query.in('region_id', regionIds)
   }
 
   const { data, error } = await q(query, 30000)
@@ -378,37 +396,59 @@ export async function fetchSubmissionsWithAssetsForVisit(visitId) {
 
 /**
  * Dashboard stats.
+ * v4.13.0 — respeta scope y region_ids del usuario, y consume la lista
+ * negra de viewer global desde src/config/viewerExclusions.js.
  */
 export async function fetchDashboardStats(user = null) {
-  const VIEWER_EXCLUDED_ORG_CODES = ['HK']
+  // Importación lazy para evitar ciclos en bundles raros
+  const { VIEWER_EXCLUDED_ORG_CODES } = await import('../config/viewerExclusions.js')
 
-  // ── Query de submissions con filtro por rol ─────────────────────────────
+  // ── Query de submissions con filtro por rol/scope/regiones ─────────────
   let subQuery = supabase
     .from('submissions')
-    .select('id, form_code, updated_at, finalized, org_code, created_at, device_id, site_visit_id, app_version')
+    .select('id, form_code, updated_at, finalized, org_code, region_id, created_at, device_id, site_visit_id, app_version')
     .order('updated_at', { ascending: false })
 
-  if (user?.role === 'supervisor' && user?.company?.org_code) {
-    subQuery = subQuery.eq('org_code', user.company.org_code)
-  } else if (user?.role === 'viewer') {
+  const role = user?.role
+  const scope = user?.scope
+  const regionIds = Array.isArray(user?.region_ids) ? user.region_ids : []
+  const orgCode = user?.company?.org_code
+
+  if (role === 'admin') {
+    // sin filtros
+  } else if ((role === 'supervisor' || role === 'viewer') && scope === 'scoped' && orgCode) {
+    subQuery = subQuery.eq('org_code', orgCode)
+    if (regionIds.length > 0) subQuery = subQuery.in('region_id', regionIds)
+  } else if (role === 'viewer' && scope === 'global') {
     subQuery = subQuery.not('org_code', 'in', `(${VIEWER_EXCLUDED_ORG_CODES.map(c => `"${c}"`).join(',')})`)
   }
+  // supervisor global → sin filtros (igual que admin)
 
-  // ── Query de visitas ────────────────────────────────────────────────────
-  const visitQuery = supabase
+  // ── Query de visitas (mismos filtros) ───────────────────────────────────
+  let visitQuery = supabase
     .from('site_visits')
-    .select('id, status, started_at, order_number, site_name, site_id, inspector_name, inspector_username')
+    .select('id, status, started_at, order_number, site_name, site_id, region_id, org_code, inspector_name, inspector_username')
     .order('started_at', { ascending: false })
-    .then(r => r).catch(() => ({ data: [], error: null }))
 
-  const [subRes, visitRes] = await Promise.all([subQuery, visitQuery])
+  if (role === 'admin') {
+    // sin filtros
+  } else if ((role === 'supervisor' || role === 'viewer') && scope === 'scoped' && orgCode) {
+    visitQuery = visitQuery.eq('org_code', orgCode)
+    if (regionIds.length > 0) visitQuery = visitQuery.in('region_id', regionIds)
+  } else if (role === 'viewer' && scope === 'global') {
+    visitQuery = visitQuery.not('org_code', 'in', `(${VIEWER_EXCLUDED_ORG_CODES.map(c => `"${c}"`).join(',')})`)
+  }
+
+  const visitPromise = visitQuery.then(r => r).catch(() => ({ data: [], error: null }))
+
+  const [subRes, visitRes] = await Promise.all([subQuery, visitPromise])
   if (subRes.error) throw subRes.error
 
   const rows   = (subRes.data || []).filter(s => s.form_code && isFormVisible(s.form_code))
   let   visits = visitRes.data || []
 
-  // Para supervisor y viewer: limitar visitas a las que pertenecen sus submissions
-  if (user?.role !== 'admin') {
+  // Para supervisor y viewer scoped: cross-check de visitas vs submissions visibles
+  if (role !== 'admin' && scope === 'scoped') {
     const allowedVisitIds = new Set(rows.map(r => r.site_visit_id).filter(Boolean))
     visits = visits.filter(v => allowedVisitIds.has(v.id))
   }

@@ -1,8 +1,38 @@
 import { create } from 'zustand'
 import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { useAuthStore } from './useAuthStore'
-import { useSubmissionsStore } from './useSubmissionsStore'
 import { extractRegion } from '../utils/regionUtils'
+import { VIEWER_EXCLUDED_ORG_CODES } from '../config/viewerExclusions'
+
+/**
+ * v4.13.0 — filtros derivados del usuario actual.
+ *   admin                            → ningún filtro
+ *   supervisor/viewer scope=global   → viewer aplica lista negra; supervisor ve todo
+ *   supervisor/viewer scope=scoped   → filtra por org_code (+ region_ids si los tiene)
+ */
+function getOrgCodeFilter() {
+  const user = useAuthStore.getState().user
+  if (!user) return null
+  if (user.role === 'admin') return null
+  if (user.scope === 'global') return null
+  return user.company?.org_code || null
+}
+
+function getRegionIdsFilter() {
+  const user = useAuthStore.getState().user
+  if (!user) return null
+  if (user.role === 'admin') return null
+  if (user.scope !== 'scoped') return null
+  const ids = Array.isArray(user.region_ids) ? user.region_ids : []
+  return ids.length > 0 ? ids : null
+}
+
+function getExcludeOrgCodes() {
+  const user = useAuthStore.getState().user
+  if (!user) return null
+  if (user.role === 'viewer' && user.scope === 'global') return VIEWER_EXCLUDED_ORG_CODES
+  return null
+}
 
 export const useOrdersStore = create((set, get) => ({
   orders: [],
@@ -22,7 +52,6 @@ export const useOrdersStore = create((set, get) => ({
     if (state.isLoading) {
       const loadAge = state.loadingStartedAt ? Date.now() - state.loadingStartedAt : 0
       if (loadAge < 20000) return
-      // Estado huérfano detectado — resetear y continuar con la carga
       set({ isLoading: false, loadingStartedAt: null })
     }
     const age = state.lastFetch ? Date.now() - state.lastFetch : Infinity
@@ -30,7 +59,6 @@ export const useOrdersStore = create((set, get) => ({
     if (!force && !isEmpty && age < 10000) return
 
     const showSpinner = isEmpty
-    // Siempre registrar loadingStartedAt para que el stale guard funcione correctamente
     set({ isLoading: true, loadingStartedAt: Date.now(), error: null })
 
     console.log('[Orders] fetching site_visits...')
@@ -39,7 +67,6 @@ export const useOrdersStore = create((set, get) => ({
         set({ isLoading: false, loadingStartedAt: null })
         if (get().orders.length === 0) {
           set({ error: 'Tiempo de espera agotado. Verifica tu conexión.' })
-          // Retry automático a los 5s si no hay datos
           setTimeout(() => {
             if (useOrdersStore.getState().orders.length === 0) {
               useOrdersStore.getState().load(true)
@@ -47,10 +74,13 @@ export const useOrdersStore = create((set, get) => ({
           }, 5000)
         }
       }
-    }, 30000)  // 30s consistente con el timeout de fetchSiteVisits
+    }, 30000)
 
     try {
-      const data = await fetchSiteVisits()
+      const orgCode = getOrgCodeFilter()
+      const regionIds = getRegionIdsFilter()
+      console.log('[Orders] filters orgCode:', orgCode, 'regionIds:', regionIds)
+      const data = await fetchSiteVisits({ orgCode, regionIds })
       clearTimeout(timeout)
       console.log('[Orders] site_visits OK, count:', data.length)
       set({ orders: data, isLoading: false, loadingStartedAt: null, lastFetch: Date.now(), error: null })
@@ -66,41 +96,13 @@ export const useOrdersStore = create((set, get) => ({
   getFiltered: () => {
     const { orders, filterStatus, filterRegion, search } = get()
 
-    const user    = useAuthStore.getState().user
-    const VIEWER_EXCLUDED_ORG_CODES = ['HK']
-
-    // Filtro por empresa para supervisores con empresa asignada
-    const orgCode = (user?.role !== 'admin' && user?.role !== 'viewer' && user?.company?.org_code) ? user.company.org_code : null
-
-    // Derivar site_visit_ids permitidos/excluidos desde submissions ya cargadas
-    // (site_visits no tiene org_code, pero submissions sí)
-    let allowedVisitIds = null
-    let excludedVisitIds = null
-
-    if (orgCode) {
-      const submissions = useSubmissionsStore.getState().submissions
-      allowedVisitIds = new Set(
-        submissions
-          .filter(s => s.org_code === orgCode && s.site_visit_id)
-          .map(s => s.site_visit_id)
-      )
-    }
-
-    if (user?.role === 'viewer') {
-      const submissions = useSubmissionsStore.getState().submissions
-      excludedVisitIds = new Set(
-        submissions
-          .filter(s => s.org_code && VIEWER_EXCLUDED_ORG_CODES.includes(s.org_code) && s.site_visit_id)
-          .map(s => s.site_visit_id)
-      )
-    }
+    // Defensa client-side de la lista negra para viewer global
+    const exclude = getExcludeOrgCodes()
 
     const q = search.trim().toLowerCase()
     return orders.filter((o) => {
-      // Filtrar por empresa si aplica
-      if (allowedVisitIds && !allowedVisitIds.has(o.id)) return false
-      // Viewer: excluir visitas de empresas internas (HenkanCX)
-      if (excludedVisitIds && excludedVisitIds.has(o.id)) return false
+      // Viewer global: excluir visitas de empresas internas
+      if (exclude && o.org_code && exclude.includes(o.org_code)) return false
       // Filtrar por estado — soporta sub-estados con subState embebido
       if (filterStatus !== 'all') {
         if (filterStatus === 'closed') {
@@ -108,11 +110,10 @@ export const useOrdersStore = create((set, get) => ({
         } else if (filterStatus === 'open') {
           if (o.status !== 'open') return false
         } else if (['con-avance', 'sin-iniciar', 'en-curso', 'cancelled'].includes(filterStatus)) {
-          // Sub-estados: usar subState calculado en fetchSiteVisits desde la base de datos
           if (o.subState !== filterStatus) return false
         }
       }
-      // Filtrar por región
+      // Filtrar por región (filtro UI, no de seguridad)
       if (filterRegion !== 'all') {
         const region = extractRegion(o.order_number)
         if (region !== filterRegion) return false
