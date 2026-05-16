@@ -24,9 +24,10 @@ function RoleBadge({ role }) {
 }
 
 function ScopeBadge({ user, regionCount, totalCompanyRegions }) {
-  // admin / inspector → no aplica
-  if (!user || user.role === 'admin' || user.role === 'inspector') return null
+  // admin → no aplica
+  if (!user || user.role === 'admin') return null
 
+  // global (solo supervisor y viewer)
   if (user.scope === 'global') {
     return (
       <span className="text-[10px] font-bold px-2 py-1 rounded-full inline-flex items-center gap-1"
@@ -35,6 +36,37 @@ function ScopeBadge({ user, regionCount, totalCompanyRegions }) {
       </span>
     )
   }
+
+  // inspector sin empresa (estado inconsistente)
+  if (user.role === 'inspector' && !user.company_id) {
+    return (
+      <span className="text-[10px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1"
+        style={{ background:'#fffbeb', color:'#92400e', border:'1px solid #fde68a' }}>
+        <AlertTriangle size={10}/>Sin empresa
+      </span>
+    )
+  }
+
+  // Empresa sin regiones
+  if (totalCompanyRegions === 0) {
+    return (
+      <span className="text-[10px] font-semibold px-2 py-1 rounded-full th-text-m"
+        style={{ background:'var(--bg-base)' }}>—</span>
+    )
+  }
+
+  // Inspector sin regiones propias → heredado
+  if (user.role === 'inspector' && regionCount === 0) {
+    return (
+      <span className="text-[10px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1"
+        style={{ background:'var(--bg-base)', color:'var(--text-secondary)', border:'1px solid var(--border-light)' }}
+        title="Inspector sin regiones propias asignadas — hereda las regiones de su empresa">
+        <MapPin size={10}/>Heredado: {totalCompanyRegions} {totalCompanyRegions === 1 ? 'región' : 'regiones'} (vía Empresa)
+      </span>
+    )
+  }
+
+  // Supervisor / viewer scoped sin regiones explícitas → todas
   if (regionCount === 0) {
     return (
       <span className="text-[10px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1"
@@ -43,10 +75,12 @@ function ScopeBadge({ user, regionCount, totalCompanyRegions }) {
       </span>
     )
   }
+
+  // Con N regiones específicas (cualquier rol scoped)
   return (
     <span className="text-[10px] font-semibold px-2 py-1 rounded-full inline-flex items-center gap-1"
       style={{ background:'#0284C714', color:'#0369a1' }}>
-      <MapPin size={10}/>{regionCount} de {totalCompanyRegions} regiones
+      <MapPin size={10}/>{regionCount} de {totalCompanyRegions} {totalCompanyRegions === 1 ? 'región' : 'regiones'}
     </span>
   )
 }

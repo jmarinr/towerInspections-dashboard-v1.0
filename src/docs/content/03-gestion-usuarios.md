@@ -11,11 +11,12 @@ La sección **Administración → Usuarios** del panel es donde gestionás todos
 
 ## La lista de usuarios
 
-Al abrir la sección ves una tabla con todos los usuarios del sistema, sus avatares, rol, empresa, alcance y estado. La columna **Alcance** es nueva desde v4.13.0 y muestra de un vistazo cómo está configurado el acceso:
+Al abrir la sección ves una tabla con todos los usuarios del sistema, sus avatares, rol, empresa, alcance y estado. La columna **Alcance** muestra de un vistazo cómo está configurado el acceso:
 
 - **Badge rojo "GLOBAL"** → usuario ve todo (excepto internas).
 - **Badge azul "Empresa X · Todas las regiones"** → scoped a una empresa, sin filtro de regiones.
-- **Badge azul "Empresa X · 2 regiones"** → scoped a empresa + N regiones específicas.
+- **Badge azul "Empresa X · N de M regiones"** → scoped a empresa + N regiones específicas de M totales.
+- **Badge gris "Heredado: M regiones (vía Empresa)"** → inspector sin regiones propias, hereda las M regiones de su empresa.
 
 Los filtros arriba te dejan filtrar por rol o por empresa.
 
@@ -69,7 +70,7 @@ Click en **Guardar**. Si todo es válido, se crea el usuario en Auth + perfil en
 Click en el ícono de lápiz al final de la fila. Se abre el mismo modal precargado con los datos actuales. Restricciones:
 
 - **El email no se puede cambiar.** Si necesitás cambiarlo, borrá y recreá.
-- **Cambiar el rol** está permitido — si cambiás de inspector a supervisor, los campos se ajustan en vivo.
+- **Cambiar el rol** está permitido — si cambias de inspector a supervisor o viceversa, los campos se reajustan en vivo.
 - **Cambiar de scoped a global** está permitido, pero aparece la advertencia roja en pantalla.
 - **Cambiar la empresa** limpia las regiones previamente seleccionadas (porque ya no aplican).
 
@@ -84,41 +85,41 @@ Click en el ícono de lápiz al final de la fila. Se abre el mismo modal precarg
 
 ### Crear un supervisor regional
 
-> *Necesitás darle acceso a Juan para que supervise las inspecciones de **Connect Costa Rica** solo en la **Región Central**.*
+> *Necesitamos darle acceso a un supervisor para que supervise las inspecciones de una empresa cliente, solo en una de sus regiones.*
 
 1. Click **Nuevo usuario**.
-2. Nombre: `Juan Pérez`. Email: `juan@connect.cr`. Contraseña inicial: `Connect2026!`.
+2. Nombre, email, contraseña inicial.
 3. Rol: `Supervisor`.
 4. Toggle "Por empresa" (azul).
-5. Empresa: `Connect Costa Rica`.
-6. Multi-select: marcar solo `Región Central`.
+5. Empresa: seleccionar la empresa cliente.
+6. Multi-select: marcar solo la región específica que cubre.
 7. Activo: sí.
 8. Guardar.
 
-Resultado: Juan al hacer login verá únicamente órdenes y entregas de Connect Costa Rica en Región Central.
+Resultado: al hacer login verá únicamente órdenes y entregas de esa empresa en esa región.
 
 ### Crear un viewer global para auditoría
 
-> *El equipo legal necesita acceso de solo lectura a todo el sistema (excepto datos internos de PTI).*
+> *El equipo de calidad necesita acceso de solo lectura a todo el sistema, excepto datos internos del operador.*
 
 1. **Nuevo usuario**.
-2. Nombre: `Auditor Legal`. Email: `legal@auditor.com`.
+2. Nombre, email.
 3. Rol: `Viewer`.
 4. Toggle "Global" (rojo) → leer la advertencia.
 5. (No aparece selector de empresa ni regiones.)
 6. Guardar.
 
-Resultado: ve todo excepto HenkanCX y regiones de prueba. No puede modificar nada.
+Resultado: ve todo excepto empresas y regiones marcadas como internas. No puede modificar nada.
 
 ### Convertir un supervisor scoped en multi-región
 
-> *Marta cubre la región Central y ahora le sumás Pacífico.*
+> *Un supervisor cubre una región y le sumás otra.*
 
-1. Click lápiz en la fila de Marta.
-2. En el multi-select de regiones, marcar también `Región Pacífico`.
+1. Click lápiz en su fila.
+2. En el multi-select de regiones, marcar también la nueva región.
 3. Guardar.
 
-Marta verá las dos regiones desde su próximo login (o refresh).
+Verá las dos regiones desde su próximo login (o refresh).
 
 ## Errores comunes
 

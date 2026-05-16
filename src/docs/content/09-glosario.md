@@ -57,7 +57,7 @@ Términos que aparecen en el sistema y en este manual.
 
 **`order_number`** — Número de orden de trabajo, formato `{REGIÓN}-{YYMM}-{NNN}`. Generado al crear la visita en el app móvil.
 
-**`org_code`** — Código único de empresa (texto corto en mayúsculas, ej: `CONNECT-CR`). Es la clave que vincula entregas con empresas.
+**`org_code`** — Código único de empresa (texto corto en mayúsculas, ej: `EMPA`). Es la clave que vincula entregas con empresas.
 
 ## P
 

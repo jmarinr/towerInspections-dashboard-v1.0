@@ -9,7 +9,7 @@ description: Los 8 tipos de formularios, ciclo de vida de una orden, sub-estados
 
 ## Concepto: visita ↔ entregas
 
-En PTI TeleInspect distinguimos dos cosas que en la práctica se confunden:
+En el sistema distinguimos dos cosas que en la práctica se confunden:
 
 - **Visita** (`site_visit`, también llamada "orden de trabajo") — el evento de ir a un sitio. Tiene un único `order_number`, un sitio asociado, una fecha de inicio y un estado.
 - **Entrega** (`submission`) — un formulario completado dentro de una visita. Una visita puede tener múltiples entregas (ej: mantenimiento + ascenso + fotos = 3 entregas para la misma visita).
@@ -117,7 +117,7 @@ Los números de orden se generan en el app móvil con esta lógica:
 {REGIÓN}-{YYMM}-{CORRELATIVO}
 ```
 
-Ejemplo: `CRC-2605-042` = región CRC (Central Costa Rica), mayo 2026, orden #42 del mes.
+Ejemplo conceptual: `XXX-2605-042` = prefijo de región XXX, mes 05 de 2026, orden #42 del mes.
 
 El correlativo se reinicia cada mes y cada región. Si dos inspectores crean órdenes simultáneamente, el sistema garantiza unicidad porque el correlativo se calcula desde la BD al momento de crear.
 

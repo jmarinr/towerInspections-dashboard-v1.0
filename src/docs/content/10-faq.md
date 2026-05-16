@@ -33,9 +33,9 @@ Técnicamente, sin límite. **En la práctica, deberían ser pocos** — usuario
 SELECT email, full_name, role FROM app_users WHERE scope = 'global';
 ```
 
-### ¿Un viewer global ve HenkanCX?
+### ¿Un viewer global ve las empresas internas?
 
-No, mientras HenkanCX tenga `internal = true` (que es el default). Solo los admins ven empresas y regiones internas, sin excepciones.
+No, mientras la empresa tenga `internal = true`. Solo los admins ven empresas y regiones internas, sin excepciones.
 
 ### ¿Puedo asignar regiones a un inspector?
 
@@ -133,9 +133,9 @@ SELECT c.name, c.org_code, c.internal,
 
 Por ahora, manual: un admin elimina el usuario y lo recrea con nueva contraseña. **Próxima feature**: integrar el flujo de "Olvidé mi contraseña" de Supabase Auth (email con magic link).
 
-### Un viewer puede ver datos de HenkanCX si conoce la URL del detalle?
+### Un viewer puede ver datos de una empresa interna si conoce la URL del detalle?
 
-No. Aun si copia/pega una URL del estilo `/orders/<uuid>` para una visita de HenkanCX:
+No. Aun si copia/pega una URL del estilo `/orders/<uuid>` para una visita de una empresa interna:
 
 1. La query del frontend pide el detalle.
 2. La RLS de Supabase devuelve 0 filas porque la visita pertenece a una empresa `internal`.

@@ -37,7 +37,7 @@ El usuario ve **todo el sistema**, excepto empresas y regiones marcadas como `in
 
 - Supervisores generales que cubren múltiples clientes.
 - Auditores externos que necesitan visibilidad amplia.
-- Roles de revisión interna de PTI.
+- Roles de revisión interna.
 
 En la lista de usuarios, estos aparecen con un badge rojo **GLOBAL**.
 
@@ -83,8 +83,8 @@ Una empresa o región puede marcarse como **interna** desde su modal de edición
 
 Casos de uso típicos:
 
-- **HenkanCX** está marcada como interna por defecto: es la empresa proveedora, no un cliente. Los usuarios externos no deberían verla.
-- **Regiones de prueba** (Cocle Prueba, sitios de testing): también internas para que no contaminen las vistas de usuarios reales.
+- Empresas internas del equipo operador (no clientes).
+- Regiones de prueba o de staging, para que no contaminen las vistas de usuarios reales.
 
 Para marcar/desmarcar: editar la empresa o región y togglar el switch. El cambio aplica al instante para nuevas consultas.
 
@@ -121,43 +121,43 @@ Estos permisos se administran en la sección **Permisos** del panel. Son ortogon
 
 ### Caso 1: supervisor regional
 
-> *"Juan supervisa las inspecciones de Connect Costa Rica, pero solo en la región Central."*
+> *Necesitamos un supervisor para una empresa cliente que opere solo en una de sus regiones.*
 
 - **Rol:** `supervisor`
 - **Scope:** `scoped`
-- **Empresa:** Connect Costa Rica
-- **Regiones asignadas:** Región Central
+- **Empresa:** Empresa A
+- **Regiones asignadas:** Región Norte
 
-Juan verá solo las órdenes, entregas y reportes de Connect Costa Rica que estén en la Región Central. No verá nada de otras regiones de Connect ni de otras empresas.
+Verá solo las órdenes, entregas y reportes de Empresa A que estén en la Región Norte. No verá nada de otras regiones de Empresa A ni de otras empresas.
 
 ### Caso 2: auditor general
 
-> *"María hace auditorías mensuales de calidad y necesita ver entregas de todos los clientes."*
+> *Alguien hace auditorías de calidad y necesita ver entregas de todos los clientes.*
 
 - **Rol:** `viewer`
 - **Scope:** `global`
 - **Empresa:** — (vacío, porque es global)
 - **Regiones asignadas:** — (vacío, porque es global)
 
-María verá todas las empresas (excepto HenkanCX y las internas) y todas las regiones no internas. No podrá modificar nada.
+Verá todas las empresas (excepto las internas) y todas las regiones no internas. No podrá modificar nada.
 
 ### Caso 3: cliente que se autosupervisa
 
-> *"Quieren darle acceso al gerente de OFGSA para que vea las inspecciones de su empresa."*
+> *Le damos acceso al gerente de una empresa cliente para que vea sus inspecciones.*
 
 - **Rol:** `viewer`
 - **Scope:** `scoped`
-- **Empresa:** OFGSA
-- **Regiones asignadas:** — (vacío = todas las de OFGSA)
+- **Empresa:** Empresa B
+- **Regiones asignadas:** — (vacío = todas las de Empresa B)
 
-Verá solo lo de OFGSA, en cualquiera de las regiones donde OFGSA opera, sin permisos de edición.
+Verá solo lo de Empresa B, en cualquiera de las regiones donde Empresa B opera, sin permisos de edición.
 
 ### Caso 4: supervisor general interno
 
-> *"Carlos del equipo de PTI revisa el trabajo de todos los clientes y también el interno."*
+> *Alguien del equipo operador revisa el trabajo de todos los clientes y también el interno.*
 
 - **Rol:** `admin` (mejor) o `supervisor` global
-- Si es `supervisor` global → **no verá HenkanCX ni las regiones de prueba**. Si necesita ver eso, debe ser `admin`.
+- Si es `supervisor` global → **no verá las empresas/regiones marcadas como internas**. Si necesita ver eso, debe ser `admin`.
 
 ## Validaciones que el sistema impone
 

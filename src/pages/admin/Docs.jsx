@@ -134,12 +134,23 @@ function DocsSearch({ onResultClick }) {
           })),
         },
       })
+      // v4.14.1 — la edge devuelve siempre HTTP 200 con { error } cuando algo
+      // falla en el body. Si hay un error de transporte (red, deploy faltante),
+      // viene en `error` del SDK.
       if (error) {
-        setAiError(error.message || 'No se pudo conectar con la función. ¿Está desplegada?')
+        setAiError('No se pudo conectar con la edge function. ¿Está desplegada como `docs-ai`? Detalle: ' + (error.message || error))
         return
       }
-      setAiAnswer(data?.answer || 'Sin respuesta.')
-      setAiSources(data?.sources || [])
+      if (data?.error) {
+        setAiError(data.error)
+        return
+      }
+      if (!data?.answer) {
+        setAiError('Respuesta vacía de la función. Revisá los logs de la edge function.')
+        return
+      }
+      setAiAnswer(data.answer)
+      setAiSources(data.sources || [])
     } catch (e) {
       setAiError(e.message || 'Error inesperado.')
     } finally {

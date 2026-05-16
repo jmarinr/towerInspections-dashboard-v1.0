@@ -23,11 +23,11 @@ regions (regiones)         │
 - Una **región** agrupa varios sitios (1-a-muchos).
 - Un **sitio** es un punto físico identificado por `site_id` (texto único globalmente).
 
-Ejemplo real:
+Ejemplo conceptual:
 
-- Empresa: `Connect Costa Rica` (org_code `CONNECT-CR`).
-- Regiones asociadas: `Región Central`, `Región Pacífico`, `Región Caribe`.
-- Sitios en Central: `CR-001`, `CR-002`, `CR-003`...
+- Empresa: Empresa A, con `org_code` `EMPA`.
+- Regiones asociadas: Región Norte, Región Sur.
+- Sitios en Región Norte: `SITIO-001`, `SITIO-002`, etc.
 
 ## Sección Empresas
 
@@ -36,10 +36,10 @@ Ejemplo real:
 1. **Administración → Empresas → Nueva empresa**.
 2. Campos:
    - **Nombre** — visible en toda la UI.
-   - **Código org** (`org_code`) — único, en mayúsculas (ej: `CONNECT-CR`). Es la clave que une la empresa con las entregas e inspectores.
-   - **País** — CR, PA, MX, CO, PR, GT, SV, HN, NI, DO.
+   - **Código org** (`org_code`) — único, en mayúsculas. Es la clave que une la empresa con las entregas e inspectores.
+   - **País** — selector.
    - **Regiones asociadas** — multi-select de regiones activas. Acá decidís dónde opera la empresa.
-   - **Empresa interna** (toggle rojo) — si lo activás, solo los admins la verán. Usar para empresas internas de PTI o de prueba.
+   - **Empresa interna** (toggle rojo) — si lo activás, solo los admins la verán. Usar para empresas del operador o de prueba.
    - **Estado activo** — desactivada = oculta del sistema sin borrarla.
 3. Guardar.
 
@@ -65,7 +65,7 @@ Botón rojo "Eliminar" en el modal. Ten en cuenta:
 
 1. **Administración → Regiones → Nueva región**.
 2. Campos:
-   - **Nombre** — único (ej: `Región Central`).
+   - **Nombre** — único.
    - **Región interna** (toggle rojo) — igual que en empresas, oculta para no-admins.
 3. Guardar.
 
@@ -73,8 +73,8 @@ Botón rojo "Eliminar" en el modal. Ten en cuenta:
 
 Click en una región para expandirla. Aparece la tabla de sitios. Botón "Agregar sitio":
 
-- **ID Sitio** — texto único globalmente, en mayúsculas (ej: `CR-001`). Es lo que el inspector escribe en el app móvil.
-- **Nombre** — descriptivo (ej: `Torre Aeropuerto Liberia`).
+- **ID Sitio** — texto único globalmente, en mayúsculas (ej: `SITIO-001`). Es lo que el inspector escribe en el app móvil.
+- **Nombre** — descriptivo del sitio.
 - **Coordenadas** — lat/lng (opcional pero útil para el mapa).
 - **Altura (m)** — altura de la torre (opcional).
 - **Provincia** — texto libre.
@@ -110,10 +110,10 @@ Toggle rojo en ambos modales. Marca el flag `internal = true` en la BD. Resultad
 - **Solo admins** ven la empresa/región y todo lo que cuelga de ella (visitas, entregas, fotos).
 - Aparece badge rojo "INTERNA" en la lista para que visualmente distingas.
 
-Casos por defecto:
+Casos típicos:
 
-- **HenkanCX** (org_code HK) marcada como interna.
-- **Cocle Prueba, prueba sitio 6, PRUEBA 7** marcadas como internas.
+- La empresa del operador del sistema (no es un cliente, es uso interno).
+- Regiones de prueba o staging para no contaminar la operación real.
 
 Podés agregar o quitar el flag a cualquier empresa/región en cualquier momento. El cambio aplica al instante para nuevas consultas.
 
@@ -129,6 +129,6 @@ Los sitios se gestionan **dentro de cada región** (no tienen sección propia). 
 ## Buenas prácticas
 
 - **No reutilices nombres de empresas o regiones.** Aunque borres una, sus datos históricos siguen referenciándola.
-- **Mantené `org_code` corto y estable.** `CONNECT-CR` mejor que `CONNECT-ASSISTANCE-COSTA-RICA-2026`.
+- **Mantené `org_code` corto y estable.** Mejor `EMPA-MX` que `EMPRESA-A-MEXICO-2026`.
 - **Marcá las pruebas como `internal` desde el inicio.** Evita contaminación de los datos de producción.
 - **Para clientes que se autosupervisan** (ej: gerentes que quieren ver lo suyo), creá una empresa única, asignale sus regiones, y dale acceso vía viewer scoped.
