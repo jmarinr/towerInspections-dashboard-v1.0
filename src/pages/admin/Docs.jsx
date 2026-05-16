@@ -119,19 +119,37 @@ function DocsSearch({ onResultClick }) {
     setAiSources([])
     setAiOpen(true)
     try {
+      // v4.14.2 — Construir contexto:
+      //   • Si la búsqueda local devolvió matches → top 5 secciones completas.
+      //   • Si no hay matches → fallback con título + descripción de los 10 capítulos
+      //     para que Claude pueda orientar al usuario al capítulo correcto.
+      let context
+      let isFallback = false
+      if (results.length > 0) {
+        context = results.slice(0, 5).map(r => ({
+          chapterTitle: r.chapterTitle,
+          chapterSlug:  r.chapterSlug,
+          heading:      r.heading,
+          sectionId:    r.sectionId,
+          text: (getAllSections().find(s => s.chapterSlug === r.chapterSlug && s.sectionId === r.sectionId) || {}).text || '',
+        }))
+      } else {
+        isFallback = true
+        context = chapters.map(c => ({
+          chapterTitle: c.title,
+          chapterSlug:  c.slug,
+          heading:      'Resumen del capítulo',
+          sectionId:    'intro',
+          // El texto fallback es título + descripción + primeras N headings del capítulo
+          text: `${c.title}\n${c.description || ''}\n\nTemas: ${(c.headings || []).map(h => h.text).join(', ')}`.trim(),
+        }))
+      }
+
       const { data, error } = await supabase.functions.invoke('docs-ai', {
         body: {
-          question: query.trim(),
-          // Mandamos las top 5 secciones del índice local como contexto
-          context: results.slice(0, 5).map(r => ({
-            chapterTitle: r.chapterTitle,
-            chapterSlug:  r.chapterSlug,
-            heading:      r.heading,
-            sectionId:    r.sectionId,
-            // Tomamos la sección completa, no el snippet, para que Claude
-            // tenga el contexto real
-            text: (getAllSections().find(s => s.chapterSlug === r.chapterSlug && s.sectionId === r.sectionId) || {}).text || '',
-          })),
+          question:   query.trim(),
+          context,
+          isFallback,
         },
       })
       // v4.14.1 — la edge devuelve siempre HTTP 200 con { error } cuando algo

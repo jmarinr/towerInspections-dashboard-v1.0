@@ -28,16 +28,16 @@ import { normalizeFormCode, getFormCodeSiblings, isFormVisible } from '../data/f
  * Fetch all submissions.
  *  - orgCode:    filtra submissions de una empresa (supervisor/viewer scoped).
  *  - regionIds:  filtra submissions a esas regiones (supervisor/viewer scoped con regiones).
- * v4.13.1 — la exclusión de empresas/regiones internas ahora vive en RLS
- * server-side via el flag `internal`.
+ *
+ * v4.14.2 — sin embed cruzado de site_visits para no duplicar evaluación de RLS
+ * en usuarios globales. Los detalles del sitio que se necesiten se obtienen
+ * directamente de submissions.site_id / site_name (que ya los tiene como
+ * columnas propias) o se cargan en el detalle individual.
  */
 export async function fetchSubmissions({ formCode, orgCode, regionIds, limit = 2000 } = {}) {
   let query = supabase
     .from('submissions')
-    .select(`
-      *,
-      site_visits!submissions_site_visit_id_fkey(site_id, site_name)
-    `)
+    .select('*')
     .order('updated_at', { ascending: false })
     .limit(limit)
 
@@ -56,15 +56,7 @@ export async function fetchSubmissions({ formCode, orgCode, regionIds, limit = 2
   const { data, error } = await query
   if (error) throw error
 
-  // Aplanar site_visits embebido → site_id y site_name directamente en la submission
-  return (data || []).map(s => {
-    const { site_visits: sv, ...rest } = s
-    return normalizeSubmission({
-      ...rest,
-      site_id:   rest.site_id   || sv?.site_id   || null,
-      site_name: rest.site_name || sv?.site_name  || null,
-    })
-  })
+  return (data || []).map(s => normalizeSubmission(s))
     .filter(s => {
       const p = s.payload || {}
       const inner = p.payload || p
@@ -176,51 +168,56 @@ export async function fetchSubmissionWithAssets(id) {
  * Fetch all site visits (orders).
  *  - orgCode:   filtra visitas de una empresa (supervisor/viewer scoped).
  *  - regionIds: filtra visitas a esas regiones (supervisor/viewer scoped con regiones).
+ *
+ * v4.14.2 — Sin embed cruzado de submissions. En lugar de eso, se hace una
+ * segunda query liviana de submissions (solo id, site_visit_id, finalized)
+ * EN PARALELO y se calcula sub-estado en memoria. Para usuarios globales esto
+ * evita que Postgres evalúe RLS de dos tablas mezcladas con JOIN, que en
+ * v4.13.x causaba statement timeout.
  */
 export async function fetchSiteVisits({ status, orgCode, regionIds, limit = 2000 } = {}) {
-  // Incluimos un conteo de submissions para calcular sub-estados sin depender
-  // del store de submissions. Supabase retorna submissions como array embebido.
-  let query = supabase
+  // Query principal — solo site_visits
+  let visitsQ = supabase
     .from('site_visits')
-    .select(`
-      *,
-      submissions(id, form_code, finalized)
-    `)
+    .select('*')
     .order('started_at', { ascending: false })
     .limit(limit)
 
-  if (status && status !== 'all') {
-    query = query.eq('status', status)
+  if (status && status !== 'all')                     visitsQ = visitsQ.eq('status', status)
+  if (orgCode)                                        visitsQ = visitsQ.eq('org_code', orgCode)
+  if (Array.isArray(regionIds) && regionIds.length)   visitsQ = visitsQ.in('region_id', regionIds)
+
+  // Query liviana — solo lo mínimo para subState
+  let subsQ = supabase
+    .from('submissions')
+    .select('id, site_visit_id, finalized')
+
+  if (orgCode)                                        subsQ = subsQ.eq('org_code', orgCode)
+  if (Array.isArray(regionIds) && regionIds.length)   subsQ = subsQ.in('region_id', regionIds)
+
+  // Disparamos ambas en paralelo
+  const [visitsRes, subsRes] = await Promise.all([
+    q(visitsQ, 30000),
+    q(subsQ,   30000).catch(() => ({ data: [], error: null })),
+  ])
+
+  if (visitsRes.error) throw visitsRes.error
+  const visits = visitsRes.data || []
+  const subs   = subsRes.data   || []
+
+  // Agrupar submissions por visita en memoria
+  const subsByVisit = new Map()
+  for (const s of subs) {
+    if (!s.site_visit_id) continue
+    const arr = subsByVisit.get(s.site_visit_id) || []
+    arr.push(s)
+    subsByVisit.set(s.site_visit_id, arr)
   }
 
-  if (orgCode) {
-    query = query.eq('org_code', orgCode)
-  }
-
-  if (Array.isArray(regionIds) && regionIds.length > 0) {
-    // Excluyente: visitas con region_id NULL no pasan cuando hay filtro de región.
-    query = query.in('region_id', regionIds)
-  }
-
-  const { data, error } = await q(query, 30000)
-  if (error) throw error
-
-  // Calcular sub-estado directamente desde los submissions embebidos
-  const CANONICAL = {
-    'preventive-maintenance': 'mantenimiento',
-    'executed-maintenance':   'mantenimiento-ejecutado',
-    'inventario-v2':          'equipment-v2',
-    'safety-system':          'sistema-ascenso',
-    'additional-photo':       'additional-photo-report',
-    'reporte-fotos':          'additional-photo-report',
-    'puesta-tierra':          'grounding-system-test',
-  }
-  const normalize = c => CANONICAL[c] || c
-
-  return (data || []).map(v => {
-    const subs        = v.submissions || []
-    const hasSubs     = subs.length > 0
-    const hasFinalized = subs.some(s => s.finalized === true)
+  return visits.map(v => {
+    const visitSubs   = subsByVisit.get(v.id) || []
+    const hasSubs     = visitSubs.length > 0
+    const hasFinalized = visitSubs.some(s => s.finalized === true)
 
     let subState
     if (v.status === 'cancelled')           subState = 'cancelled'
@@ -229,9 +226,7 @@ export async function fetchSiteVisits({ status, orgCode, regionIds, limit = 2000
     else if (hasSubs && !hasFinalized)      subState = 'en-curso'
     else                                    subState = 'con-avance'
 
-    // Eliminar el array submissions embebido — solo mantenemos el sub-estado calculado
-    const { submissions: _subs, ...rest } = v
-    return { ...rest, subState, hasSubs, hasFinalized }
+    return { ...v, subState, hasSubs, hasFinalized }
   })
 }
 
