@@ -4,7 +4,7 @@
  * Diagrama SVG + tabla de equipos + equipos en piso + export Excel.
  */
 import { useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Navigate } from 'react-router-dom'
 import { ArrowLeft, Download, Hash, MapPin, Ruler, Building2, Radio } from 'lucide-react'
 import Spinner from '../../components/ui/Spinner'
 import SiteStatusBadge from '../../components/tower-inventory/SiteStatusBadge'
@@ -12,6 +12,7 @@ import TowerDiagram from '../../components/tower-inventory/TowerDiagram'
 import TowerEquipmentTable from '../../components/tower-inventory/TowerEquipmentTable'
 import FloorEquipmentSection from '../../components/tower-inventory/FloorEquipmentSection'
 import useTowerDetail from '../../hooks/useTowerDetail'
+import { useAuthStore } from '../../store/useAuthStore'
 
 function InfoTag({ icon: Icon, label, value }) {
   if (!value) return null
@@ -25,6 +26,12 @@ function InfoTag({ icon: Icon, label, value }) {
 }
 
 export default function TowerDetail() {
+  // v4.14.3 — defensa: solo admins acceden a Inv. Torres
+  const user = useAuthStore(s => s.user)
+  if (user && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
+
   const { siteId } = useParams()
   const navigate   = useNavigate()
   const [activeIdx, setActiveIdx] = useState(null)

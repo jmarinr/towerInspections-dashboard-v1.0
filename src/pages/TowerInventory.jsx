@@ -3,11 +3,12 @@
  * Vista 1: Mapa de Panamá + lista lateral sincronizada + KPI strip.
  */
 import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { Search, AlertTriangle, Radio, ChevronRight } from 'lucide-react'
 import Spinner from '../components/ui/Spinner'
 import SiteStatusBadge from '../components/tower-inventory/SiteStatusBadge'
 import useTowerInventory, { STATUS_COLORS } from '../hooks/useTowerInventory'
+import { useAuthStore } from '../store/useAuthStore'
 
 // Leaflet — importación dinámica para evitar SSR issues
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet'
@@ -40,6 +41,12 @@ function KpiCard({ label, value, accent, color, sub }) {
 }
 
 export default function TowerInventory() {
+  // v4.14.3 — defensa: solo admins acceden a Inv. Torres
+  const user = useAuthStore(s => s.user)
+  if (user && user.role !== 'admin') {
+    return <Navigate to="/dashboard" replace />
+  }
+
   const navigate  = useNavigate()
   const listRef   = useRef(null)
   const rowRefs   = useRef({})

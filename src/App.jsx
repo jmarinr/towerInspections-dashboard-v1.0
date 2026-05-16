@@ -74,8 +74,8 @@ export default function App() {
       <Route path="/submissions"                  element={<Page><Submissions /></Page>} />
       <Route path="/submissions/:submissionId"    element={<Page><SubmissionDetail /></Page>} />
       <Route path="/reports"                      element={<Page><Reports /></Page>} />
-      <Route path="/tower-inventory"              element={<Page><TowerInventory /></Page>} />
-      <Route path="/tower-inventory/:siteId"      element={<Page><TowerDetail /></Page>} />
+      <Route path="/tower-inventory"              element={<AdminPage><TowerInventory /></AdminPage>} />
+      <Route path="/tower-inventory/:siteId"      element={<AdminPage><TowerDetail /></AdminPage>} />
 
       {/* Rutas de administración — solo admin */}
       <Route path="/admin/users"                  element={<AdminPage><Users /></AdminPage>} />

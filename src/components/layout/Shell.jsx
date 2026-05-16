@@ -13,7 +13,6 @@ const NAV = [
   { to: '/orders',      icon: FolderOpen,      label: 'Visitas' },
   { to: '/submissions', icon: ClipboardList,   label: 'Formularios' },
   { to: '/reports',         icon: FileText,        label: 'Reportes' },
-  { to: '/tower-inventory', icon: Radio,           label: 'Inv. Torres' },
 ]
 
 const NAV_ADMIN = [
@@ -21,6 +20,7 @@ const NAV_ADMIN = [
   { to: '/admin/companies',   icon: Building2,   label: 'Empresas' },
   { to: '/admin/regions',     icon: MapPin,      label: 'Regiones' },
   { to: '/admin/permissions', icon: ShieldCheck, label: 'Permisos' },
+  { to: '/tower-inventory',   icon: Radio,       label: 'Inv. Torres' },
   { to: '/admin/docs',        icon: BookOpen,    label: 'Documentación' },
   { to: '/admin/logs',        icon: ScrollText,  label: 'Logs' },
   { to: '/admin/system',      icon: Activity,    label: 'Sistema' },
