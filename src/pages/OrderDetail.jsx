@@ -100,15 +100,16 @@ export default function OrderDetail() {
     return mk in permMatrix ? permMatrix[mk] === true : (user.canWrite || false)
   }
 
-  const orgCode   = (user?.scope === 'scoped' && user?.company?.org_code) ? user.company.org_code : null
-  const regionIds = (user?.scope === 'scoped' && Array.isArray(user?.region_ids) && user.region_ids.length > 0) ? user.region_ids : null
+  // v4.14.6 — admin nunca aplica este guard
+  const orgCode   = (user?.role !== 'admin' && user?.scope === 'scoped' && user?.company?.org_code) ? user.company.org_code : null
+  const regionIds = (user?.role !== 'admin' && user?.scope === 'scoped' && Array.isArray(user?.region_ids) && user.region_ids.length > 0) ? user.region_ids : null
 
   const allSubmissions = useSubmissionsStore.getState().submissions
   const orderOrgCodes  = new Set(allSubmissions.filter(s => s.site_visit_id === orderId).map(s => s.org_code))
   const orderOrg       = order.org_code || (orderOrgCodes.size === 1 ? [...orderOrgCodes][0] : null)
   const orderRegion    = order.region_id || null
 
-  // Bloqueo por empresa (scoped)
+  // Bloqueo por empresa (scoped, no-admin)
   if (orgCode && orderOrg && orderOrg !== orgCode) {
     return (
       <div className="text-center py-20">

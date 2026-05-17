@@ -1121,9 +1121,9 @@ export default function SubmissionDetail() {
     </div>
   )
 
-  // v4.13.1 — guard de acceso por scope y regiones (defensa contra URL directa).
-  // Empresas/regiones internas las filtra RLS.
-  {
+  // v4.14.6 — guard de acceso por scope y regiones (defensa contra URL directa).
+  // Admin nunca aplica este guard. Empresas/regiones internas las filtra RLS server-side.
+  if (user?.role !== 'admin') {
     const orgCode   = (user?.scope === 'scoped' && user?.company?.org_code) ? user.company.org_code : null
     const regionIds = (user?.scope === 'scoped' && Array.isArray(user?.region_ids) && user.region_ids.length > 0) ? user.region_ids : null
     const subOrg    = submission.org_code || null
