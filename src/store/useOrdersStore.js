@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { fetchSiteVisits, fetchSiteVisitById, fetchSubmissionsWithAssetsForVisit } from '../lib/supabaseQueries'
 import { useAuthStore } from './useAuthStore'
-import { extractRegion } from '../utils/regionUtils'
 
 /**
  * v4.13.1 — filtros derivados del usuario actual.
@@ -102,10 +101,10 @@ export const useOrdersStore = create((set, get) => ({
           if (o.subState !== filterStatus) return false
         }
       }
-      // Filtrar por región (filtro UI, no de seguridad)
+      // Filtrar por región (filtro UI, no de seguridad). Comparación por UUID
+      // directo contra region_id — sin parsear order_number.
       if (filterRegion !== 'all') {
-        const region = extractRegion(o.order_number)
-        if (region !== filterRegion) return false
+        if (o.region_id !== filterRegion) return false
       }
       // Filtrar por búsqueda
       if (!q) return true

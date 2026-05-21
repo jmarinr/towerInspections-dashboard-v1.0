@@ -6,7 +6,7 @@
  */
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { extractRegion } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 const EQUIPMENT_CODES = ['equipment-v2', 'inventario-v2']
 
@@ -48,6 +48,7 @@ const STATUS_LABELS = {
 export { STATUS_COLORS, STATUS_LABELS }
 
 export default function useTowerInventory() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [sites,     setSites]     = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error,     setError]     = useState(null)
@@ -64,7 +65,7 @@ export default function useTowerInventory() {
 
     supabase
       .from('submissions')
-      .select('id, payload, created_at, site_visit_id, site_visits(id, order_number, started_at, site_id, site_name)')
+      .select('id, payload, created_at, site_visit_id, site_visits(id, order_number, region_id, started_at, site_id, site_name)')
       .in('form_code', EQUIPMENT_CODES)
       .eq('finalized', true)
       .order('created_at', { ascending: false })
@@ -94,7 +95,7 @@ export default function useTowerInventory() {
             siteType:      info.tipoSitio         || null,
             lat:           parseFloat(info.latitud  || info.lat  || 0) || null,
             lng:           parseFloat(info.longitud || info.lng  || 0) || null,
-            region:        extractRegion(sv.order_number || ''),
+            region:        sv.region_id || null,
             status:        deriveSiteStatus(raw),
             towerItems:    (raw.torre?.items || []).length,
             floorCarriers: (raw.carriers || []).length,
@@ -134,10 +135,10 @@ export default function useTowerInventory() {
   const totalFloorCarriers  = filteredSites.reduce((a, s) => a + s.floorCarriers, 0)
   const criticalSites       = filteredSites.filter(s => s.status === 'critical').length
 
-  const regionOptions = useMemo(() =>
-    [...new Set(sites.map(s => s.region).filter(Boolean))].sort(),
-    [sites]
-  )
+  const regionOptions = useMemo(() => {
+    const present = new Set(sites.map(s => s.region).filter(Boolean))
+    return _regionCatalog.filter(r => present.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [sites, _regionCatalog])
 
   return {
     sites,

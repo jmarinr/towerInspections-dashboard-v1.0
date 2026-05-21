@@ -12,7 +12,7 @@ import {
   getQuarterOptions, getCurrentQuarterOption,
   isInQuarter,
 } from '../utils/quarterUtils'
-import { extractRegion } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 const EQUIPMENT_V2_CODES = ['equipment-v2', 'inventario-v2']
 
@@ -32,7 +32,7 @@ function calcArea(alto, ancho, tipoEquipo) {
   return Number.isFinite(a) && Number.isFinite(b) ? parseFloat((a * b).toFixed(4)) : null
 }
 
-function mapItem(item, idSitio, siteVisitId, overrideCarrier, source, orderId, orderLabel, orderStartDate) {
+function mapItem(item, idSitio, siteVisitId, overrideCarrier, source, orderId, orderLabel, orderStartDate, regionId) {
   const isMW  = item.tipoEquipo === 'MW'
   const alto  = item.alto  ?? null
   const ancho = item.ancho ?? null
@@ -43,7 +43,7 @@ function mapItem(item, idSitio, siteVisitId, overrideCarrier, source, orderId, o
     orderId,
     orderLabel,
     orderStartDate,
-    region: extractRegion(orderLabel),
+    region: regionId,
     alturaMts:         item.alturaMts         ?? null,
     // Torre → cara (Cara 1, Pierna A…) · Carrier → grados (0°, 45°…)
     orientacionCara:   source === 'torre'   ? (item.orientacion || null) : null,
@@ -69,17 +69,18 @@ function flattenItems(submission) {
   const orderId        = sv?.id           || submission.site_visit_id || null
   const orderLabel     = sv?.order_number || null
   const orderStartDate = sv?.started_at   || submission.created_at   || null
+  const regionId       = submission.region_id || null
 
   const rows = []
 
   ;(raw.torre?.items || []).forEach(item =>
-    rows.push(mapItem(item, idSitio, submission.site_visit_id, undefined, 'torre', orderId, orderLabel, orderStartDate))
+    rows.push(mapItem(item, idSitio, submission.site_visit_id, undefined, 'torre', orderId, orderLabel, orderStartDate, regionId))
   )
 
   ;(raw.carriers || []).forEach(carrier => {
     const name = carrier.nombre || null
     ;(carrier.items || []).forEach(item =>
-      rows.push(mapItem(item, idSitio, submission.site_visit_id, name, 'carrier', orderId, orderLabel, orderStartDate))
+      rows.push(mapItem(item, idSitio, submission.site_visit_id, name, 'carrier', orderId, orderLabel, orderStartDate, regionId))
     )
   })
 
@@ -87,6 +88,7 @@ function flattenItems(submission) {
 }
 
 export default function useEquipmentInventoryReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [allItems,        setAllItems]        = useState([])
   const [isLoading,       setIsLoading]       = useState(true)
   const [error,           setError]           = useState(null)
@@ -103,7 +105,7 @@ export default function useEquipmentInventoryReport() {
 
     supabase
       .from('submissions')
-      .select('id, site_visit_id, payload, site_visits(id, order_number, started_at, status)')
+      .select('id, region_id, site_visit_id, payload, site_visits(id, order_number, started_at, status)')
       .in('form_code', EQUIPMENT_V2_CODES)
       .eq('finalized', true)
       .order('created_at', { ascending: false })
@@ -148,8 +150,8 @@ export default function useEquipmentInventoryReport() {
     types:    [...new Set(quarterFilteredItems.map(i => i.tipoEquipo).filter(Boolean))].sort(),
     heights:  [...new Set(quarterFilteredItems.map(i => i.alturaMts).filter(v => v != null))]
                 .sort((a, b) => a - b).map(String),
-    regions:  [...new Set(quarterFilteredItems.map(i => i.region).filter(Boolean))].sort(),
-  }), [quarterFilteredItems])
+    regions:  _regionCatalog.filter(r => new Set(quarterFilteredItems.map(i => i.region).filter(Boolean)).has(r.id)).map(r => ({ id: r.id, name: r.name })),
+  }), [quarterFilteredItems, _regionCatalog])
 
   // ── Filtrado en memoria ────────────────────────────────────────────────────
   const filteredItems = useMemo(() =>

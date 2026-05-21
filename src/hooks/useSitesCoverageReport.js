@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 const THRESHOLD_WARN    = 14  // días sin visita → amarillo
 const THRESHOLD_ALERT   = 21  // días sin visita → rojo
@@ -24,6 +24,7 @@ function statusFromDays(days) {
 }
 
 export default function useSitesCoverageReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [rawVisits,  setRawVisits]  = useState([])
   const [isLoading,  setIsLoading]  = useState(true)
   const [error,      setError]      = useState(null)
@@ -42,7 +43,7 @@ export default function useSitesCoverageReport() {
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
     let query = supabase
       .from('site_visits')
-      .select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number')
+      .select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number, region_id')
       .order('started_at', { ascending: false })
     if (orgCode) query = query.eq('org_code', orgCode)
     query.then(({ data, error: err }) => {
@@ -70,6 +71,7 @@ export default function useSitesCoverageReport() {
           lastInspector: null,
           hasOpenVisit: false,
         lastOrderNumber: null,
+        lastRegionId: null,
         }
       }
       const s = map[key]
@@ -81,6 +83,7 @@ export default function useSitesCoverageReport() {
           s.lastActivity   = dt
           s.lastInspector  = v.inspector_name || v.inspector_username
           s.lastOrderNumber = v.order_number
+          s.lastRegionId = v.region_id
         }
       } else {
         s.hasOpenVisit = true
@@ -93,13 +96,16 @@ export default function useSitesCoverageReport() {
     return Object.values(map).map(s => {
       const days   = daysSince(s.lastActivity)
       const status = s.hasOpenVisit ? 'in_progress' : statusFromDays(days)
-      return { ...s, days, status, region: extractRegion(s.lastOrderNumber) }
+      return { ...s, days, status, region: s.lastRegionId || null }
     })
   }, [rawVisits])
 
   // Filtros
   const orgs    = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
-  const regions = useMemo(() => [...new Set(sites.map(s => s.region).filter(Boolean))].sort(), [sites])
+  const regions = useMemo(() => {
+    const present = new Set(sites.map(s => s.region).filter(Boolean))
+    return _regionCatalog.filter(r => present.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [sites, _regionCatalog])
 
   const filtered = useMemo(() => {
     return sites

@@ -14,7 +14,7 @@ import { LOG } from '../lib/logEvent'
 import {
   getQuarterOptions, getCurrentQuarterOption, isInQuarter,
 } from '../utils/quarterUtils'
-import { extractRegion } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 const PM_CODES        = ['preventive-maintenance', 'mantenimiento']
 const GROUNDING_CODES = ['grounding-system-test',  'puesta-tierra']
@@ -74,6 +74,7 @@ function extractDamages(submission) {
   const orderLabel     = sv?.order_number || null
   const orderStartDate = sv?.started_at   || submission.created_at   || null
   const idSitio        = data.siteInfo?.idSitio || data.formData?.idSitio || sv?.site_id || ''
+  const regionId       = submission.region_id || null
 
   const damages = []
 
@@ -85,7 +86,7 @@ function extractDamages(submission) {
         damageKey: `${fc}_${subId}_${itemId}`, submissionId: subId,
         formCode: 'preventive-maintenance', formLabel: 'Preventive Maintenance Inspection',
         idSitio, orderId, orderLabel, orderStartDate,
-        region: extractRegion(orderLabel),
+        region: regionId,
         description: MAINT_ITEM_MAP[itemId] || `Ítem ${itemId}`,
         category: raw === 'malo' ? 'Malo' : 'Regular',
         status: 'pendiente', auditComment: '',
@@ -136,6 +137,7 @@ function extractDamages(submission) {
 }
 
 export default function useDamageReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [allItems,        setAllItems]        = useState([])
   const [isLoading,       setIsLoading]       = useState(true)
   const [error,           setError]           = useState(null)
@@ -154,7 +156,7 @@ export default function useDamageReport() {
     Promise.all([
       supabase
         .from('submissions')
-        .select('id, form_code, site_visit_id, payload, created_at, site_visits(id, order_number, started_at, site_id, status)')
+        .select('id, form_code, region_id, site_visit_id, payload, created_at, site_visits(id, order_number, started_at, site_id, status)')
         .in('form_code', ALL_CODES)
         .eq('finalized', true)
         .order('created_at', { ascending: false }),
@@ -209,8 +211,8 @@ export default function useDamageReport() {
     sites:      [...new Set(quarterFilteredItems.map(i => i.idSitio).filter(Boolean))].sort(),
     categories: [...new Set(quarterFilteredItems.map(i => i.category).filter(Boolean))].sort(),
     statuses:   ['pendiente', 'cotizado', 'reparado'],
-    regions:    [...new Set(quarterFilteredItems.map(i => i.region).filter(Boolean))].sort(),
-  }), [quarterFilteredItems])
+    regions:    _regionCatalog.filter(r => new Set(quarterFilteredItems.map(i => i.region).filter(Boolean)).has(r.id)).map(r => ({ id: r.id, name: r.name })),
+  }), [quarterFilteredItems, _regionCatalog])
 
   const filteredItems = useMemo(() =>
     quarterFilteredItems.filter(item => {

@@ -5,11 +5,12 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 const REQUIRED_FORMS = ['mantenimiento','mantenimiento-ejecutado','inventario-v2','sistema-ascenso','additional-photo-report','puesta-tierra']
 
 export default function useInspectorQualityReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [visits,    setVisits]    = useState([])
   const [subs,      setSubs]      = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -23,7 +24,7 @@ export default function useInspectorQualityReport() {
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let vQuery = supabase.from('site_visits').select('id, inspector_username, inspector_name, org_code, status, started_at, closed_at, order_number')
+    let vQuery = supabase.from('site_visits').select('id, inspector_username, inspector_name, org_code, status, started_at, closed_at, order_number, region_id')
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized, org_code')
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
@@ -60,7 +61,7 @@ export default function useInspectorQualityReport() {
       const ins = map[key]
       ins.orders++
       if (v.status === 'closed') ins.closed++
-      const vReg = extractRegion(v.order_number)
+      const vReg = v.region_id
       if (vReg && !ins.regions) ins.regions = new Set()
       if (vReg) ins.regions.add(vReg)
 
@@ -108,8 +109,8 @@ export default function useInspectorQualityReport() {
   const regions  = useMemo(() => {
     const all = new Set()
     inspectors.forEach(i => i.regions?.forEach(r => all.add(r)))
-    return [...all].sort()
-  }, [inspectors])
+    return _regionCatalog.filter(r => all.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [inspectors, _regionCatalog])
 
   const filtered = useMemo(() =>
     inspectors.filter(i => {

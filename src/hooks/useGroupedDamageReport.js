@@ -7,6 +7,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
 import useDamageReport from './useDamageReport'
+import { useRegionsCatalog, getRegionName } from '../lib/regionsCatalog'
 import * as XLSX from 'xlsx'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -64,6 +65,7 @@ function groupDamages(allItems) {
 
 // ── Hook principal ────────────────────────────────────────────────────────────
 export default function useGroupedDamageReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const user = useAuthStore(s => s.user)
 
   // Consume useDamageReport como caja negra
@@ -164,8 +166,8 @@ export default function useGroupedDamageReport() {
   const filterOptions = useMemo(() => ({
     categories: [...new Set(allGroups.map(g => g.category).filter(Boolean))].sort(),
     statuses:   ['pendiente', 'cotizado', 'reparado'],
-    regions:    [...new Set(allGroups.flatMap(g => g.sites.map(s => s.region)).filter(Boolean))].sort(),
-  }), [allGroups])
+    regions:    _regionCatalog.filter(r => new Set(allGroups.flatMap(g => g.sites.map(s => s.region)).filter(Boolean)).has(r.id)).map(r => ({ id: r.id, name: r.name })),
+  }), [allGroups, _regionCatalog])
 
   // ── setFilter unificado ───────────────────────────────────────────────────
   const setFilter = useCallback((key, val) => {
@@ -254,7 +256,7 @@ export default function useGroupedDamageReport() {
           'Estado':                site.status || '',
           'Comentario Auditoría':  site.auditComment || '',
           'Fecha':                 site.date ? new Date(site.date).toLocaleDateString('es') : '',
-          'Región':                site.region || '',
+          'Región':                site.region ? getRegionName(site.region) : '',
           'Cuatrimestre':          quarterLabel,
         })
       })

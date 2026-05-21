@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
 import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
+import { useRegionsCatalog } from '../../lib/regionsCatalog'
 import { APP_VERSION } from '../../version'
 
 
@@ -260,6 +261,9 @@ export default function Shell({ children }) {
     init()
     // Cargar matriz de permisos al iniciar — necesario para hasPermission() en componentes
     useAdminStore.getState().loadPermissions()
+    // Salvaguarda: garantizar el catalog de regiones aunque el login no lo haya cargado
+    // (no fuerza recarga si ya está cargado).
+    useRegionsCatalog.getState().load()
   }, [])
 
   // Polling cada 60s + refresh suave al volver al tab solo si datos están stale (>60s)

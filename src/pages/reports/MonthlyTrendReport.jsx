@@ -58,7 +58,7 @@ export default function MonthlyTrendReport({ hook }) {
           className="px-3 py-2 rounded-xl text-[13px] border"
           style={{ background:'var(--bg-input)', borderColor:'var(--border)', color:'var(--text-primary)' }}>
           <option value="">Todas las regiones</option>
-          {(hook.regions ?? []).map(r => <option key={r} value={r}>{r}</option>)}
+          {(hook.regions ?? []).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
         </select>
       </div>
       <div className="rounded-2xl p-5 th-shadow" style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>

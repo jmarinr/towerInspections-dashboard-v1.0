@@ -179,7 +179,7 @@ export default function TowerInventory() {
               <select value={filterRegion} onChange={e => setFilterRegion(e.target.value)}
                 className="h-7 px-2 text-[11px] border th-border rounded-lg th-bg-base th-text-s focus:outline-none">
                 <option value="">Todas</option>
-                {regionOptions.map(r => <option key={r} value={r}>{r}</option>)}
+                {regionOptions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
               <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
                 className="h-7 px-2 text-[11px] border th-border rounded-lg th-bg-base th-text-s focus:outline-none">

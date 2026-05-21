@@ -5,13 +5,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 import { getQuarterOptions, getCurrentQuarterOption, isInQuarter, getQuarterKey } from '../utils/quarterUtils'
 
 const SLA_WARN_DAYS  = 3   // abiertas >3 días → amarillo
 const SLA_ALERT_DAYS = 7   // abiertas >7 días → rojo
 
 export default function useSlaReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [visits,      setVisits]      = useState([])
   const [isLoading,   setIsLoading]   = useState(true)
   const [error,       setError]       = useState(null)
@@ -29,7 +30,7 @@ export default function useSlaReport() {
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
     let query = supabase
       .from('site_visits')
-      .select('id, order_number, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name')
+      .select('id, order_number, region_id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name')
       .order('started_at', { ascending: false })
     if (orgCode) query = query.eq('org_code', orgCode)
     query.then(({ data, error: err }) => {
@@ -74,7 +75,7 @@ export default function useSlaReport() {
       ageHours,
       slaStatus,
       inspector:  v.inspector_name || v.inspector_username || '—',
-      region:     extractRegion(v.order_number),
+      region:     v.region_id || null,
       quarterKey: v.started_at ? getQuarterKey(v.started_at) : null,
     }
   }), [visits])
@@ -88,10 +89,10 @@ export default function useSlaReport() {
     [...new Set(quarterFiltered.map(v => v.inspector).filter(v => v !== '—'))].sort(),
     [quarterFiltered]
   )
-  const regions = useMemo(() =>
-    [...new Set(quarterFiltered.map(v => v.region).filter(Boolean))].sort(),
-    [quarterFiltered]
-  )
+  const regions = useMemo(() => {
+    const present = new Set(quarterFiltered.map(v => v.region).filter(Boolean))
+    return _regionCatalog.filter(r => present.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [quarterFiltered, _regionCatalog])
 
   const filtered = useMemo(() =>
     quarterFiltered.filter(v => {

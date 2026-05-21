@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 // Bounding box de Panamá — filtra puntos fuera del país (ej: Costa Rica)
 const PANAMA_BOUNDS = { minLat: 7.1, maxLat: 9.9, minLng: -83.1, maxLng: -77.1 }
@@ -14,6 +14,7 @@ const inPanama = (lat, lng) =>
   lng >= PANAMA_BOUNDS.minLng && lng <= PANAMA_BOUNDS.maxLng
 
 export default function useGeoMapReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [visits,    setVisits]    = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [error,     setError]     = useState(null)
@@ -29,7 +30,7 @@ export default function useGeoMapReport() {
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
     let query = supabase
       .from('site_visits')
-      .select('id, order_number, site_id, site_name, org_code, status, started_at, inspector_username, inspector_name, start_lat, start_lng')
+      .select('id, order_number, region_id, site_id, site_name, org_code, status, started_at, inspector_username, inspector_name, start_lat, start_lng')
       .not('start_lat', 'is', null)
       .order('started_at', { ascending: false })
     if (orgCode) query = query.eq('org_code', orgCode)
@@ -47,13 +48,16 @@ export default function useGeoMapReport() {
     lat:       parseFloat(v.start_lat),
     lng:       parseFloat(v.start_lng),
     inspector: v.inspector_name || v.inspector_username || '—',
-    region:    extractRegion(v.order_number),
+    region:    v.region_id || null,
     dateLabel: v.started_at ? new Date(v.started_at).toLocaleDateString('es', { day:'numeric', month:'short' }) : '—',
   })).filter(v => !isNaN(v.lat) && !isNaN(v.lng) && inPanama(v.lat, v.lng)), [visits])
 
   const orgs       = useMemo(() => [...new Set(enriched.map(v => v.org_code).filter(Boolean))].sort(), [enriched])
   const inspectors = useMemo(() => [...new Set(enriched.map(v => v.inspector).filter(v => v !== '—'))].sort(), [enriched])
-  const regions    = useMemo(() => [...new Set(enriched.map(v => v.region).filter(Boolean))].sort(), [enriched])
+  const regions    = useMemo(() => {
+    const present = new Set(enriched.map(v => v.region).filter(Boolean))
+    return _regionCatalog.filter(r => present.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [enriched, _regionCatalog])
 
   const filtered = useMemo(() =>
     enriched.filter(v => {

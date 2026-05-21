@@ -6,7 +6,7 @@ import LoadError from '../components/ui/LoadError'
 import Pagination from '../components/ui/Pagination'
 import { useOrdersStore } from '../store/useOrdersStore'
 import { useSubmissionsStore } from '../store/useSubmissionsStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 const PAGE_SIZE = 25
 import { useAuthStore } from '../store/useAuthStore'
@@ -129,6 +129,7 @@ export default function Orders() {
   const search       = useOrdersStore((s) => s.search)
   const setFilter    = useOrdersStore((s) => s.setFilter)
   const getFiltered  = useOrdersStore((s) => s.getFiltered)
+  const regionsList  = useRegionsCatalog((s) => s.list)
   const navigate     = useNavigate()
   const [page, setPage] = useState(1)
 
@@ -177,15 +178,14 @@ export default function Orders() {
     return { total: filtered.length, cerradas, abiertas, pendientes, borrador, canceladas }
   }, [filtered])
 
-  // Opciones de región derivadas dinámicamente del dataset completo
+  // Opciones de región: catalog ∩ region_id presentes en el dataset, ordenado por nombre.
+  // El nombre viene del catalog (single source of truth), nunca de order_number.
   const regionOptions = useMemo(() => {
-    const regions = new Set()
-    for (const o of orders) {
-      const r = extractRegion(o.order_number)
-      if (r) regions.add(r)
-    }
-    return [...regions].sort()
-  }, [orders])
+    const present = new Set(orders.map(o => o.region_id).filter(Boolean))
+    return regionsList
+      .filter(r => present.has(r.id))
+      .map(r => ({ id: r.id, name: r.name }))
+  }, [orders, regionsList])
 
   return (
     <div className="space-y-5">
@@ -250,7 +250,7 @@ export default function Orders() {
             focus:outline-none focus:ring-2 focus:ring-sky-600/20 focus:border-sky-500 transition-all th-text-s">
           <option value="all">Todas las regiones</option>
           {regionOptions.map(r => (
-            <option key={r} value={r}>{regionLabel(r)}</option>
+            <option key={r.id} value={r.id}>{r.name}</option>
           ))}
         </select>
 

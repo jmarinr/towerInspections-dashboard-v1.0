@@ -5,7 +5,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 function toMonth(isoStr) {
   if (!isoStr) return null
@@ -20,6 +20,7 @@ function fmtMonth(ym) {
 }
 
 export default function useMonthlyTrendReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [visits,    setVisits]    = useState([])
   const [subs,      setSubs]      = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -32,7 +33,7 @@ export default function useMonthlyTrendReport() {
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let vQuery = supabase.from('site_visits').select('id, org_code, status, started_at, closed_at, inspector_username, order_number')
+    let vQuery = supabase.from('site_visits').select('id, org_code, status, started_at, closed_at, inspector_username, order_number, region_id')
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized, created_at, org_code')
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
@@ -46,12 +47,15 @@ export default function useMonthlyTrendReport() {
   }, [])
 
   const orgs     = useMemo(() => [...new Set(visits.map(v => v.org_code).filter(Boolean))].sort(), [visits])
-  const regions  = useMemo(() => [...new Set(visits.map(v => extractRegion(v.order_number)).filter(Boolean))].sort(), [visits])
+  const regions  = useMemo(() => {
+    const present = new Set(visits.map(v => v.region_id).filter(Boolean))
+    return _regionCatalog.filter(r => present.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [visits, _regionCatalog])
 
   const filteredVisits = useMemo(() =>
     visits.filter(v => {
       if (filterOrg    && v.org_code !== filterOrg)              return false
-      if (filterRegion && extractRegion(v.order_number) !== filterRegion) return false
+      if (filterRegion && v.region_id !== filterRegion) return false
       return true
     }),
     [visits, filterOrg, filterRegion]

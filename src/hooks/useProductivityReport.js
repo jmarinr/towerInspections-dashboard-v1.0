@@ -13,7 +13,7 @@ import { normalizeFormCode, getFormMeta } from '../data/formTypes'
 import {
   getQuarterOptions, getCurrentQuarterOption, isInQuarter, getQuarterKey,
 } from '../utils/quarterUtils'
-import { extractRegion } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 // ── Umbrales ajustables — cambiar cuando se definan estándares oficiales ──────
 export const SEMAFORO_THRESHOLDS  = { YELLOW: 0.20, RED: 0.50 }
 export const MIN_BENCHMARK_SAMPLES = 3
@@ -163,7 +163,7 @@ function normalizeOrder(visit, subs, benchmarks) {
     orderDuration:    duration,
     orderDurationStr: formatDuration(duration),
     isInProgress:     !visit.closed_at,
-    region:           extractRegion(visit.order_number),
+    region:           visit.region_id || null,
     formCount:        forms.length,
     forms,
   }
@@ -171,6 +171,7 @@ function normalizeOrder(visit, subs, benchmarks) {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 export default function useProductivityReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [allOrders,       setAllOrders]       = useState([])
   const [isLoading,       setIsLoading]       = useState(true)
   const [error,           setError]           = useState(null)
@@ -188,7 +189,7 @@ export default function useProductivityReport() {
     Promise.all([
       supabase
         .from('site_visits')
-        .select('id, order_number, site_id, site_name, started_at, closed_at, inspector_name, inspector_username, status')
+        .select('id, order_number, region_id, site_id, site_name, started_at, closed_at, inspector_name, inspector_username, status')
         .neq('status', 'cancelled')
         .order('started_at', { ascending: false }),
       supabase
@@ -252,8 +253,8 @@ export default function useProductivityReport() {
     inspectors: [...new Set(quarterFilteredOrders.map(o => o.inspector.name).filter(Boolean))].sort(),
     sites:      [...new Set(quarterFilteredOrders.map(o => o.idSitio).filter(Boolean))].sort(),
     formTypes:  [...new Set(quarterFilteredOrders.flatMap(o => o.forms.map(f => f.formLabel)).filter(Boolean))].sort(),
-    regions:    [...new Set(quarterFilteredOrders.map(o => o.region).filter(Boolean))].sort(),
-  }), [quarterFilteredOrders])
+    regions:    _regionCatalog.filter(r => new Set(quarterFilteredOrders.map(o => o.region).filter(Boolean)).has(r.id)).map(r => ({ id: r.id, name: r.name })),
+  }), [quarterFilteredOrders, _regionCatalog])
 
   // ── KPIs: calculan sobre filteredOrders ───────────────────────────────────
 

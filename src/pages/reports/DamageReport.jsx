@@ -223,7 +223,7 @@ export default function DamageReport({ hookData }) {
           <div className="flex-1 min-w-[130px]">
             <Select value={filters.region} onChange={e => setFilter('region', e.target.value)}>
               <option value="">Todas las regiones</option>
-              {filterOptions.regions?.map(r => <option key={r} value={r}>{r}</option>)}
+              {filterOptions.regions?.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </Select>
           </div>
         </div>

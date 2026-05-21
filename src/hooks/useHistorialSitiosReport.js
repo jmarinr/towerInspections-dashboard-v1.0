@@ -5,9 +5,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuthStore } from '../store/useAuthStore'
-import { extractRegion, regionLabel } from '../utils/regionUtils'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 export default function useHistorialSitiosReport() {
+  const _regionCatalog = useRegionsCatalog((s) => s.list)
   const [visits,    setVisits]    = useState([])
   const [subs,      setSubs]      = useState([])
   const [isLoading, setIsLoading] = useState(true)
@@ -24,7 +25,7 @@ export default function useHistorialSitiosReport() {
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let vQuery = supabase.from('site_visits').select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number').order('started_at', { ascending: true })
+    let vQuery = supabase.from('site_visits').select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number, region_id').order('started_at', { ascending: true })
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized')
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
@@ -51,7 +52,7 @@ export default function useHistorialSitiosReport() {
       const key = v.site_id || v.id
       if (!siteMap[key]) siteMap[key] = { siteId: v.site_id, siteName: v.site_name, orgCode: v.org_code, visits: [] }
       const visitSubs = subsByVisit[v.id] || []
-      const visitRegion = extractRegion(v.order_number)
+      const visitRegion = v.region_id || null
       const byCode = {}
       for (const s of visitSubs) {
         if (!byCode[s.form_code] || s.finalized) byCode[s.form_code] = s
@@ -77,7 +78,7 @@ export default function useHistorialSitiosReport() {
       .map(s => {
         const vCount = s.visits.length
         const lastV  = s.visits[vCount - 1]
-        const siteRegion = lastV?.region || extractRegion(s.visits[0]?.orderNumber)
+        const siteRegion = lastV?.region || s.visits[0]?.region || null
         const firstV = s.visits[0]
         const improvement = vCount >= 2
           ? lastV.rate - firstV.rate
@@ -88,7 +89,10 @@ export default function useHistorialSitiosReport() {
   }, [visits, subs])
 
   const orgs     = useMemo(() => [...new Set(sites.map(s => s.orgCode).filter(Boolean))].sort(), [sites])
-  const regions  = useMemo(() => [...new Set(sites.map(s => s.region).filter(Boolean))].sort(), [sites])
+  const regions  = useMemo(() => {
+    const present = new Set(sites.map(s => s.region).filter(Boolean))
+    return _regionCatalog.filter(r => present.has(r.id)).map(r => ({ id: r.id, name: r.name }))
+  }, [sites, _regionCatalog])
 
   const filtered = useMemo(() =>
     sites.filter(s => {

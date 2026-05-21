@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { supabase } from '../lib/supabaseClient'
 import { LOG } from '../lib/logEvent'
+import { useRegionsCatalog } from '../lib/regionsCatalog'
 
 export const useAuthStore = create((set, get) => ({
   isAuthed:       false,
@@ -122,6 +123,10 @@ export const useAuthStore = create((set, get) => ({
           canWrite:   data.role !== 'viewer',
         },
       })
+
+      // Cargar el catalog de regiones (single source of truth). Fire-and-forget:
+      // no bloquea el login; la RLS de `regions` decide qué filas devuelve.
+      useRegionsCatalog.getState().load(true).catch(() => {})
 
       if (isRealLogin) LOG.authLogin(data.email, data.role, data.company_id)
 
