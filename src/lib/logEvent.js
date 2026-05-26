@@ -146,4 +146,22 @@ export const LOG = {
     user_role:  actorRole,
     metadata:   { damage_key: damageKey, id_sitio: idSitio, order_label: orderLabel, action, source: 'admin_panel' },
   }),
+
+  visitReviewToggled: (visitId, orderNumber, siteId, actorEmail, actorRole, reviewed) => logEvent({
+    event_type: 'visit.review_toggled',
+    message:    `Visita ${orderNumber || siteId || visitId} marcada como ${reviewed ? 'revisada' : 'no revisada'} · por ${actorEmail}`,
+    severity:   'info',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { visit_id: visitId, order_number: orderNumber, site_id: siteId, reviewed, source: 'admin_panel' },
+  }),
+
+  visitNoteSaved: (visitId, orderNumber, siteId, actorEmail, actorRole, action) => logEvent({
+    event_type: 'visit.note_saved',
+    message:    `Nota de revisión ${action === 'added' ? 'agregada' : action === 'removed' ? 'eliminada' : 'actualizada'}: ${orderNumber || siteId || visitId} · por ${actorEmail}`,
+    severity:   'info',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { visit_id: visitId, order_number: orderNumber, site_id: siteId, action, source: 'admin_panel' },
+  }),
 }

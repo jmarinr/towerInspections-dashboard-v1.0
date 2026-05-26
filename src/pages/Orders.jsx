@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, ChevronRight, Download, Loader2, X } from 'lucide-react'
+import { Search, ChevronRight, Download, Loader2, X, CheckCircle2, Clock, MessageSquare, MessageSquarePlus, FileSpreadsheet } from 'lucide-react'
+import { fetchVisitReviews, upsertVisitReview } from '../lib/visitReviews'
+import { exportVisitsExcel } from '../utils/visitsExcel'
+import { LOG } from '../lib/logEvent'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
 import Pagination from '../components/ui/Pagination'
@@ -187,6 +190,86 @@ export default function Orders() {
       .map(r => ({ id: r.id, name: r.name }))
   }, [orders, regionsList])
 
+  // ── Revisado + Notas (solo admin y supervisor global) ──────────────────
+  const user = useAuthStore((s) => s.user)
+  const canReview = !!user && (
+    user.role === 'admin' ||
+    (user.role === 'supervisor' && user.scope === 'global')
+  )
+
+  const [reviewsMap,   setReviewsMap]   = useState({})  // visit_id → review
+  const [savingReview, setSavingReview] = useState(null) // visit_id en guardado
+  const [commentModal, setCommentModal] = useState(null) // { visitId, orderNumber, siteId, current }
+  const [commentText,  setCommentText]  = useState('')
+  const [savingComment,setSavingComment]= useState(false)
+  const [exporting,    setExporting]    = useState(false)
+
+  // Cargar reviews solo si el usuario tiene acceso y hay órdenes cargadas.
+  useEffect(() => {
+    if (!canReview || !orders.length) { setReviewsMap({}); return }
+    const ids = orders.map(o => o.id)
+    fetchVisitReviews(ids).then(setReviewsMap).catch(() => setReviewsMap({}))
+  }, [canReview, orders])
+
+  const handleToggleReviewed = async (e, o) => {
+    e.stopPropagation(); e.preventDefault()
+    if (!canReview || savingReview) return
+
+    const current  = reviewsMap[o.id]?.reviewed || false
+    const newValue = !current
+
+    // Optimistic
+    setReviewsMap(prev => ({
+      ...prev,
+      [o.id]: { ...(prev[o.id] || {}), visit_id: o.id, reviewed: newValue },
+    }))
+    setSavingReview(o.id)
+    try {
+      const updated = await upsertVisitReview(o.id, { reviewed: newValue }, user?.email)
+      setReviewsMap(prev => ({ ...prev, [o.id]: updated }))
+      LOG.visitReviewToggled(o.id, o.order_number, o.site_id, user?.email, user?.role, newValue)
+    } catch (err) {
+      console.error('[handleToggleReviewed]', err.message)
+      setReviewsMap(prev => ({ ...prev, [o.id]: { ...(prev[o.id] || {}), reviewed: current } }))
+    } finally {
+      setSavingReview(null)
+    }
+  }
+
+  const handleOpenComment = (e, o) => {
+    e.stopPropagation(); e.preventDefault()
+    if (!canReview) return
+    const current = reviewsMap[o.id]?.comment || ''
+    setCommentModal({ visitId: o.id, orderNumber: o.order_number, siteId: o.site_id, current })
+    setCommentText(current)
+  }
+
+  const handleSaveComment = async () => {
+    if (!commentModal || !canReview) return
+    setSavingComment(true)
+    const { visitId, orderNumber, siteId, current } = commentModal
+    const next = commentText.trim()
+    try {
+      const updated = await upsertVisitReview(visitId, { comment: next || null }, user?.email)
+      setReviewsMap(prev => ({ ...prev, [visitId]: updated }))
+      const action = !current && next ? 'added' : next ? 'updated' : 'removed'
+      LOG.visitNoteSaved(visitId, orderNumber, siteId, user?.email, user?.role, action)
+      setCommentModal(null)
+    } catch (err) {
+      console.error('[handleSaveComment]', err.message)
+    } finally {
+      setSavingComment(false)
+    }
+  }
+
+  const handleExportExcel = async () => {
+    if (!canReview || exporting) return
+    setExporting(true)
+    try { await exportVisitsExcel(filtered, reviewsMap) }
+    catch (err) { console.error('[handleExportExcel]', err.message); alert('No se pudo generar el Excel.') }
+    finally { setExporting(false) }
+  }
+
   return (
     <div className="space-y-5">
 
@@ -196,6 +279,16 @@ export default function Orders() {
         <span className="text-[12px] font-semibold th-text-m th-bg-base px-2.5 py-0.5 rounded-full tabular-nums">
           {filtered.length}
         </span>
+        {canReview && (
+          <button onClick={handleExportExcel} disabled={exporting || filtered.length === 0}
+            title="Descargar Excel de las visitas filtradas"
+            className="ml-auto inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-[12.5px]
+              font-semibold text-white transition-colors disabled:opacity-50"
+            style={{ background: '#0F6E56' }}>
+            {exporting ? <Loader2 size={13} className="animate-spin" /> : <FileSpreadsheet size={13} />}
+            {exporting ? 'Generando…' : 'Descargar Excel'}
+          </button>
+        )}
       </div>
 
       {/* KPIs clickeables */}
@@ -286,6 +379,8 @@ export default function Orders() {
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider hidden md:table-cell">Inspector</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider hidden lg:table-cell">Fecha</th>
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Estado</th>
+                {canReview && <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-24">Revisado</th>}
+                {canReview && <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-16 hidden sm:table-cell">Nota</th>}
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-16">PDFs</th>
                 <th className="w-8"></th>
               </tr>
@@ -335,6 +430,40 @@ export default function Orders() {
                       </span>
                     </td>
 
+                    {canReview && (
+                      <td className="px-4 py-3.5 text-center" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => handleToggleReviewed(e, o)}
+                          disabled={savingReview === o.id}
+                          title={reviewsMap[o.id]?.reviewed ? 'Marcar como no revisada' : 'Marcar como revisada'}
+                          className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[10.5px] font-semibold
+                            transition-colors cursor-pointer hover:opacity-80 disabled:opacity-50
+                            ${reviewsMap[o.id]?.reviewed
+                              ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                              : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'}`}>
+                          {savingReview === o.id
+                            ? <Loader2 size={10} className="animate-spin" />
+                            : reviewsMap[o.id]?.reviewed
+                              ? <><CheckCircle2 size={10} /> Revisado</>
+                              : <><Clock size={10} /> Pendiente</>}
+                        </button>
+                      </td>
+                    )}
+
+                    {canReview && (
+                      <td className="px-4 py-3.5 text-center hidden sm:table-cell" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => handleOpenComment(e, o)}
+                          title={reviewsMap[o.id]?.comment ? 'Ver/editar nota' : 'Agregar nota'}
+                          className={`p-1.5 rounded-lg transition-colors
+                            ${reviewsMap[o.id]?.comment
+                              ? 'text-sky-600 hover:bg-sky-50'
+                              : 'th-text-m hover:text-sky-600 hover:bg-sky-50'}`}>
+                          {reviewsMap[o.id]?.comment ? <MessageSquare size={14} /> : <MessageSquarePlus size={14} />}
+                        </button>
+                      </td>
+                    )}
+
                     <td className="px-4 py-3.5 text-center">
                       <BulkDownloadBtn orderId={o.id} orderNumber={o.order_number} />
                     </td>
@@ -363,6 +492,55 @@ export default function Orders() {
           <div className="text-[15px] font-semibold th-text-m mb-1">Sin resultados</div>
           <div className="text-[13px] th-text-m">
             {hasFilter ? 'Ajusta los filtros.' : 'Sin visitas registradas aún.'}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de nota de revisión (solo admin / supervisor global) */}
+      {canReview && commentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setCommentModal(null)}>
+          <div className="th-bg-card rounded-2xl p-6 w-full max-w-md mx-4 shadow-xl space-y-4"
+            style={{ background: 'var(--bg-card)' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-[14px] font-semibold th-text-p">Nota de revisión</div>
+                {commentModal.orderNumber && (
+                  <div className="text-[11px] th-text-m mt-0.5">{commentModal.orderNumber}</div>
+                )}
+              </div>
+              <button onClick={() => setCommentModal(null)}
+                className="p-1 rounded-lg th-text-m hover:th-text-p transition-colors">
+                <X size={15} />
+              </button>
+            </div>
+            <textarea
+              value={commentText}
+              onChange={e => setCommentText(e.target.value)}
+              onKeyDown={e => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleSaveComment() }}
+              placeholder="Escribe aquí la nota de auditoría…"
+              rows={5}
+              autoFocus
+              className="w-full px-3 py-2.5 text-[13px] border th-border rounded-xl resize-none th-text-p
+                focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400"
+              style={{ background: 'var(--bg-base)' }}
+            />
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] th-text-m">⌘/Ctrl + Enter para guardar</span>
+              <div className="flex gap-2">
+                <button onClick={() => setCommentModal(null)}
+                  className="px-4 py-2 rounded-xl text-[12.5px] font-medium border th-border th-text-m
+                    hover:bg-slate-50/40 transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleSaveComment} disabled={savingComment}
+                  className="px-4 py-2 rounded-xl text-[12.5px] font-medium text-white bg-sky-600
+                    hover:bg-sky-700 transition-colors disabled:opacity-50">
+                  {savingComment ? 'Guardando…' : 'Guardar'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
