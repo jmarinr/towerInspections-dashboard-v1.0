@@ -7,6 +7,9 @@ import { useAdminStore } from '../../store/useAdminStore'
 import { useThemeStore } from '../../store/useThemeStore'
 import { useRegionsCatalog } from '../../lib/regionsCatalog'
 import { APP_VERSION } from '../../version'
+import { useDownloadQueue } from '../../store/useDownloadQueue'
+import { buildOrderZip } from '../../lib/buildOrderZip'
+import DownloadQueueIndicator from '../DownloadQueueIndicator'
 
 
 const NAV = [
@@ -292,6 +295,29 @@ export default function Shell({ children }) {
     }
   }, [])
 
+  // Motor secuencial de la cola de descargas (procesa 1 ZIP a la vez).
+  // Vive en el Shell para que las descargas avancen estés en la pantalla que estés.
+  const dlJobs = useDownloadQueue(s => s.jobs)
+  useEffect(() => {
+    const { pickNext, updateJob } = useDownloadQueue.getState()
+    const next = pickNext()
+    if (!next) return
+
+    let cancelled = false
+    updateJob(next.id, { status: 'processing', phase: 'pdfs', progress: 0 })
+
+    buildOrderZip(
+      { id: next.orderId, order_number: next.orderNumber },
+      (patch) => { if (!cancelled) updateJob(next.id, patch) }
+    )
+      .then(() => { if (!cancelled) updateJob(next.id, { status: 'done', progress: 100 }) })
+      .catch((err) => {
+        if (!cancelled) updateJob(next.id, { status: 'error', error: err?.message || 'Error al generar el paquete' })
+      })
+
+    return () => { cancelled = true }
+  }, [dlJobs])
+
   const refresh      = useCallback(() => load(true), [load])
   const handleLogout = useCallback(() => {
     // Limpiar estado local inmediatamente — no esperar a Supabase
@@ -324,6 +350,7 @@ export default function Shell({ children }) {
             style={{ background: 'var(--header-bg)', borderBottom: '1px solid var(--header-border)' }}>
             <span className="text-[14px] font-semibold th-text-p">{pageTitle}</span>
             <div className="flex items-center gap-2">
+              <DownloadQueueIndicator />
               <RealtimeBadge />
               <ThemeToggle />
               <button onClick={refresh}
@@ -362,6 +389,7 @@ export default function Shell({ children }) {
             </div>
           </div>
           <div className="flex items-center gap-0.5 flex-shrink-0">
+            <DownloadQueueIndicator />
             <RealtimeBadge />
             <ThemeToggle />
             <button onClick={refresh} className="p-1.5 rounded-md th-text-m"

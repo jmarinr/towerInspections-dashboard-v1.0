@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Search, ChevronRight, Download, Loader2, X, CheckCircle2, Clock, MessageSquare, MessageSquarePlus, FileSpreadsheet } from 'lucide-react'
+import { Search, ChevronRight, Loader2, X, CheckCircle2, Clock, MessageSquare, MessageSquarePlus, FileSpreadsheet, FileText, Package } from 'lucide-react'
 import { fetchVisitReviews, upsertVisitReview } from '../lib/visitReviews'
 import { exportVisitsExcel } from '../utils/visitsExcel'
+import { useDownloadQueue } from '../store/useDownloadQueue'
+import DownloadQueuePanel from '../components/DownloadQueuePanel'
 import { LOG } from '../lib/logEvent'
 import Spinner from '../components/ui/Spinner'
 import LoadError from '../components/ui/LoadError'
@@ -70,9 +72,29 @@ function BulkDownloadBtn({ orderId, orderNumber }) {
   }
   return (
     <button onClick={handleClick} disabled={loading}
-      title="Descargar todos los PDFs"
+      title="Descargar PDFs sueltos"
       className="p-1.5 rounded-lg th-text-m hover:text-sky-600 hover:bg-sky-50 disabled:opacity-40 transition-colors">
-      {loading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+      {loading ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+    </button>
+  )
+}
+
+// Botón "Paquete ZIP": encola un ZIP completo (PDFs + fotos del Additional
+// Photo Report) en la cola global. Solo se muestra en órdenes cerradas.
+function ZipDownloadBtn({ order }) {
+  const enqueue = useDownloadQueue(s => s.enqueue)
+  const jobs    = useDownloadQueue(s => s.jobs)
+  const active  = jobs.some(j => j.orderId === order.id && (j.status === 'pending' || j.status === 'processing'))
+
+  const handleClick = (e) => {
+    e.stopPropagation(); e.preventDefault()
+    enqueue(order)
+  }
+  return (
+    <button onClick={handleClick} disabled={active}
+      title={active ? 'Paquete en cola…' : 'Descargar paquete completo (PDFs + fotos)'}
+      className="p-1.5 rounded-lg th-text-m hover:text-emerald-600 hover:bg-emerald-50 disabled:opacity-40 transition-colors">
+      {active ? <Loader2 size={14} className="animate-spin" /> : <Package size={14} />}
     </button>
   )
 }
@@ -381,7 +403,7 @@ export default function Orders() {
                 <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider">Estado</th>
                 {canReview && <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-24">Revisado</th>}
                 {canReview && <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-16 hidden sm:table-cell">Nota</th>}
-                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-16">PDFs</th>
+                <th className="px-4 py-3 text-[11px] font-semibold th-text-m uppercase tracking-wider text-center w-20">Descargas</th>
                 <th className="w-8"></th>
               </tr>
             </thead>
@@ -465,7 +487,10 @@ export default function Orders() {
                     )}
 
                     <td className="px-4 py-3.5 text-center">
-                      <BulkDownloadBtn orderId={o.id} orderNumber={o.order_number} />
+                      <div className="flex items-center justify-center gap-0.5">
+                        <BulkDownloadBtn orderId={o.id} orderNumber={o.order_number} />
+                        {o.subState === 'closed' && <ZipDownloadBtn order={o} />}
+                      </div>
                     </td>
 
                     <td className="pr-3 py-3.5">
@@ -544,6 +569,8 @@ export default function Orders() {
           </div>
         </div>
       )}
+
+      <DownloadQueuePanel />
     </div>
   )
 }
