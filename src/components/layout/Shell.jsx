@@ -1,6 +1,6 @@
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { LayoutDashboard, ClipboardList, FolderOpen, FileText, LogOut, RefreshCw, Menu, X, Sun, Moon, Wifi, AlertCircle, Users, Building2, ShieldCheck, ScrollText, MapPin, Activity, Radio, BookOpen } from 'lucide-react'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useSubmissionsStore } from '../../store/useSubmissionsStore'
 import { useAdminStore } from '../../store/useAdminStore'
@@ -297,25 +297,26 @@ export default function Shell({ children }) {
 
   // Motor secuencial de la cola de descargas (procesa 1 ZIP a la vez).
   // Vive en el Shell para que las descargas avancen estés en la pantalla que estés.
+  // Usa un guard fuera del ciclo de React (useRef) para evitar que el cleanup
+  // del efecto cancele la actualización final de estado (done/error).
   const dlJobs = useDownloadQueue(s => s.jobs)
+  const dlBusy = useRef(false)
   useEffect(() => {
+    if (dlBusy.current) return
     const { pickNext, updateJob } = useDownloadQueue.getState()
     const next = pickNext()
     if (!next) return
 
-    let cancelled = false
+    dlBusy.current = true
     updateJob(next.id, { status: 'processing', phase: 'pdfs', progress: 0 })
 
     buildOrderZip(
       { id: next.orderId, order_number: next.orderNumber },
-      (patch) => { if (!cancelled) updateJob(next.id, patch) }
+      (patch) => updateJob(next.id, patch)
     )
-      .then(() => { if (!cancelled) updateJob(next.id, { status: 'done', progress: 100 }) })
-      .catch((err) => {
-        if (!cancelled) updateJob(next.id, { status: 'error', error: err?.message || 'Error al generar el paquete' })
-      })
-
-    return () => { cancelled = true }
+      .then(() => updateJob(next.id, { status: 'done', progress: 100 }))
+      .catch((err) => updateJob(next.id, { status: 'error', error: err?.message || 'Error al generar el paquete' }))
+      .finally(() => { dlBusy.current = false })
   }, [dlJobs])
 
   const refresh      = useCallback(() => load(true), [load])
