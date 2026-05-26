@@ -6,6 +6,7 @@ import { generatePMExecutedPdf } from '../utils/pdf/pmExecutedPdf'
 import { generateSafetyPdf } from '../utils/pdf/safetyPdf'
 import { generateSubmissionPdf } from '../utils/pdf/generateReport'
 import { generateEquipmentV2Pdf } from '../utils/pdf/equipmentV2Pdf'
+import { buildFileName, PDF_BASE_NAMES } from '../utils/pdf/pdfFilename'
 
 // Sanitiza un nombre para usarlo dentro del ZIP (sin caracteres problemáticos).
 const safe = (s) => String(s || '').replace(/[^a-zA-Z0-9_\-]/g, '_').slice(0, 80)
@@ -63,7 +64,12 @@ export async function buildOrderZip(order, onProgress = () => {}) {
       const bytes = await pdfBytesForSubmission(sub)
       if (bytes) {
         const arr = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
-        pdfsFolder.file(`${safe(orderNumber)}_${safe(fc)}.pdf`, arr)
+        const data    = sub?.payload?.payload?.data || sub?.payload?.data || {}
+        const si      = data.siteInfo || data.formData || data.datos || data
+        const idSitio = si.idSitio || orderNumber
+        const fecha   = sub?.updated_at || sub?.created_at
+        const base    = PDF_BASE_NAMES[fc] || `${safe(orderNumber)}_${safe(fc)}`
+        pdfsFolder.file(buildFileName(base, idSitio, fecha), arr)
       }
     } catch (e) {
       console.error(`[buildOrderZip] PDF error (${fc}):`, e?.message)

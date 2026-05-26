@@ -7,6 +7,7 @@
  *   Sheet 4: Inspección de la Torre (sections 6-11)
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { buildFileName, PDF_BASE_NAMES } from './pdfFilename'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
 
 // ── Colors matching the Excel ────────────────────────────────────
@@ -1143,7 +1144,7 @@ export async function downloadMaintenancePdf(submission, assets = []) {
   const a = document.createElement('a')
   a.href = url
   const fd = submission?.payload?.payload?.data?.formData || submission?.payload?.data?.formData || {}
-  const filename = `mantenimiento_preventivo_${fd.idSitio || submission?.id?.slice(0, 8) || 'report'}.pdf`
+  const filename = buildFileName(PDF_BASE_NAMES['preventive-maintenance'], fd.idSitio, submission?.updated_at || submission?.created_at)
   a.download = filename
   document.body.appendChild(a)
   a.click()

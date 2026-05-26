@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { useNavigate, useParams, Link } from 'react-router-dom'
+import { buildFileName, PDF_BASE_NAMES } from '../utils/pdf/pdfFilename'
 import {
   ArrowLeft, Download, ExternalLink, X, ChevronDown, ChevronRight,
   Camera, MapPin, Calendar, User2, CheckCircle2, AlertTriangle, XCircle,
@@ -753,7 +754,7 @@ export default function SubmissionDetail() {
         const a    = document.createElement('a')
         const site = submission?.payload?.payload?.data?.siteInfo || {}
         a.href     = url
-        a.download = `Inventario_v2_${site.idSitio || 'sitio'}_${Date.now()}.pdf`
+        a.download = buildFileName(PDF_BASE_NAMES['equipment-v2'], site.idSitio, submission?.updated_at || submission?.created_at)
         document.body.appendChild(a); a.click(); document.body.removeChild(a)
         URL.revokeObjectURL(url)
       }
@@ -787,7 +788,9 @@ export default function SubmissionDetail() {
       const url = URL.createObjectURL(content)
       const a   = document.createElement('a')
       a.href = url
-      a.download = `fotos_${site.idSitio||'sitio'}_${meta.shortLabel||'form'}.zip`
+      const fcZip = normalizeFormCode(submission.form_code)
+      const baseZip = PDF_BASE_NAMES[fcZip] || `Fotos_${meta.shortLabel || 'form'}`
+      a.download = buildFileName(baseZip, site.idSitio, submission?.updated_at || submission?.created_at, 'zip')
       document.body.appendChild(a); a.click(); document.body.removeChild(a)
       URL.revokeObjectURL(url)
     } catch (e) { console.error('ZIP error:', e) }

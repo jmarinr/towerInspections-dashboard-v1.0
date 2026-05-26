@@ -11,6 +11,7 @@
  *  - Página 2: solo línea roja + "ESTADO FÍSICO"
  */
 import { PDFDocument, StandardFonts, rgb, degrees } from 'pdf-lib'
+import { buildFileName, PDF_BASE_NAMES } from './pdfFilename'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
 import { DIAGRAM_COMBINED } from './safetyDiagrams'
 
@@ -520,7 +521,7 @@ export async function downloadSafetyPdf(submission, assets=[]) {
   a.href=url
   const d=submission?.payload?.payload?.data||submission?.payload?.data||{}
   const datos=d.datos||d.formData||d
-  a.download=`ascenso_${datos.idSitio||submission?.id?.slice(0,8)||'report'}.pdf`
+  a.download=buildFileName(PDF_BASE_NAMES['safety-system'], datos.idSitio, submission?.updated_at || submission?.created_at)
   document.body.appendChild(a);a.click();document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }

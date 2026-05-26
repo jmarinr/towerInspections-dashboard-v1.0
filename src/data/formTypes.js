@@ -9,6 +9,7 @@ export const FORM_TYPES = {
     colorLight: 'bg-blue-50 text-blue-700',
   },
   'preventive-maintenance': {
+    order: 1,
     label: 'Preventive Maintenance Inspection',
     shortLabel: 'Prev. Maintenance',
     icon: Wrench,
@@ -16,6 +17,7 @@ export const FORM_TYPES = {
     colorLight: 'bg-orange-50 text-orange-700',
   },
   'executed-maintenance': {
+    order: 2,
     label: 'Preventive Maintenance Executed',
     shortLabel: 'PM Executed',
     icon: Camera,
@@ -30,6 +32,7 @@ export const FORM_TYPES = {
     colorLight: 'bg-rose-50 text-rose-700',
   },
   'equipment-v2': {
+    order: 8,
     label: 'Equipment Inventory',
     shortLabel: 'Equipment Inv.',
     icon: Package,
@@ -37,6 +40,7 @@ export const FORM_TYPES = {
     colorLight: 'bg-cyan-50 text-cyan-700',
   },
   'safety-system': {
+    order: 10,
     label: 'Safety Climbing Device',
     shortLabel: 'Safety Climbing',
     icon: Shield,
@@ -44,6 +48,7 @@ export const FORM_TYPES = {
     colorLight: 'bg-yellow-50 text-yellow-700',
   },
   'grounding-system-test': {
+    order: 4,
     label: 'Grounding System Test',
     shortLabel: 'Grounding Test',
     icon: Zap,
@@ -51,6 +56,7 @@ export const FORM_TYPES = {
     colorLight: 'bg-purple-50 text-purple-700',
   },
   'additional-photo-report': {
+    order: 9,
     label: 'Additional Photo Report',
     shortLabel: 'Photo Report',
     icon: Image,

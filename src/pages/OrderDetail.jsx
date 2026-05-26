@@ -358,7 +358,7 @@ export default function OrderDetail() {
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[13px] font-semibold th-text-p">{meta.label}</span>
+                      <span className="text-[13px] font-semibold th-text-p">{meta.order != null ? `${meta.order} ${meta.label}` : meta.label}</span>
                       {damaged && (
                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-600 ring-1 ring-inset ring-red-200">
                           <AlertTriangle size={9} />Con daño

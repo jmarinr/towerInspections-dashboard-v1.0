@@ -3,6 +3,7 @@
  * Usa pdf-lib (igual que equipmentV2Pdf.js)
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { buildFileName, PDF_BASE_NAMES } from './pdfFilename'
 import { PHOTO_CATEGORIES } from '../../data/additionalPhotoConfig'
 
 const C = {
@@ -256,8 +257,7 @@ export async function generateAdditionalPhotoPdf(submission, assets) {
   const url   = URL.createObjectURL(blob)
   const a     = document.createElement('a')
   a.href = url
-  a.download = `PTI_ReporteFotos_${s(siteInfo.idSitio||'sitio')}_${s(siteInfo.fecha||new Date().toISOString().slice(0,10))}.pdf`
-    .replace(/[^a-zA-Z0-9_\-.]/g,'_')
+  a.download = buildFileName(PDF_BASE_NAMES['additional-photo-report'], siteInfo.idSitio, siteInfo.fecha || submission?.updated_at || submission?.created_at)
   document.body.appendChild(a); a.click(); document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }

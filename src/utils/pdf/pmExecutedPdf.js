@@ -4,6 +4,7 @@
  * Each activity: 2 boxes side by side with title bar, photo, and Antes/Despues footer
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { buildFileName, PDF_BASE_NAMES } from './pdfFilename'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
 
 const C = {
@@ -223,6 +224,6 @@ export async function downloadPMExecutedPdf(submission, assets = []) {
   const a = document.createElement('a')
   a.href = url
   const fd = submission?.payload?.payload?.data?.formData || submission?.payload?.data?.formData || {}
-  a.download = `mtto_ejecutado_${fd.idSitio || submission?.id?.slice(0, 8) || 'report'}.pdf`
+  a.download = buildFileName(PDF_BASE_NAMES['executed-maintenance'], fd.idSitio, submission?.updated_at || submission?.created_at)
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url)
 }

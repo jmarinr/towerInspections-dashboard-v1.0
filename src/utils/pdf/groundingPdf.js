@@ -5,6 +5,7 @@
  *   Pages 2-3: Photo evidence (2 per row, black header bars, real photos from Supabase)
  */
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
+import { buildFileName, PDF_BASE_NAMES } from './pdfFilename'
 import { PTI_LOGO_BASE64 } from './ptiLogo'
 import { DIAGRAM_MAIN_B64, DIAGRAM_ALT_B64 } from './groundingDiagrams'
 
@@ -500,7 +501,7 @@ export async function downloadGroundingPdf(submission, assets = []) {
   a.href = url
   const d = submission?.payload?.payload?.data || submission?.payload?.data || {}
   const datos = d.datos || d.formData || d
-  const filename = `puesta_tierra_${datos.idSitio || submission?.id?.slice(0, 8) || 'report'}.pdf`
+  const filename = buildFileName(PDF_BASE_NAMES['grounding-system-test'], datos.idSitio, submission?.updated_at || submission?.created_at)
   a.download = filename
   document.body.appendChild(a)
   a.click()
