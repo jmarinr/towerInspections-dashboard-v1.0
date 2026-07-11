@@ -142,7 +142,7 @@ export async function fetchSubmissionWithAssets(id) {
   const { data: siblingRows } = await q(
     supabase
       .from('submissions')
-      .select('id, finalized, payload, submission_assets(*)')
+      .select('id, finalized, payload, updated_at, submission_assets(*)')
       .eq('org_code', submission.org_code)
       .eq('site_visit_id', siteVisitId)
       .in('form_code', allCodes)
@@ -153,22 +153,22 @@ export async function fetchSubmissionWithAssets(id) {
   if (!siblingRows?.length) return { submission, assets: directAssets }
 
   // ── Resolver la fila canónica ────────────────────────────────────────────
-  // Si hay siblings, elegir la fila con más datos como canónica para el estado
-  // (finalized, payload). Esto evita que cargar por el ID de la shell muestre
-  // un estado incorrecto cuando la fila real tiene datos más recientes.
-  // Prioridad: 1) finalized=true  2) mayor payload  3) la fila actual
+  // Elegir la fila con el estado más reciente como canónica.
+  // Criterio: updated_at más reciente → tiene el estado actual del formulario.
+  // Esto evita que la shell (con updated_at antiguo) sobreescriba el estado
+  // de la fila real cuando esta se actualizó más recientemente.
+  // Fallback: mayor payload si updated_at es igual o no disponible.
   let canonicalSubmission = submission
-  const currentSize = JSON.stringify(submission.payload || {}).length
   for (const sibling of siblingRows) {
-    const sibSize = JSON.stringify(sibling.payload || {}).length
-    if (sibling.finalized && !canonicalSubmission.finalized) {
-      // Sibling está finalizado y el actual no → sibling gana
-      const { data: sibFull } = await q(
-        supabase.from('submissions').select('*').eq('id', sibling.id).single()
-      )
-      if (sibFull) canonicalSubmission = normalizeSubmission(sibFull)
-    } else if (sibling.finalized === canonicalSubmission.finalized && sibSize > currentSize) {
-      // Mismo estado de finalized pero sibling tiene más datos → sibling gana
+    const canonicalTime = new Date(canonicalSubmission.updated_at || 0).getTime()
+    const siblingTime   = new Date(sibling.updated_at || 0).getTime()
+    const sibSize       = JSON.stringify(sibling.payload || {}).length
+    const currentSize2  = JSON.stringify(canonicalSubmission.payload || {}).length
+
+    const siblingIsNewer  = siblingTime > canonicalTime
+    const siblingHasMore  = siblingTime === canonicalTime && sibSize > currentSize2
+
+    if (siblingIsNewer || siblingHasMore) {
       const { data: sibFull } = await q(
         supabase.from('submissions').select('*').eq('id', sibling.id).single()
       )
