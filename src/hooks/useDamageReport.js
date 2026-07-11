@@ -157,6 +157,7 @@ export default function useDamageReport() {
       supabase
         .from('submissions')
         .select('id, form_code, region_id, site_visit_id, payload, created_at, site_visits(id, order_number, started_at, site_id, status)')
+        .is('deleted_at', null)             // excluir submissions eliminadas
         .in('form_code', ALL_CODES)
         .eq('finalized', true)
         .order('created_at', { ascending: false }),
@@ -174,7 +175,7 @@ export default function useDamageReport() {
 
       const flat = (subs || []).flatMap(sub => {
         // Excluir submissions de visitas canceladas
-        if (sub.site_visits?.status === 'cancelled') return []
+        if (sub.site_visits?.status === 'cancelled' || sub.site_visits?.status === 'deleted') return []
         return extractDamages(sub).map(item => {
           const tr = trackMap[`${item.submissionId}::${item.damageKey}`]
           return tr ? { ...item, status: tr.status, auditComment: tr.auditComment } : item

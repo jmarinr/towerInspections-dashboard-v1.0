@@ -31,6 +31,7 @@ export default function useGeoMapReport() {
     let query = supabase
       .from('site_visits')
       .select('id, order_number, region_id, site_id, site_name, org_code, status, started_at, inspector_username, inspector_name, start_lat, start_lng')
+      .neq('status', 'deleted')          // excluir visitas eliminadas
       .not('start_lat', 'is', null)
       .order('started_at', { ascending: false })
     if (orgCode) query = query.eq('org_code', orgCode)

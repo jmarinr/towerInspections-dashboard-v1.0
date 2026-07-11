@@ -27,6 +27,7 @@ export default function useHistorialSitiosReport() {
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
     let vQuery = supabase.from('site_visits').select('id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name, order_number, region_id').order('started_at', { ascending: true })
     let sQuery = supabase.from('submissions').select('id, site_visit_id, form_code, finalized')
+    .neq('status', 'deleted')          // excluir visitas eliminadas
     if (orgCode) { vQuery = vQuery.eq('org_code', orgCode); sQuery = sQuery.eq('org_code', orgCode) }
     Promise.all([vQuery, sQuery]).then(([{ data: v, error: ve }, { data: s, error: se }]) => {
       if (cancelled) return

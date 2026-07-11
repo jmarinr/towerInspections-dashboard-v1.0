@@ -190,11 +190,13 @@ export default function useProductivityReport() {
       supabase
         .from('site_visits')
         .select('id, order_number, region_id, site_id, site_name, started_at, closed_at, inspector_name, inspector_username, status')
+        .neq('status', 'deleted')          // excluir visitas eliminadas
         .neq('status', 'cancelled')
         .order('started_at', { ascending: false }),
       supabase
         .from('submissions')
         .select('id, site_visit_id, form_code, payload, created_at, updated_at')
+        .is('deleted_at', null)             // excluir submissions eliminadas
         .eq('finalized', true),
     ]).then(([{ data: visits, error: vErr }, { data: subs, error: sErr }]) => {
       if (cancelled) return

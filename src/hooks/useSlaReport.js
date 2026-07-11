@@ -31,6 +31,7 @@ export default function useSlaReport() {
     let query = supabase
       .from('site_visits')
       .select('id, order_number, region_id, site_id, site_name, org_code, status, started_at, closed_at, inspector_username, inspector_name')
+      .neq('status', 'deleted')          // excluir visitas eliminadas
       .order('started_at', { ascending: false })
     if (orgCode) query = query.eq('org_code', orgCode)
     query.then(({ data, error: err }) => {

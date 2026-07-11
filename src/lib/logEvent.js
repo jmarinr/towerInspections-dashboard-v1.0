@@ -158,4 +158,13 @@ export const LOG = {
     user_role:  actorRole,
     metadata:   { visit_id: visitId, order_number: orderNumber, site_id: siteId, action, source: 'admin_panel' },
   }),
+
+  visitDeleted: (visitId, orderNumber, actorEmail, actorRole, reason) => logEvent({
+    event_type: 'visit.deleted',
+    message:    `Visita eliminada: ${orderNumber || visitId} · por ${actorEmail} · razón: ${reason}`,
+    severity:   'warning',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { visit_id: visitId, order_number: orderNumber, delete_reason: reason, source: 'admin_panel' },
+  }),
 }

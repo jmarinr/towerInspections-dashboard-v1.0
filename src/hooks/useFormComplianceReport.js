@@ -27,7 +27,7 @@ export default function useFormComplianceReport() {
     setIsLoading(true)
     const user    = useAuthStore.getState().user
     const orgCode = user?.role === 'supervisor' ? user?.company?.org_code : null
-    let query = supabase.from('submissions').select('id, form_code, finalized, created_at, org_code')
+    let query = supabase.from('submissions').select('id, form_code, finalized, created_at, org_code').is('deleted_at', null)
     if (orgCode) query = query.eq('org_code', orgCode)
     query.then(({ data, error: err }) => {
         if (cancelled) return

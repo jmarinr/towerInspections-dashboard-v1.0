@@ -63,7 +63,7 @@ export async function fetchSubmissions({ formCode, orgCode, regionIds, limit = 2
       return inner.data || inner.meta || p._meta || p.form_code
     })
     .filter(s => isFormVisible(s.form_code))
-    // ── Deduplicar por site_visit_id + form_code normalizado ──────────────
+    .filter(s => !s.deleted_at)     // excluir submissions de visitas eliminadas
     // Cuando el Inspector App genera filas duplicadas (bug de form_code en
     // español vs inglés), elegir la más reciente por updated_at como canónica.
     // Esto garantiza que la lista de Formularios sea consistente con la vista
@@ -225,6 +225,7 @@ export async function fetchSiteVisits({ status, orgCode, regionIds, limit = 2000
   let visitsQ = supabase
     .from('site_visits')
     .select('*')
+    .neq('status', 'deleted')          // excluir eliminadas en toda la UI
     .order('started_at', { ascending: false })
     .limit(limit)
 
@@ -294,7 +295,7 @@ export async function fetchSiteVisitById(id) {
  * Returns the updated row.
  */
 export async function updateSiteVisitStatus(visitId, status, options = {}) {
-  const { cancelReason = null, cancelledBy = null } = options
+  const { cancelReason = null, cancelledBy = null, deleteReason = null, deletedBy = null } = options
 
   const updatePayload =
     status === 'closed'    ? { status, closed_at: new Date().toISOString() } :
@@ -303,6 +304,13 @@ export async function updateSiteVisitStatus(visitId, status, options = {}) {
       cancelled_at:  new Date().toISOString(),
       cancelled_by:  cancelledBy,
       cancel_reason: cancelReason,
+      closed_at:     null,
+    } :
+    status === 'deleted'   ? {
+      status,
+      deleted_at:    new Date().toISOString(),
+      deleted_by:    deletedBy,
+      delete_reason: deleteReason,
       closed_at:     null,
     } :
     { status, closed_at: null }
@@ -440,6 +448,7 @@ export async function fetchDashboardStats(user = null) {
   let subQuery = supabase
     .from('submissions')
     .select('id, form_code, updated_at, finalized, org_code, region_id, created_at, device_id, site_visit_id, app_version')
+    .is('deleted_at', null)            // excluir submissions eliminadas
     .order('updated_at', { ascending: false })
 
   const role = user?.role
@@ -459,6 +468,7 @@ export async function fetchDashboardStats(user = null) {
   let visitQuery = supabase
     .from('site_visits')
     .select('id, status, started_at, order_number, site_name, site_id, region_id, org_code, inspector_name, inspector_username')
+    .neq('status', 'deleted')          // excluir eliminadas de estadísticas
     .order('started_at', { ascending: false })
 
   if (role === 'admin') {

@@ -90,6 +90,7 @@ export default function SystemHealth() {
       const { data: inc, error: incErr } = await supabase
         .from('site_visits')
         .select(`
+        .neq('status', 'deleted')          // excluir visitas eliminadas
           id, order_number, site_id, site_name, started_at,
           submissions!inner(id, form_code, finalized)
         `)
@@ -136,6 +137,7 @@ export default function SystemHealth() {
       const { data: openData } = await supabase
         .from('site_visits')
         .select('id, status, closed_at')
+        .neq('status', 'deleted')          // excluir visitas eliminadas
         .order('closed_at', { ascending: false })
 
       const allVisits  = openData || []

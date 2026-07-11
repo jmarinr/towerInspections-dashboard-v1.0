@@ -82,6 +82,7 @@ export default function useTowerDetail(siteId) {
     supabase
       .from('submissions')
       .select('id, payload, created_at, site_visit_id, site_visits(id, order_number, started_at, site_id, site_name, inspector_name)')
+      .is('deleted_at', null)             // excluir submissions eliminadas
       .in('form_code', EQUIPMENT_CODES)
       .eq('finalized', true)
       .order('created_at', { ascending: false })

@@ -70,6 +70,10 @@ export default function OrderDetail() {
   const [cancelReason,  setCancelReason]  = useState('')
   const [cancelLoading, setCancelLoading] = useState(false)
   const [cancelError,   setCancelError]   = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleteReason,  setDeleteReason]  = useState('')
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [deleteError,   setDeleteError]   = useState(null)
   const permMatrix = useAdminStore(s => s.permMatrix)
 
   useEffect(() => {
@@ -133,6 +137,8 @@ export default function OrderDetail() {
   const closed      = order.status === 'closed'
   const cancelled   = order.status === 'cancelled'
   const isAdmin     = useAuthStore.getState().isAdmin()
+  const CAN_DELETE_EMAILS = ['info@henkancx.com', 'jolumariv@gmail.com']
+  const canDelete   = CAN_DELETE_EMAILS.includes(useAuthStore.getState().user?.email)
   const finalized   = submissions.filter(s => s.finalized || isFinalized(s)).length
   const totalPhotos = submissions.reduce((n, s) => n + (s.assets || []).filter(a => a.public_url).length, 0)
   const gps         = order.start_lat && order.start_lng
@@ -173,6 +179,41 @@ export default function OrderDetail() {
       console.error('[OrderDetail] cancel:', e)
     } finally {
       setCancelLoading(false)
+    }
+  }
+
+  // ── Delete handlers (solo info@henkancx.com y jolumariv@gmail.com) ────────
+  const handleDeleteClick = () => {
+    setDeleteReason('')
+    setDeleteError(null)
+    setConfirmDelete(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteReason.trim()) {
+      setDeleteError('La razón de eliminación es obligatoria.')
+      return
+    }
+    setDeleteLoading(true)
+    setDeleteError(null)
+    const actor = useAuthStore.getState().user
+    try {
+      await updateSiteVisitStatus(order.id, 'deleted', {
+        deleteReason: deleteReason.trim(),
+        deletedBy:    actor?.id,
+      })
+      LOG.visitDeleted(
+        order.id, order.order_number,
+        actor?.email, actor?.role,
+        deleteReason.trim()
+      )
+      setConfirmDelete(false)
+      navigate('/orders')
+    } catch (e) {
+      setDeleteError('No se pudo eliminar la visita. Verifica tu conexión.')
+      console.error('[OrderDetail] delete:', e)
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -304,6 +345,20 @@ export default function OrderDetail() {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <XCircle size={13} />
                   Cancelar visita
+                </button>
+              )}
+
+              {/* Botón eliminar — solo info@henkancx.com y jolumariv@gmail.com */}
+              {canDelete && (
+                <button
+                  onClick={handleDeleteClick}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium
+                    border transition-colors"
+                  style={{ color: '#7f0000', borderColor: '#fca5a5', background: 'transparent' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#fff1f1'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <XCircle size={13} />
+                  Eliminar visita
                 </button>
               )}
             </div>
@@ -465,6 +520,59 @@ export default function OrderDetail() {
                 className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium text-white transition-colors disabled:opacity-50"
                 style={{ background: cancelLoading ? '#ef4444aa' : '#dc2626' }}>
                 {cancelLoading ? 'Cancelando...' : 'Confirmar cancelación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación — Eliminar visita (solo HenkanCX) */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl space-y-4"
+            style={{ background: 'var(--bg-card)', border: '2px solid #fca5a5' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: '#fff1f1' }}>
+                <XCircle size={20} style={{ color: '#7f0000' }} />
+              </div>
+              <div>
+                <div className="text-[14px] font-semibold" style={{ color: '#7f0000' }}>Eliminar visita</div>
+                <div className="text-[12px] th-text-m mt-0.5">Acción irreversible — no se puede deshacer</div>
+              </div>
+            </div>
+            <div className="rounded-lg p-3 text-[12px] leading-relaxed"
+              style={{ background: '#fff1f1', color: '#7f0000' }}>
+              <strong>⚠ Advertencia:</strong> La visita <strong>{order.order_number}</strong> y todos
+              sus formularios serán eliminados del sistema. No aparecerán en ninguna pantalla,
+              reporte ni estadística. Solo quedarán en los logs de bitácora.
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[11.5px] font-medium th-text-m">
+                Razón de eliminación <span style={{ color: '#dc2626' }}>*</span>
+                <span className="th-text-s"> (obligatorio)</span>
+              </label>
+              <textarea
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                placeholder="Ej: Orden creada por error, duplicado de OT-XXXX..."
+                rows={3}
+                className="w-full px-3 py-2 text-[12.5px] border rounded-lg resize-none focus:outline-none th-text-p"
+                style={{ background: 'var(--bg-base)', borderColor: deleteError ? '#dc2626' : 'var(--border)' }} />
+            </div>
+            {deleteError && (
+              <p className="text-[12px]" style={{ color: '#dc2626' }}>{deleteError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setConfirmDelete(false)} disabled={deleteLoading}
+                className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium border th-text-s transition-colors"
+                style={{ background: 'var(--bg-base)', borderColor: 'var(--border)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmDelete} disabled={deleteLoading || !deleteReason.trim()}
+                className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium text-white transition-colors disabled:opacity-50"
+                style={{ background: deleteLoading ? '#7f000088' : '#7f0000' }}>
+                {deleteLoading ? 'Eliminando...' : 'Confirmar eliminación'}
               </button>
             </div>
           </div>

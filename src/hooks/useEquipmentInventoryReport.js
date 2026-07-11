@@ -106,6 +106,7 @@ export default function useEquipmentInventoryReport() {
     supabase
       .from('submissions')
       .select('id, region_id, site_visit_id, payload, site_visits(id, order_number, started_at, status)')
+      .is('deleted_at', null)             // excluir submissions eliminadas
       .in('form_code', EQUIPMENT_V2_CODES)
       .eq('finalized', true)
       .order('created_at', { ascending: false })
