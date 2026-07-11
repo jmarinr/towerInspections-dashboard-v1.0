@@ -167,4 +167,13 @@ export const LOG = {
     user_role:  actorRole,
     metadata:   { visit_id: visitId, order_number: orderNumber, delete_reason: reason, source: 'admin_panel' },
   }),
+
+  visitReactivated: (visitId, orderNumber, actorEmail, actorRole, reason) => logEvent({
+    event_type: 'visit.reactivated',
+    message:    `Visita reactivada: ${orderNumber || visitId} · por ${actorEmail} · razón: ${reason}`,
+    severity:   'info',
+    user_email: actorEmail,
+    user_role:  actorRole,
+    metadata:   { visit_id: visitId, order_number: orderNumber, reactivation_reason: reason, source: 'admin_panel' },
+  }),
 }

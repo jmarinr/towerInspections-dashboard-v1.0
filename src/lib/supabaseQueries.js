@@ -313,6 +313,13 @@ export async function updateSiteVisitStatus(visitId, status, options = {}) {
       delete_reason: deleteReason,
       closed_at:     null,
     } :
+    status === 'open' ? {
+      status,
+      closed_at:           null,
+      reactivated_at:      new Date().toISOString(),
+      reactivated_by:      options.reactivatedBy    || null,
+      reactivation_reason: options.reactivationReason || null,
+    } :
     { status, closed_at: null }
 
   const { data, error } = await supabase

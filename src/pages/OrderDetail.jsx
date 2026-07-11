@@ -74,6 +74,10 @@ export default function OrderDetail() {
   const [deleteReason,  setDeleteReason]  = useState('')
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [deleteError,   setDeleteError]   = useState(null)
+  const [confirmReactivate, setConfirmReactivate] = useState(false)
+  const [reactivateReason,  setReactivateReason]  = useState('')
+  const [reactivateLoading, setReactivateLoading] = useState(false)
+  const [reactivateError,   setReactivateError]   = useState(null)
   const permMatrix = useAdminStore(s => s.permMatrix)
 
   useEffect(() => {
@@ -217,6 +221,41 @@ export default function OrderDetail() {
     }
   }
 
+  // ── Reactivate handlers (solo admin, visita cancelada → open) ─────────────
+  const handleReactivateClick = () => {
+    setReactivateReason('')
+    setReactivateError(null)
+    setConfirmReactivate(true)
+  }
+
+  const handleConfirmReactivate = async () => {
+    if (!reactivateReason.trim()) {
+      setReactivateError('La justificación es obligatoria.')
+      return
+    }
+    setReactivateLoading(true)
+    setReactivateError(null)
+    const actor = useAuthStore.getState().user
+    try {
+      await updateSiteVisitStatus(order.id, 'open', {
+        reactivatedBy:      actor?.id,
+        reactivationReason: reactivateReason.trim(),
+      })
+      LOG.visitReactivated(
+        order.id, order.order_number,
+        actor?.email, actor?.role,
+        reactivateReason.trim()
+      )
+      await loadDetail(orderId)
+      setConfirmReactivate(false)
+    } catch (e) {
+      setReactivateError('No se pudo reactivar la visita. Verifica tu conexión.')
+      console.error('[OrderDetail] reactivate:', e)
+    } finally {
+      setReactivateLoading(false)
+    }
+  }
+
   // ── Status toggle ──────────────────────────────────────────────────────────
   const pendingForms = visibleSubs.filter(s => !(s.finalized || isFinalized(s))).length
 
@@ -345,6 +384,20 @@ export default function OrderDetail() {
                   onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <XCircle size={13} />
                   Cancelar visita
+                </button>
+              )}
+
+              {/* Botón reactivar — solo admin, solo si está cancelada */}
+              {isAdmin && cancelled && (
+                <button
+                  onClick={handleReactivateClick}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium
+                    border transition-colors"
+                  style={{ color: '#166534', borderColor: '#bbf7d0', background: 'transparent' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#f0fdf4'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                  <Unlock size={13} />
+                  Reactivar visita
                 </button>
               )}
 
@@ -520,6 +573,59 @@ export default function OrderDetail() {
                 className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium text-white transition-colors disabled:opacity-50"
                 style={{ background: cancelLoading ? '#ef4444aa' : '#dc2626' }}>
                 {cancelLoading ? 'Cancelando...' : 'Confirmar cancelación'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación — Reactivar visita */}
+      {confirmReactivate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl space-y-4"
+            style={{ background: 'var(--bg-card)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: '#f0fdf4' }}>
+                <Unlock size={20} style={{ color: '#166534' }} />
+              </div>
+              <div>
+                <div className="text-[14px] font-semibold th-text-p">Reactivar visita</div>
+                <div className="text-[12px] th-text-m mt-0.5">La visita volverá al estado activo</div>
+              </div>
+            </div>
+            <p className="text-[12.5px] th-text-s leading-relaxed">
+              La visita <strong>{order.order_number}</strong> volverá a estar activa.
+              El inspector podrá verla y continuar trabajando en sus formularios.
+              El historial de cancelación se conserva en la auditoría.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-[11.5px] font-medium th-text-m">
+                Justificación <span style={{ color: '#dc2626' }}>*</span>
+                <span className="th-text-s"> (obligatorio)</span>
+              </label>
+              <textarea
+                value={reactivateReason}
+                onChange={e => setReactivateReason(e.target.value)}
+                placeholder="Ej: Cancelación por error, inspector debe continuar la inspección..."
+                rows={3}
+                className="w-full px-3 py-2 text-[12.5px] border rounded-lg resize-none focus:outline-none th-text-p"
+                style={{ background: 'var(--bg-base)', borderColor: reactivateError ? '#dc2626' : 'var(--border)' }} />
+            </div>
+            {reactivateError && (
+              <p className="text-[12px]" style={{ color: '#dc2626' }}>{reactivateError}</p>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button onClick={() => setConfirmReactivate(false)} disabled={reactivateLoading}
+                className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium border th-text-s transition-colors"
+                style={{ background: 'var(--bg-base)', borderColor: 'var(--border)' }}>
+                Cancelar
+              </button>
+              <button onClick={handleConfirmReactivate}
+                disabled={reactivateLoading || !reactivateReason.trim()}
+                className="flex-1 px-4 py-2 rounded-lg text-[12.5px] font-medium text-white transition-colors disabled:opacity-50"
+                style={{ background: reactivateLoading ? '#16653488' : '#166534' }}>
+                {reactivateLoading ? 'Reactivando...' : 'Confirmar reactivación'}
               </button>
             </div>
           </div>
