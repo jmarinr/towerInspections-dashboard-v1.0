@@ -142,7 +142,7 @@ export async function fetchSubmissionWithAssets(id) {
   const { data: siblingRows } = await q(
     supabase
       .from('submissions')
-      .select('id, submission_assets(*)')
+      .select('id, finalized, payload, submission_assets(*)')
       .eq('org_code', submission.org_code)
       .eq('site_visit_id', siteVisitId)
       .in('form_code', allCodes)
@@ -152,12 +152,36 @@ export async function fetchSubmissionWithAssets(id) {
 
   if (!siblingRows?.length) return { submission, assets: directAssets }
 
-  // Merge: main assets tienen prioridad sobre sibling para el mismo asset_type
-  const siblingAssets   = siblingRows.flatMap(r => r.submission_assets || []).filter(a => a.public_url)
-  const mainAssetTypes  = new Set(directAssets.map(a => a.asset_type))
+  // ── Resolver la fila canónica ────────────────────────────────────────────
+  // Si hay siblings, elegir la fila con más datos como canónica para el estado
+  // (finalized, payload). Esto evita que cargar por el ID de la shell muestre
+  // un estado incorrecto cuando la fila real tiene datos más recientes.
+  // Prioridad: 1) finalized=true  2) mayor payload  3) la fila actual
+  let canonicalSubmission = submission
+  const currentSize = JSON.stringify(submission.payload || {}).length
+  for (const sibling of siblingRows) {
+    const sibSize = JSON.stringify(sibling.payload || {}).length
+    if (sibling.finalized && !canonicalSubmission.finalized) {
+      // Sibling está finalizado y el actual no → sibling gana
+      const { data: sibFull } = await q(
+        supabase.from('submissions').select('*').eq('id', sibling.id).single()
+      )
+      if (sibFull) canonicalSubmission = normalizeSubmission(sibFull)
+    } else if (sibling.finalized === canonicalSubmission.finalized && sibSize > currentSize) {
+      // Mismo estado de finalized pero sibling tiene más datos → sibling gana
+      const { data: sibFull } = await q(
+        supabase.from('submissions').select('*').eq('id', sibling.id).single()
+      )
+      if (sibFull) canonicalSubmission = normalizeSubmission(sibFull)
+    }
+  }
+
+  // Merge assets: canonical assets tienen prioridad sobre sibling para el mismo asset_type
+  const siblingAssets    = siblingRows.flatMap(r => r.submission_assets || []).filter(a => a.public_url)
+  const mainAssetTypes   = new Set(directAssets.map(a => a.asset_type))
   const newSiblingAssets = siblingAssets.filter(a => !mainAssetTypes.has(a.asset_type))
 
-  return { submission, assets: [...directAssets, ...newSiblingAssets] }
+  return { submission: canonicalSubmission, assets: [...directAssets, ...newSiblingAssets] }
 }
 
 // ═══════════════════════════════════════════
