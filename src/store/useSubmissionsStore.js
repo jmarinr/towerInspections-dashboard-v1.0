@@ -3,6 +3,7 @@ import { fetchSubmissions, fetchSubmissionWithAssets, fetchDashboardStats } from
 import { supabase } from '../lib/supabaseClient'
 import { logEvent } from '../lib/logEvent'
 import { useAuthStore } from './useAuthStore'
+import { useOrdersStore } from './useOrdersStore'
 import { normalizeFormCode } from '../data/formTypes'
 
 /**
@@ -140,10 +141,13 @@ export const useSubmissionsStore = create((set, get) => ({
       if (!codeOk) return false
       if (!q) return true
       const site = s.site || {}
+      const orderNum = useOrdersStore.getState().orders
+        .find(o => o.id === s.site_visit_id)?.order_number || ''
       return [
         site.nombreSitio, site.idSitio,
         s.submittedBy?.name, s.submittedBy?.username,
         s.form_code,
+        orderNum,
       ].join(' ').toLowerCase().includes(q)
     })
   },
