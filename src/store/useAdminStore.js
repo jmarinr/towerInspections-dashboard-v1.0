@@ -123,22 +123,29 @@ export const useAdminStore = create((set, get) => ({
 
   loadLogs: async ({ page = 0, filterType = 'all', filterSev = 'all', filterUser = '', search = '', pageSize = 50 } = {}) => {
     set({ logsLoading: true })
-    const t = setTimeout(() => set({ logsLoading: false }), 40000)
+    const t = setTimeout(() => set({ logsLoading: false }), 15000)
     try {
+      // Traer pageSize+1 filas para saber si hay página siguiente
+      // sin hacer count=exact (que hace full table scan y da 500 en tablas grandes)
       let q = supabase
         .from('system_logs')
-        .select('*', { count: 'exact' })
+        .select('*')
         .order('created_at', { ascending: false })
-        .range(page * pageSize, page * pageSize + pageSize - 1)
+        .range(page * pageSize, page * pageSize + pageSize)  // +1 extra
       if (filterType !== 'all') q = q.eq('event_type', filterType)
       if (filterSev  !== 'all') q = q.eq('severity', filterSev)
       if (filterUser)           q = q.ilike('user_email', `%${filterUser}%`)
       if (search)               q = q.ilike('message', `%${search}%`)
-      const { data, count, error } = await q
+      const { data, error } = await q
       clearTimeout(t)
-      if (error) return
-      set({ logs: data || [], logsTotal: count || 0 })
-    } catch { clearTimeout(t) } finally { set({ logsLoading: false }) }
+      if (error) { console.error('[loadLogs]', error.message); return }
+      const rows    = data || []
+      const hasMore = rows.length > pageSize
+      const visible = hasMore ? rows.slice(0, pageSize) : rows
+      // logsTotal: estimación mínima para mostrar paginación correcta
+      const estimated = page * pageSize + visible.length + (hasMore ? 1 : 0)
+      set({ logs: visible, logsTotal: estimated })
+    } catch (e) { console.error('[loadLogs]', e); clearTimeout(t) } finally { set({ logsLoading: false }) }
   },
 
   // ── Invalidar cache ───────────────────────────────────────────────────
