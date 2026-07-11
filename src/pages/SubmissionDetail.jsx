@@ -873,7 +873,8 @@ export default function SubmissionDetail() {
         .catch(e => console.warn('[Photo] DB persist failed:', e.message))
 
       // 5. Audit log
-      const editedBy = user?.email || user?.username || 'admin'
+      const editedBy = user?.email
+      if (!editedBy) { console.error('[Audit] no hay usuario autenticado, se omite el registro'); return }
       insertSubmissionEdit(submissionId, editedBy,
         { [assetType]: { from: '—', to: publicUrl, label: `Foto subida: ${assetType}` } },
         `Foto subida desde panel: ${file.name}`)
@@ -899,7 +900,8 @@ export default function SubmissionDetail() {
   // ─────────────────────────────────────────────────────────────
   const handlePhotoDelete = useCallback(async (assetType) => {
     if (!submissionId || !assetType) return
-    const editedBy      = user?.email || user?.username || 'admin'
+    const editedBy      = user?.email
+    if (!editedBy) { console.error('[Audit] no hay usuario autenticado, se omite el registro'); return }
     const siteName      = extractSiteInfo(submission)?.nombreSitio || submissionId
     const currentAsset  = assets?.find(a => a.asset_type === assetType)
     const prevUrl       = currentAsset?.public_url || '—'
@@ -944,7 +946,8 @@ export default function SubmissionDetail() {
   // Path de Storage usa '_' en lugar de ':' para evitar StorageApiError
   const handlePhotoUploadAdditional = useCallback(async (file, acronym) => {
     if (!file || !submission || !submissionId || !acronym) return
-    const editedBy = user?.email || user?.username || 'admin'
+    const editedBy = user?.email
+    if (!editedBy) { console.error('[Audit] no hay usuario autenticado, se omite el registro'); return }
     const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
     setUploadStatus('uploading')
     try {
@@ -1012,14 +1015,19 @@ export default function SubmissionDetail() {
     setSaving(true)
     try {
       await updateSubmissionPayload(submissionId, submission.payload, { __finalized__: newVal })
-      insertSubmissionEdit(submissionId, user.username, {
-        estado: {
-          from:  fin ? 'Completado' : 'En progreso',
-          to:    newVal ? 'Completado' : 'En progreso',
-          label: 'Estado',
-        },
-      }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a En progreso desde el panel')
-        .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
+      const auditBy = user?.email
+      if (auditBy) {
+        insertSubmissionEdit(submissionId, auditBy, {
+          estado: {
+            from:  fin ? 'Completado' : 'En progreso',
+            to:    newVal ? 'Completado' : 'En progreso',
+            label: 'Estado',
+          },
+        }, newVal ? 'Marcado como Completado desde el panel' : 'Revertido a En progreso desde el panel')
+          .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
+      } else {
+        console.error('[Audit] no hay usuario autenticado, se omite el registro de estado')
+      }
 
       // ── Log del cambio de formulario ───────────────────────────────────────
       const siteName = extractSiteInfo(submission)?.nombreSitio || submissionId
@@ -1082,7 +1090,8 @@ export default function SubmissionDetail() {
       }
 
       await updateSubmissionPayload(submissionId, submission.payload, pendingEdits)
-      const editedBy = user?.email || user?.username || 'admin'
+      const editedBy = user?.email
+      if (!editedBy) { console.error('[Audit] no hay usuario autenticado, se omite el registro'); return }
       insertSubmissionEdit(submissionId, editedBy, changes, note)
         .catch(e => console.warn('[Audit] submission_edits not available yet:', e.message))
       LOG.submissionEdited(
