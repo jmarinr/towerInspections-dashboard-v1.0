@@ -63,6 +63,27 @@ export async function fetchSubmissions({ formCode, orgCode, regionIds, limit = 2
       return inner.data || inner.meta || p._meta || p.form_code
     })
     .filter(s => isFormVisible(s.form_code))
+    // ── Deduplicar por site_visit_id + form_code normalizado ──────────────
+    // Cuando el Inspector App genera filas duplicadas (bug de form_code en
+    // español vs inglés), elegir la más reciente por updated_at como canónica.
+    // Esto garantiza que la lista de Formularios sea consistente con la vista
+    // de detalle (fetchSubmissionWithAssets), que usa el mismo criterio.
+    .reduce((acc, s) => {
+      if (!s.site_visit_id) { acc.push(s); return acc }
+      const key = `${s.site_visit_id}::${normalizeFormCode(s.form_code)}`
+      const existing = acc.findIndex(x =>
+        x.site_visit_id && `${x.site_visit_id}::${normalizeFormCode(x.form_code)}` === key
+      )
+      if (existing === -1) {
+        acc.push(s)
+      } else {
+        // Mantener la más reciente por updated_at
+        const existingTime = new Date(acc[existing].updated_at || 0).getTime()
+        const currentTime  = new Date(s.updated_at || 0).getTime()
+        if (currentTime > existingTime) acc[existing] = s
+      }
+      return acc
+    }, [])
 }
 
 /**
