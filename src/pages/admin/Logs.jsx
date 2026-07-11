@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Search, RefreshCw, Filter, X, ShieldAlert, LogIn, LogOut, UserPlus, UserCog, FileEdit, AlertCircle, Info } from 'lucide-react'
 import { supabase } from '../../lib/supabaseClient'
 import Spinner from '../../components/ui/Spinner'
@@ -6,18 +6,23 @@ import { useAdminStore } from '../../store/useAdminStore'
 
 // ── Configuración de tipos de evento ─────────────────────────────────────────
 const EVENT_META = {
-  'auth.login':            { label:'Login',                icon: LogIn,       color:'#16a34a', bg:'#f0fdf4' },
-  'auth.login_failed':     { label:'Login fallido',        icon: ShieldAlert, color:'#dc2626', bg:'#fef2f2' },
-  'auth.logout':           { label:'Logout',               icon: LogOut,      color:'#7a8fa0', bg:'#f1f5f9' },
-  'user.created':          { label:'Usuario creado',       icon: UserPlus,    color:'#0284C7', bg:'#e0f2fe' },
-  'user.updated':          { label:'Usuario modificado',   icon: UserCog,     color:'#d97706', bg:'#fef3c7' },
-  'user.deactivated':      { label:'Usuario desactivado',  icon: UserCog,     color:'#dc2626', bg:'#fef2f2' },
-  'submission.received':   { label:'Formulario recibido',  icon: FileEdit,    color:'#7c3aed', bg:'#f5f3ff' },
-  'submission.finalized':  { label:'Formulario finalizado',icon: FileEdit,    color:'#16a34a', bg:'#f0fdf4' },
-  'submission.edited':     { label:'Formulario editado',   icon: FileEdit,    color:'#d97706', bg:'#fef3c7' },
-  'visit.received':        { label:'Visita recibida',      icon: AlertCircle, color:'#0284C7', bg:'#e0f2fe' },
-  'visit.status_changed':  { label:'Visita actualizada',   icon: AlertCircle, color:'#7a8fa0', bg:'#f1f5f9' },
-  'system.error':          { label:'Error del sistema',    icon: AlertCircle, color:'#dc2626', bg:'#fef2f2' },
+  'auth.login':              { label:'Login',                icon: LogIn,       color:'#16a34a', bg:'#f0fdf4' },
+  'auth.login_failed':       { label:'Login fallido',        icon: ShieldAlert, color:'#dc2626', bg:'#fef2f2' },
+  'auth.logout':             { label:'Logout',               icon: LogOut,      color:'#7a8fa0', bg:'#f1f5f9' },
+  'user.created':            { label:'Usuario creado',       icon: UserPlus,    color:'#0284C7', bg:'#e0f2fe' },
+  'user.updated':            { label:'Usuario modificado',   icon: UserCog,     color:'#d97706', bg:'#fef3c7' },
+  'user.deactivated':        { label:'Usuario desactivado',  icon: UserCog,     color:'#dc2626', bg:'#fef2f2' },
+  'submission.received':     { label:'Formulario recibido',  icon: FileEdit,    color:'#7c3aed', bg:'#f5f3ff' },
+  'submission.finalized':    { label:'Formulario finalizado',icon: FileEdit,    color:'#16a34a', bg:'#f0fdf4' },
+  'submission.edited':       { label:'Formulario editado',   icon: FileEdit,    color:'#d97706', bg:'#fef3c7' },
+  'submission.status_changed':{ label:'Estado formulario',   icon: FileEdit,    color:'#7a8fa0', bg:'#f1f5f9' },
+  'visit.received':          { label:'Visita recibida',      icon: AlertCircle, color:'#0284C7', bg:'#e0f2fe' },
+  'visit.status_changed':    { label:'Visita actualizada',   icon: AlertCircle, color:'#7a8fa0', bg:'#f1f5f9' },
+  'visit.deleted':           { label:'Visita eliminada',     icon: AlertCircle, color:'#7f0000', bg:'#fff1f1' },
+  'visit.reactivated':       { label:'Visita reactivada',    icon: AlertCircle, color:'#166534', bg:'#f0fdf4' },
+  'visit.review_toggled':    { label:'Revisión actualizada', icon: FileEdit,    color:'#0284C7', bg:'#e0f2fe' },
+  'visit.note_saved':        { label:'Nota guardada',        icon: FileEdit,    color:'#d97706', bg:'#fef3c7' },
+  'system.error':            { label:'Error del sistema',    icon: AlertCircle, color:'#dc2626', bg:'#fef2f2' },
 }
 
 const SEVERITY_META = {
@@ -121,19 +126,33 @@ export default function Logs() {
   const [filterSev,    setFilterSev]    = useState('all')
   const [filterUser,   setFilterUser]   = useState('')
 
-  const load = useCallback((pg = 0) => {
-    loadLogs({ page: pg, filterType, filterSev, filterUser, search, pageSize: PAGE_SIZE })
-  }, [filterType, filterSev, filterUser, search, loadLogs])
+  const loadRef = useRef(0)
 
-  useEffect(() => { setPage(0); load(0) }, [filterType, filterSev, filterUser])
-
-  // Búsqueda con debounce
+  // Un único efecto que reacciona a filtros Y página.
+  // Filtros resetean la página a 0 automáticamente.
+  // useRef evita que una carga lenta pise a una más reciente.
   useEffect(() => {
-    const t = setTimeout(() => { setPage(0); load(0) }, 400)
+    const callId = ++loadRef.current
+    const pg = 0
+    setPage(0)
+    const t = setTimeout(() => {
+      if (callId !== loadRef.current) return   // llamada obsoleta
+      loadLogs({ page: pg, filterType, filterSev, filterUser, search, pageSize: PAGE_SIZE })
+    }, search ? 400 : 0)   // debounce solo para búsqueda de texto
     return () => clearTimeout(t)
-  }, [search])
+  }, [filterType, filterSev, filterUser, search])  // eslint-disable-line
 
-  useEffect(() => { load(page) }, [page])
+  // Cambio de página explícito (botones Anterior/Siguiente)
+  const goToPage = (pg) => {
+    setPage(pg)
+    loadRef.current++
+    loadLogs({ page: pg, filterType, filterSev, filterUser, search, pageSize: PAGE_SIZE })
+  }
+
+  const reload = () => {
+    loadRef.current++
+    loadLogs({ page, filterType, filterSev, filterUser, search, pageSize: PAGE_SIZE })
+  }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
@@ -161,7 +180,7 @@ export default function Logs() {
             {total.toLocaleString()} evento{total !== 1 ? 's' : ''} registrado{total !== 1 ? 's' : ''}
           </p>
         </div>
-        <button onClick={() => load(page)}
+        <button onClick={reload}
           className="h-9 px-3 rounded-lg text-[12px] th-text-s flex items-center gap-1.5 transition-colors"
           style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}
           onMouseEnter={e=>e.currentTarget.style.background='var(--row-hover-bg)'}
@@ -297,14 +316,14 @@ export default function Logs() {
             <div className="flex items-center justify-between text-[12px] th-text-m">
               <span>{(page * PAGE_SIZE + 1).toLocaleString()}–{Math.min((page+1)*PAGE_SIZE, total).toLocaleString()} de {total.toLocaleString()}</span>
               <div className="flex gap-1">
-                <button onClick={()=>setPage(p=>Math.max(0,p-1))} disabled={page===0}
+                <button onClick={()=>goToPage(Math.max(0,page-1))} disabled={page===0}
                   className="h-8 px-3 rounded-lg disabled:opacity-40 transition-colors"
                   style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>← Anterior</button>
                 <span className="h-8 px-3 rounded-lg flex items-center"
                   style={{ background:'var(--bg-card)', border:'1px solid var(--border)' }}>
                   {page+1} / {totalPages}
                 </span>
-                <button onClick={()=>setPage(p=>Math.min(totalPages-1,p+1))} disabled={page>=totalPages-1}
+                <button onClick={()=>goToPage(Math.min(totalPages-1,page+1))} disabled={page>=totalPages-1}
                   className="h-8 px-3 rounded-lg disabled:opacity-40 transition-colors"
                   style={{ background:'var(--bg-base)', border:'1px solid var(--border)' }}>Siguiente →</button>
               </div>

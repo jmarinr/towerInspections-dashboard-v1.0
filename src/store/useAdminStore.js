@@ -122,7 +122,6 @@ export const useAdminStore = create((set, get) => ({
   logsTotal:   0,
 
   loadLogs: async ({ page = 0, filterType = 'all', filterSev = 'all', filterUser = '', search = '', pageSize = 50 } = {}) => {
-    if (get().logsLoading) return
     set({ logsLoading: true })
     const t = setTimeout(() => set({ logsLoading: false }), 40000)
     try {
