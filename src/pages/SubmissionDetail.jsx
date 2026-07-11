@@ -35,6 +35,7 @@ import {
   deleteSubmissionAsset,
   fetchSubmissionsForVisit,
   updateSiteVisitStatus,
+  resolveSubmissionIdForUpdate,
 } from '../lib/supabaseQueries'
 import { supabase } from '../lib/supabaseClient'
 import { LOG } from '../lib/logEvent'
@@ -1062,7 +1063,10 @@ export default function SubmissionDetail() {
       }
 
       setTimedOut(false)
-      await refreshDetail(submissionId)
+      // Refrescar con el ID de la fila real (no la shell) para que la UI
+      // refleje el estado correcto tras el save en resolveSubmissionIdForUpdate.
+      const realId = await resolveSubmissionIdForUpdate(submissionId)
+      await refreshDetail(realId)
     } catch (e) {
       console.error(e)
       setSaveError('No se pudo cambiar el estado. Verifica tus permisos o tu conexión.')

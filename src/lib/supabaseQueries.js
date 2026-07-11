@@ -525,7 +525,7 @@ function normalizeSubmission(raw) {
  *
  * Returns the submissionId to use (may be different from the one passed in).
  */
-async function resolveSubmissionIdForUpdate(submissionId) {
+export async function resolveSubmissionIdForUpdate(submissionId) {
   try {
     // Get the site_visit_id and form_code of this submission
     const { data: current, error: fetchErr } = await q(
