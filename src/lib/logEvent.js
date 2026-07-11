@@ -1,23 +1,15 @@
 import { supabase } from './supabaseClient'
 
-// Cache de IP para no hacer fetch en cada evento
-let _cachedIp = null
-async function getClientIp() {
-  if (_cachedIp) return _cachedIp
-  try {
-    const res = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) })
-    const data = await res.json()
-    _cachedIp = data.ip || 'unknown'
-  } catch {
-    _cachedIp = 'unknown'
-  }
-  return _cachedIp
-}
-
 /**
- * Registrar un evento en system_logs.
- * IMPORTANTE: No llama getUser() para evitar interferir con el flujo de auth.
- * Usa fire-and-forget con catch silencioso — nunca bloquea el flujo principal.
+ * Registrar un evento en system_logs via Edge Function log-event.
+ *
+ * La Edge Function se encarga de:
+ *   - Extraer la IP real del cliente desde los headers del servidor
+ *     (cf-connecting-ip / x-forwarded-for) — el browser no puede obtenerla
+ *     directamente sin llamar a servicios externos que bloquean por CORS.
+ *   - Insertar con service_role → nunca falla por RLS.
+ *
+ * Fire-and-forget con catch silencioso — nunca bloquea el flujo principal.
  */
 export async function logEvent({
   event_type,
@@ -32,25 +24,27 @@ export async function logEvent({
   await new Promise(r => setTimeout(r, 500))
 
   try {
-    const ip = await getClientIp()
-
-    const { error } = await supabase.from('system_logs').insert({
-      event_type,
-      message,
-      severity,
-      user_email,
-      user_role,
-      company_id,
-      ip_address: ip,
-      metadata: {
-        ...metadata,
-        user_agent: navigator.userAgent?.substring(0, 200) || 'unknown',
-        url: window.location.pathname,
+    const { error } = await supabase.functions.invoke('log-event', {
+      body: {
+        event_type,
+        message,
+        severity,
+        user_email,
+        user_role,
+        company_id,
+        metadata: {
+          ...metadata,
+          url: window.location.pathname,
+        },
       },
     })
 
-    // Si falla por 401, no reintentar — la sesión puede estar en transición
-    if (error?.code === '401' || error?.status === 401 || error?.message?.includes('JWT')) return
+    if (error) {
+      // Si falla por auth (401/JWT), no reintentar — la sesión puede estar en transición
+      const msg = error?.message || ''
+      if (msg.includes('401') || msg.includes('JWT') || msg.includes('No autorizado')) return
+      console.warn('[logEvent] edge function error:', msg)
+    }
 
   } catch {
     // Los logs nunca deben romper el flujo principal — falla silenciosamente
